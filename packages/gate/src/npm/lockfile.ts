@@ -1,5 +1,6 @@
 import { Option, Result, Schema } from 'effect';
 import { Sha512Integrity } from '../evidence';
+import { nameFromFolder, workspaceMatcher } from './workspaces';
 
 export const npmRegistry = 'https://registry.npmjs.org';
 
@@ -60,6 +61,7 @@ const Entry = Schema.Struct({
   dependencies: Dependencies,
   optionalDependencies: Dependencies,
   devDependencies: Dependencies,
+  workspaces: Schema.optionalKey(Schema.Unknown),
 });
 type Entry = typeof Entry.Type;
 
@@ -84,8 +86,8 @@ function sha512Of(integrity: string | undefined): Sha512Integrity | null {
   return only !== undefined && rest.length === 0 ? only : null;
 }
 
-function isWorkspaceFolder(path: string): boolean {
-  return path === '' || !path.split('/').includes('node_modules');
+function isOutsideNodeModules(path: string): boolean {
+  return !path.split('/').includes('node_modules');
 }
 
 function nameFromPath(path: string): string {
@@ -253,6 +255,44 @@ function entryNode(path: string, entry: Entry): LockfileNode {
   };
 }
 
+function isLinkAt(path: string, name: string): boolean {
+  return (
+    path === `node_modules/${name}` || path.endsWith(`/node_modules/${name}`)
+  );
+}
+
+function workspaceLinks(
+  entries: ReadonlyMap<string, Entry>,
+): ReadonlySet<string> {
+  const declared = workspaceMatcher(entries.get('')?.workspaces);
+  const folders = new Map<string, string | null>();
+  for (const [path, entry] of entries) {
+    if (
+      entry.link === undefined &&
+      entry.resolved === undefined &&
+      declared(path)
+    ) {
+      const name = entry.name ?? nameFromFolder(path);
+      folders.set(name, folders.has(name) ? null : path);
+    }
+  }
+
+  const links = new Set<string>();
+  for (const [path, entry] of entries) {
+    const name = nameFromPath(path);
+    if (
+      entry.link === true &&
+      entry.resolved !== undefined &&
+      isLinkAt(path, name) &&
+      folders.get(name) === entry.resolved
+    ) {
+      links.add(path);
+    }
+  }
+
+  return links;
+}
+
 export function readPackageLock(text: string): PackageLockRead {
   const lock = decodeLock(text);
   if (Result.isFailure(lock)) {
@@ -263,22 +303,40 @@ export function readPackageLock(text: string): PackageLockRead {
   }
 
   const { packages } = lock.success;
-  const nodes = Object.entries(packages).flatMap(
-    ([path, raw]): LockfileNode[] => {
-      const decoded = decodeEntry(raw);
-      if (Result.isFailure(decoded)) {
-        return [{ kind: 'unreadable', path, error: String(decoded.failure) }];
-      }
-
-      const entry = decoded.success;
-      const edges = undeclaredExoticNodes(packages, path, entry);
-      if (isWorkspaceFolder(path) || entry.inBundle === true) {
-        return edges;
-      }
-
-      return [entryNode(path, entry), ...edges];
-    },
+  const decoded = Object.entries(packages).map(
+    ([path, raw]) => [path, decodeEntry(raw)] as const,
   );
+  const workspaces = workspaceLinks(
+    new Map(
+      decoded.flatMap(([path, entry]) =>
+        Result.isSuccess(entry) ? [[path, entry.success] as const] : [],
+      ),
+    ),
+  );
+  const nodes = decoded.flatMap(([path, decodedEntry]): LockfileNode[] => {
+    if (Result.isFailure(decodedEntry)) {
+      return [
+        { kind: 'unreadable', path, error: String(decodedEntry.failure) },
+      ];
+    }
+
+    const entry = decodedEntry.success;
+    const edges = undeclaredExoticNodes(packages, path, entry);
+    if (isOutsideNodeModules(path)) {
+      return entry.link === true
+        ? [
+            { kind: 'unreadable', path, error: 'link outside node_modules' },
+            ...edges,
+          ]
+        : edges;
+    }
+
+    if (workspaces.has(path) || entry.inBundle === true) {
+      return edges;
+    }
+
+    return [entryNode(path, entry), ...edges];
+  });
 
   return { kind: 'read', nodes };
 }

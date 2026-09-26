@@ -20,12 +20,11 @@ Who it's for, in order:
 2. **Fails closed.** Missing evidence is never a pass (AGENTS.md).
 3. **Works with the clients people use** through `gate verify` in CI: package-lock today, pnpm-lock in M2, yarn.lock and bun.lock after. Client hooks are early warnings.
 4. **Sends nothing an install wouldn't, by default.** gate fetches public data (packuments, attestations, feed snapshots) and matches locally. It never uploads a lockfile or a dependency list.
-5. **Good experience.** Targets for M2. Today `verify` needs `--lockfile` and `--evidence` and prints JSON lines only:
+5. **Good experience.** Targets for M2. Today `verify` runs with no flags in a package-lock repository and passes npm workspace links, and prints JSON lines only:
    - One command on a real repo, no config: `npx <name> verify`.
-   - npm workspaces pass without a context file.
    - Every non-ACCEPT line names the rule, the evidence, and the next step: the waiver to write, or the time the version clears `release_age`.
    - Human output on a terminal, JSON lines with `--json`.
-   - A 1,000-node lockfile in under 10 s with a warm cache and under 60 s cold. These are targets, not measurements.
+   - A 1,000-node lockfile in under 10 s with a warm cache and under 60 s cold. Warm means a cache restored from an earlier run, as in CI, so packuments are revalidated and the feed may be downloaded again. These are targets. On 2026-09-26 npm/cli (883 nodes) took 18.4 s warm in that sense, so the warm target isn't met yet. The feed download and packument revalidation make up most of the gap (REVIEW §12, Zero-config run).
 
 Non-goals: replacing npmjs.org, a public mirror, competing on threat intelligence, other ecosystems, and classifiers that block on their own.
 
@@ -127,7 +126,6 @@ Decide before the milestone named.
 |---|---|
 | Apply to NLnet, and the European dimension | 2026-11-03 |
 | npm package name for the CLI | M2 |
-| Workspace defaults: which link nodes pass without `--context` (today they reject, REVIEW §12) | M2 |
 | Certificate output: in-toto VSA or keep JSON lines (REVIEW §6.7) | M2 |
 | Urgent-fix lane for `release_age` (REVIEW §6.4) | M2 |
 | Who signs policy v3 and how orgs upgrade (REVIEW §6.9) | Before v3 |

@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,19 +17,37 @@ import {
   summarizeOutput,
   verifyArgs,
 } from './verify/cases';
+import { recordedLock, recordedLockPath, type Lock } from './workspaces/locks';
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 
-function gate(args: readonly string[]) {
+function raw(
+  args: readonly string[],
+  options: { cwd?: string; env?: Record<string, string> } = {},
+) {
   const run = Bun.spawnSync(['bun', cli, ...args], {
     stdout: 'pipe',
     stderr: 'pipe',
+    ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+    ...(options.env === undefined
+      ? {}
+      : { env: { ...process.env, ...options.env } }),
   });
 
   return {
     exitCode: run.exitCode,
+    stdout: run.stdout.toString(),
     stderr: run.stderr.toString(),
-    nodes: summarizeOutput(run.stdout.toString()),
+  };
+}
+
+function gate(args: readonly string[]) {
+  const run = raw(args);
+
+  return {
+    exitCode: run.exitCode,
+    stderr: run.stderr,
+    nodes: summarizeOutput(run.stdout),
   };
 }
 
@@ -73,19 +98,6 @@ describe('evidence source', () => {
       import.meta.url,
     ),
   );
-  const raw = (args: readonly string[]) => {
-    const run = Bun.spawnSync(['bun', cli, ...args], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
-
-    return {
-      exitCode: run.exitCode,
-      stdout: run.stdout.toString(),
-      stderr: run.stderr.toString(),
-    };
-  };
-
   test('--evidence and --fetch together are refused before anything is fetched', () => {
     const cache = mkdtempSync(join(tmpdir(), 'gate-fetch-'));
     try {
@@ -100,7 +112,7 @@ describe('evidence source', () => {
       ]);
 
       expect(run.stderr).toContain(
-        'gate verify: pass exactly one of --evidence and --fetch',
+        'gate verify: pass --evidence or --fetch, not both',
       );
       expect(run.stdout).toBe('');
       expect(readdirSync(cache)).toEqual([]);
@@ -109,14 +121,154 @@ describe('evidence source', () => {
       rmSync(cache, { recursive: true, force: true });
     }
   });
+});
 
-  test('a run without --evidence or --fetch is refused', () => {
-    const run = raw(['verify', '--lockfile', lockfile]);
+describe('zero config', () => {
+  const at = '2026-05-11T20:14:12Z';
+  const lockfile = fileURLToPath(
+    new URL(
+      'verify/cases/tanstack-react-router-1.169.8/package-lock.json',
+      import.meta.url,
+    ),
+  );
+  const evidence = fileURLToPath(evidenceDir);
 
-    expect(run.stderr).toContain(
-      'gate verify: pass exactly one of --evidence and --fetch',
-    );
-    expect(run.stdout).toBe('');
+  test('without --lockfile, gate verify reads ./package-lock.json', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-cwd-'));
+    try {
+      copyFileSync(lockfile, join(dir, 'package-lock.json'));
+      const explicit = raw([
+        'verify',
+        '--lockfile',
+        lockfile,
+        '--evidence',
+        evidence,
+        '--at',
+        at,
+      ]);
+      const implicit = raw(['verify', '--evidence', evidence, '--at', at], {
+        cwd: dir,
+      });
+
+      expect(implicit.stderr).toBe('');
+      expect(explicit.stdout).not.toBe('');
+      expect(implicit.stdout).toBe(explicit.stdout);
+      expect(implicit.exitCode).toBe(explicit.exitCode);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('without a lockfile in the directory, gate verify fails before fetching', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-cwd-'));
+    try {
+      const run = raw(['verify'], {
+        cwd: dir,
+        env: { XDG_CACHE_HOME: join(dir, 'cache') },
+      });
+
+      expect(run.stderr).toContain(
+        `gate verify: no package-lock.json in ${dir}; pass --lockfile`,
+      );
+      expect(run.stdout).toBe('');
+      expect(existsSync(join(dir, 'cache', 'gate'))).toBe(false);
+      expect(run.exitCode).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+function withPackages(lock: Lock, packages: Lock['packages']): Lock {
+  return { ...lock, packages: { ...lock.packages, ...packages } };
+}
+
+export function linkOutsideRepository(): Lock {
+  return withPackages(recordedLock('npm-cli'), {
+    'node_modules/libnpmaccess': { resolved: '../libnpmaccess', link: true },
+    '../libnpmaccess': { version: '11.0.0' },
+  });
+}
+
+export function linkNoPatternCovers(): Lock {
+  return withPackages(recordedLock('npm-cli'), {
+    'node_modules/vendored': { resolved: 'vendor/vendored', link: true },
+    'vendor/vendored': { version: '1.0.0' },
+  });
+}
+
+export function rootWithoutWorkspaces(): Lock {
+  const lock = recordedLock('npm-cli');
+  const root = Object.entries(lock.packages[''] ?? {}).filter(
+    ([key]) => key !== 'workspaces',
+  );
+
+  return withPackages(lock, { '': Object.fromEntries(root) });
+}
+
+describe('workspace links', () => {
+  const at = '2026-09-26T00:00:00Z';
+  const verifyLock = (lockfile: string) =>
+    gate([
+      'verify',
+      '--lockfile',
+      lockfile,
+      '--evidence',
+      fileURLToPath(evidenceDir),
+      '--at',
+      at,
+    ]);
+
+  test('links to the workspaces npm/cli and sigstore-js declare do not reject', () => {
+    for (const name of ['npm-cli', 'sigstore-js'] as const) {
+      const run = verifyLock(recordedLockPath(name));
+
+      expect(run.stderr).toBe('');
+      expect(run.nodes).toEqual([]);
+      expect(run.exitCode).toBe(0);
+    }
+  });
+
+  const rejectedLinks = (lock: unknown) => {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-workspaces-'));
+    try {
+      const file = join(dir, 'package-lock.json');
+      writeFileSync(file, JSON.stringify(lock));
+      const run = verifyLock(file);
+
+      return {
+        exitCode: run.exitCode,
+        paths: run.nodes.flatMap((node) =>
+          'outcome' in node &&
+          node.outcome === 'REJECT' &&
+          node.reasons.includes('exotic_source')
+            ? [node.path]
+            : [],
+        ),
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  test('a link to a folder outside the repository still rejects', () => {
+    expect(rejectedLinks(linkOutsideRepository())).toEqual({
+      exitCode: 1,
+      paths: ['node_modules/libnpmaccess'],
+    });
+  });
+
+  test('a link no workspaces pattern covers still rejects', () => {
+    expect(rejectedLinks(linkNoPatternCovers())).toEqual({
+      exitCode: 1,
+      paths: ['node_modules/vendored'],
+    });
+  });
+
+  test('every link rejects when the root declares no workspaces', () => {
+    const run = rejectedLinks(rootWithoutWorkspaces());
+
     expect(run.exitCode).toBe(1);
+    expect(run.paths).toHaveLength(16);
   });
 });
