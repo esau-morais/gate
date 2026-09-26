@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Schema } from 'effect';
+import { Sha512Integrity } from '../src/evidence';
 import { NpmVersionFacts } from '../src/npm/facts';
 import { npmVersionEvidence } from '../src/npm/evidence';
 
@@ -33,6 +34,7 @@ const canary = {
 function evidenceFor(
   target: NpmVersionFacts,
   earlier: readonly NpmVersionFacts[],
+  lockfile?: { integrity: Sha512Integrity | null },
 ) {
   return npmVersionEvidence({
     name: 'lib',
@@ -41,6 +43,7 @@ function evidenceFor(
     earlier,
     feeds: { kind: 'checked', hits: [] },
     claims: [],
+    ...(lockfile === undefined ? {} : { lockfile }),
   });
 }
 
@@ -233,6 +236,72 @@ describe('provenance', () => {
     ]);
 
     expect(evidence.earlierProvenance).toBe('unknown');
+  });
+
+  test('failed verification keeps its reason and vouches for no publisher', () => {
+    const failed = { unavailable: 'signed subject is not pkg:npm/lib@1.2.0' };
+    const evidence = evidenceFor(
+      facts('1.2.0', '2026-01-22T00:00:00Z', { provenance: failed }),
+      [facts('1.1.0', '2026-01-01T00:00:00Z', { provenance: failed })],
+    );
+
+    expect(evidence).toMatchObject({
+      provenance: { kind: 'unavailable', reason: failed.unavailable },
+      earlierProvenance: 'unknown',
+      publisher: { kind: 'unknown' },
+    });
+  });
+});
+
+describe('lockfile integrity', () => {
+  const published = Sha512Integrity.make(`sha512-${'A'.repeat(86)}==`);
+  const other = Sha512Integrity.make(`sha512-${'B'.repeat(86)}==`);
+  const target = facts('1.2.0', '2026-01-22T00:00:00Z', {
+    integrity: published,
+  });
+  const check = (lockfile?: { integrity: Sha512Integrity | null }) => {
+    const { source, integrityCheck } = evidenceFor(target, [], lockfile);
+
+    return { integrity: source.integrity, integrityCheck };
+  };
+
+  test('matching the packument ties the decision to those bytes', () => {
+    expect(check({ integrity: published })).toEqual({
+      integrity: published,
+      integrityCheck: 'matched',
+    });
+  });
+
+  test('a lockfile pinning other bytes is a mismatch on the bytes it installs', () => {
+    expect(check({ integrity: other })).toEqual({
+      integrity: other,
+      integrityCheck: 'mismatched',
+    });
+  });
+
+  test('when either side lacks a sha512 the bytes are unknown', () => {
+    expect(check({ integrity: null })).toEqual({
+      integrity: null,
+      integrityCheck: 'unchecked',
+    });
+
+    const unpublished = evidenceFor(
+      facts('1.2.0', '2026-01-22T00:00:00Z', { integrity: null }),
+      [],
+      { integrity: published },
+    );
+
+    expect([unpublished.source.integrity, unpublished.integrityCheck]).toEqual([
+      null,
+      'unchecked',
+    ]);
+  });
+
+  test('without a lockfile the packument integrity stands unchecked', () => {
+    expect(check()).toEqual({
+      integrity: published,
+      integrityCheck: 'unchecked',
+    });
   });
 });
 

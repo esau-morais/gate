@@ -88,6 +88,7 @@ const evidenceEnvironment = new Environment()
         joinedAt: 'google.protobuf.Timestamp',
       },
       installScripts: { kind: 'string' },
+      integrityCheck: 'string',
       feeds: { kind: 'string', hits: 'list<FeedHit>' },
     },
   })
@@ -289,6 +290,7 @@ export function decide(input: {
   const variables = {
     evidence: {
       ...evidence,
+      subject: { ...evidence.subject, version: evidence.subject.version ?? '' },
       source: {
         ...evidence.source,
         integrity: evidence.source.integrity ?? '',

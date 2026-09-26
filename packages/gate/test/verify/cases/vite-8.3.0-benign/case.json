@@ -1,0 +1,29 @@
+{
+  "incident": "benign: a project lockfile pinning vite 8.3.0, a trusted-publisher release from the same repository and workflow as every earlier version",
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://github.com/camsong/You-Dont-Need-jQuery/blob/d413b575d448d0d03b0c790ebbf833e17b7b6bb8/package-lock.json",
+      "facts": "package-lock.json: the root entry and node_modules/vite, verbatim; the other 98 entries dropped"
+    },
+    {
+      "url": "https://api.github.com/repos/camsong/You-Dont-Need-jQuery/commits/d413b575d448d0d03b0c790ebbf833e17b7b6bb8",
+      "facts": "evaluations[0].at (commit time)"
+    }
+  ],
+  "gaps": [
+    "vite's own dependencies are dropped, so this case covers one registry node",
+    "feeds are known empty only as of capture"
+  ],
+  "lockfile": "package-lock.json",
+  "evaluations": [
+    {
+      "at": "2026-09-23T12:17:15Z",
+      "moment": "lockfile commit, 13 days after publish",
+      "exitCode": 0,
+      "nodes": [
+        { "path": "node_modules/vite", "outcome": "ACCEPT", "reasons": [] }
+      ]
+    }
+  ]
+}

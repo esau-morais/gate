@@ -1,0 +1,75 @@
+{
+  "incident": "TanStack, 2026-05-11: a project lockfile committed during the attack pins @tanstack/react-router 1.169.8, which declares the injected git optionalDependency",
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://github.com/shoonyatech/shoonya.web/blob/b59795e484cb513f598624a911a70d4d164fd41e/package-lock.json",
+      "facts": "package-lock.json: the root entry and node_modules/@tanstack/react-router, verbatim; the other 661 entries dropped"
+    },
+    {
+      "url": "https://api.github.com/repos/shoonyatech/shoonya.web/commits/b59795e484cb513f598624a911a70d4d164fd41e",
+      "facts": "evaluations[0].at (commit time)"
+    },
+    {
+      "url": "https://api.osv.dev/v1/vulns/MAL-2026-3465",
+      "facts": "1.169.8 is malicious, alongside 1.169.5"
+    }
+  ],
+  "gaps": [
+    "no public package-lock.json pins 1.169.5: GitHub code search for the commit on 2026-09-26 found one package-lock.json, this one, which pins 1.169.8",
+    "the lockfile has no node for @tanstack/setup, only the edge in react-router's optionalDependencies",
+    "evidence is as of capture. npm removed the 1.169.8 version document and attestation, so its integrity, provenance, publisher and scripts read as unknown; a run at the commit time would have seen them",
+    "the lockfile integrity of 1.169.8 is the only recorded digest of that tarball, so it cannot be cross-checked"
+  ],
+  "lockfile": "package-lock.json",
+  "evaluations": [
+    {
+      "at": "2026-05-11T20:14:12Z",
+      "moment": "lockfile commit, 48 minutes after publish",
+      "exitCode": 1,
+      "nodes": [
+        {
+          "path": "node_modules/@tanstack/react-router",
+          "outcome": "QUARANTINE",
+          "reasons": [
+            "release_age",
+            "integrity_unknown",
+            "provenance_unavailable",
+            "publisher_unknown",
+            "install_scripts_unknown"
+          ]
+        },
+        {
+          "path": "node_modules/@tanstack/react-router",
+          "dependency": "@tanstack/setup",
+          "outcome": "REJECT",
+          "reasons": ["exotic_source", "install_scripts_unknown"]
+        }
+      ]
+    },
+    {
+      "at": "2026-09-26T16:19:55Z",
+      "moment": "capture, after the feed listed 1.169.8",
+      "exitCode": 1,
+      "nodes": [
+        {
+          "path": "node_modules/@tanstack/react-router",
+          "outcome": "REJECT",
+          "reasons": [
+            "feed_match",
+            "integrity_unknown",
+            "provenance_unavailable",
+            "publisher_unknown",
+            "install_scripts_unknown"
+          ]
+        },
+        {
+          "path": "node_modules/@tanstack/react-router",
+          "dependency": "@tanstack/setup",
+          "outcome": "REJECT",
+          "reasons": ["exotic_source", "install_scripts_unknown"]
+        }
+      ]
+    }
+  ]
+}

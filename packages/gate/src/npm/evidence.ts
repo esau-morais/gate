@@ -3,6 +3,7 @@ import type {
   Identity,
   InstallScript,
   PackageVersionEvidence,
+  Sha512Integrity,
 } from '../evidence';
 import type { NpmVersionFacts } from './facts';
 
@@ -11,15 +12,40 @@ const settledAfterMs = 72 * 3_600_000;
 
 type Unknowable<T> = { kind: 'known'; value: T } | { kind: 'unknown' };
 
+type Provenance =
+  | { kind: 'verified'; repository: string; workflow: string }
+  | { kind: 'absent' }
+  | { kind: 'unavailable'; reason: string };
+
+function provenanceOf(facts: NpmVersionFacts): Provenance {
+  const { provenance } = facts;
+  if (provenance === 'absent') {
+    return { kind: 'absent' };
+  }
+
+  if (provenance === 'unknown') {
+    return { kind: 'unavailable', reason: 'provenance unreadable' };
+  }
+
+  return 'unavailable' in provenance
+    ? { kind: 'unavailable', reason: provenance.unavailable }
+    : { kind: 'verified', ...provenance };
+}
+
 function identityOf(facts: NpmVersionFacts): Unknowable<Identity> {
-  if (facts.provenance === 'unknown') {
+  const provenance = provenanceOf(facts);
+  if (provenance.kind === 'unavailable') {
     return { kind: 'unknown' };
   }
 
-  if (facts.provenance !== 'absent') {
+  if (provenance.kind === 'verified') {
     return {
       kind: 'known',
-      value: { kind: 'workflow', ...facts.provenance },
+      value: {
+        kind: 'workflow',
+        repository: provenance.repository,
+        workflow: provenance.workflow,
+      },
     };
   }
 
@@ -90,29 +116,15 @@ function publisherContinuity(
     : { kind: 'changed', identity, earlier: [first, ...rest] };
 }
 
-function provenanceOf(
-  facts: NpmVersionFacts,
-): PackageVersionEvidence['provenance'] {
-  switch (facts.provenance) {
-    case 'absent':
-      return { kind: 'absent' };
-    case 'unknown':
-      return { kind: 'unavailable', reason: 'provenance unreadable' };
-    default:
-      return { kind: 'verified', ...facts.provenance };
-  }
-}
-
 function earlierProvenance(
   earlier: readonly NpmVersionFacts[],
 ): PackageVersionEvidence['earlierProvenance'] {
-  if (earlier.some((facts) => typeof facts.provenance === 'object')) {
+  const kinds = earlier.map((facts) => provenanceOf(facts).kind);
+  if (kinds.includes('verified')) {
     return 'some';
   }
 
-  return earlier.some((facts) => facts.provenance === 'unknown')
-    ? 'unknown'
-    : 'none';
+  return kinds.includes('unavailable') ? 'unknown' : 'none';
 }
 
 function installScriptsOf(facts: NpmVersionFacts): Unknowable<InstallScript[]> {
@@ -169,11 +181,32 @@ function installScriptChange(
     : { kind: 'new', added: [firstAdded, ...restAdded] };
 }
 
+function crossCheck(
+  published: Sha512Integrity | null,
+  lockfile: { integrity: Sha512Integrity | null } | undefined,
+): Pick<PackageVersionEvidence, 'integrityCheck'> & {
+  integrity: Sha512Integrity | null;
+} {
+  if (lockfile === undefined) {
+    return { integrity: published, integrityCheck: 'unchecked' };
+  }
+
+  if (published === null || lockfile.integrity === null) {
+    return { integrity: null, integrityCheck: 'unchecked' };
+  }
+
+  return {
+    integrity: lockfile.integrity,
+    integrityCheck: published === lockfile.integrity ? 'matched' : 'mismatched',
+  };
+}
+
 export function npmVersionEvidence(input: {
   name: string;
   registry: string;
   target: NpmVersionFacts;
   earlier: readonly NpmVersionFacts[];
+  lockfile?: { integrity: Sha512Integrity | null };
   feeds: PackageVersionEvidence['feeds'];
   claims: readonly Claim[];
 }): PackageVersionEvidence {
@@ -191,18 +224,20 @@ export function npmVersionEvidence(input: {
     )
     .toSorted((a, b) => a.time.getTime() - b.time.getTime());
 
+  const { integrity, integrityCheck } = crossCheck(
+    target.integrity,
+    input.lockfile,
+  );
+
   return {
     subject: { ecosystem: 'npm', name: input.name, version: target.version },
-    source: {
-      kind: 'registry',
-      registry: input.registry,
-      integrity: target.integrity,
-    },
+    source: { kind: 'registry', registry: input.registry, integrity },
     publishTime: { kind: 'packument', at: target.time },
     provenance: provenanceOf(target),
     earlierProvenance: earlierProvenance(earlier),
     publisher: publisherContinuity(target, earlier),
     installScripts: installScriptChange(target, earlier.at(-1)),
+    integrityCheck,
     feeds: input.feeds,
     claims: input.claims,
   };

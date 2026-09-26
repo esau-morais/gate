@@ -5,10 +5,12 @@ import { Sha512Integrity, type PackageVersionEvidence } from '../src/evidence';
 import { decide, loadPolicy, policyDigest, type Policy } from '../src/policy';
 import {
   loadSupplyChainPolicyV1,
+  loadSupplyChainPolicyV2,
   supplyChainPolicyV1,
 } from './support/policies';
 
 const policy = loadSupplyChainPolicyV1();
+const policyV2 = loadSupplyChainPolicyV2();
 const now = new Date('2026-06-01T00:00:00Z');
 const hours = (n: number) => new Date(now.getTime() - n * 3_600_000);
 const identity = {
@@ -36,6 +38,7 @@ const clean: PackageVersionEvidence = {
   earlierProvenance: 'some',
   publisher: { kind: 'continuous', identity },
   installScripts: { kind: 'none' },
+  integrityCheck: 'matched',
   feeds: { kind: 'checked', hits: [] },
   claims: [],
 };
@@ -43,6 +46,7 @@ const clean: PackageVersionEvidence = {
 function run(
   evidence: Partial<PackageVersionEvidence>,
   options: {
+    canonical?: Policy;
     org?: Policy;
     allowedSources?: readonly unknown[];
     waivers?: readonly unknown[];
@@ -57,7 +61,7 @@ function run(
       ),
       waivers: (options.waivers ?? []).map((entry) => decodeWaiver(entry)),
     },
-    canonical: policy,
+    canonical: options.canonical ?? policy,
     ...(options.org === undefined ? {} : { org: options.org }),
   });
 }
@@ -146,6 +150,48 @@ test('every v1 rule fires on the evidence it guards', () => {
       fired: [code],
     });
   }
+});
+
+describe('SupplyChainPolicy/v2', () => {
+  test('rejects a lockfile integrity the registry does not list', () => {
+    const mismatch = { integrityCheck: 'mismatched' } as const;
+
+    expect(run(mismatch, { canonical: policyV2 })).toMatchObject({
+      outcome: 'REJECT',
+      reasons: [{ code: 'integrity_mismatch', outcome: 'REJECT' }],
+    });
+    expect(run(mismatch).outcome).toBe('ACCEPT');
+  });
+
+  test('keeps every v1 rule and its outcome', () => {
+    expect(policyV2.rules.map((rule) => rule.code)).toEqual([
+      ...policy.rules.map((rule) => rule.code),
+      'integrity_mismatch',
+    ]);
+
+    for (const evidence of [{}, ...Object.values(firesEachRule)]) {
+      const v2 = run(evidence, { canonical: policyV2 });
+
+      expect([v2.outcome, codes(v2)]).toEqual([
+        run(evidence).outcome,
+        codes(run(evidence)),
+      ]);
+    }
+  });
+
+  test('a registry node whose integrity cannot be cross-checked has no bytes', () => {
+    expect(
+      codes(
+        run(
+          {
+            integrityCheck: 'unchecked',
+            source: { ...clean.source, integrity: null },
+          },
+          { canonical: policyV2 },
+        ),
+      ),
+    ).toEqual(['integrity_unknown']);
+  });
 });
 
 test('clean evidence outside the window is accepted', () => {
