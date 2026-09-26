@@ -16,14 +16,18 @@ import { readPackageLock, type LockfileNode } from '../src/npm/lockfile';
 import { maliciousPackagesUrl } from '../src/npm/malware-feed';
 import { feedsFor } from '../src/npm/osv';
 import { npmPackumentFacts } from '../src/npm/packument';
-import { packumentUrl, trimPackument } from '../src/npm/registry';
+import {
+  attestationsUrl,
+  packumentUrl,
+  trimPackument,
+} from '../src/npm/registry';
 import { verifyExitCode, verifyNodes } from '../src/npm/verify';
 import {
   collectedAt,
   fakeNetwork,
   feedArchive,
-  json,
   packumentHeaders,
+  recordedResponse,
   recordedRoutes,
   type FakeNetwork,
 } from './collect/recorded';
@@ -269,6 +273,36 @@ describe('malware feed', () => {
     ]);
   });
 
+  test('an archive with no npm records is unavailable, not an empty feed', async () => {
+    const network = fakeNetwork();
+    network.routes.set(
+      maliciousPackagesUrl,
+      () =>
+        new Response(
+          feedArchive(undefined, 'malicious-packages-no-npm.tar.gz'),
+        ),
+    );
+    const collected = await collect(network, viteNodes());
+
+    expect(existsSync(join(collected.dir, 'osv'))).toBe(false);
+    expect(sourcesOf(collected.dir).gaps).toEqual([
+      'osv/: malicious-packages snapshot: archive holds no npm records',
+    ]);
+  });
+
+  test('a cached archive stamped in the future is downloaded again', async () => {
+    const network = fakeNetwork();
+    const dir = cacheDir();
+    network.advance(7 * 86_400_000);
+    await collect(network, viteNodes(), dir);
+    network.advance(-7 * 86_400_000);
+    await collect(network, viteNodes(), dir);
+
+    expect(
+      network.requests.filter((url) => url === maliciousPackagesUrl),
+    ).toHaveLength(2);
+  });
+
   test('a truncated archive is not read as a partial snapshot, and is fetched again next run', async () => {
     const network = fakeNetwork();
     const archive = feedArchive();
@@ -306,6 +340,17 @@ describe('registry cache', () => {
 
     expect(first).toBe(13);
     expect(network.requests).toHaveLength(first);
+  });
+
+  test('a cached packument stamped in the future is revalidated', async () => {
+    const network = fakeNetwork();
+    const dir = cacheDir();
+    network.advance(7 * 86_400_000);
+    await collect(network, viteNodes(), dir);
+    network.advance(-7 * 86_400_000);
+    await collect(network, viteNodes(), dir);
+
+    expect(network.requests.filter((url) => url === viteUrl)).toHaveLength(2);
   });
 
   test('an expired packument is revalidated with its etag, and a 304 keeps the cached body', async () => {
@@ -367,7 +412,7 @@ describe('registry cache', () => {
     const network = fakeNetwork();
     const name = 'this-package-does-not-exist-gate-probe';
     network.routes.set(packumentUrl(name), () =>
-      json({ error: 'Not found' }, { status: 404, headers: packumentHeaders }),
+      recordedResponse('packument-404.json'),
     );
     const nodes = [registryNode(name, '1.0.0')];
     const collected = await collect(network, nodes);
@@ -388,6 +433,23 @@ describe('registry cache', () => {
         ],
       },
     ]);
+  });
+
+  test('an advertised attestation that 404s reads as unavailable provenance', async () => {
+    const network = fakeNetwork();
+    const url = attestationsUrl('vite', '8.3.0');
+    network.routes.set(url, () => recordedResponse('attestations-404.json'));
+    const collected = await collect(network, viteNodes());
+
+    expect(sourcesOf(collected.dir).gaps).toEqual([
+      `attestations/vite@8.3.0.json: ${url}: HTTP 404`,
+    ]);
+    const [record] = decide(collected.dir, viteNodes(), viteAt).records;
+    expect(record?.kind === 'decision' && record.evidence.provenance).toEqual({
+      kind: 'unavailable',
+      reason: 'attestation bundle not recorded',
+    });
+    expect(record?.kind === 'decision' && record.outcome).toBe('QUARANTINE');
   });
 
   test('a 429 is retried after Retry-After', async () => {
@@ -472,4 +534,21 @@ test('trimming a packument keeps every fact the verifier reads', () => {
   expect(JSON.stringify(trimmed).length).toBeLessThan(
     JSON.stringify(raw).length / 2,
   );
+});
+
+test('a lockfile name that is not an npm name is never fetched or written', async () => {
+  const network = fakeNetwork();
+  const dir = cacheDir();
+  const collected = await collect(
+    network,
+    [registryNode('../../escape', '1.0.0')],
+    dir,
+  );
+
+  expect(network.requests.filter((url) => url.includes('escape'))).toEqual([]);
+  expect(readdirSync(dir).toSorted()).toEqual(['evidence', 'feed']);
+  expect(readdirSync(collected.dir).toSorted()).toEqual([
+    'SOURCES.json',
+    'trusted_root.json',
+  ]);
 });

@@ -146,6 +146,7 @@ export async function collectEvidence(input: {
     }),
   );
   const wanted = new Map<string, { name: string; version: string }>();
+  const skipped: string[] = [];
   for (const { name, fetched } of packuments) {
     if (fetched.kind === 'failed') {
       continue;
@@ -159,6 +160,10 @@ export async function collectEvidence(input: {
       })) {
         if (safeVersion.test(version)) {
           wanted.set(`${name}@${version}`, { name, version });
+        } else {
+          skipped.push(
+            `attestations/${name}: version ${JSON.stringify(version)} is not safe as a file name`,
+          );
         }
       }
     }
@@ -179,7 +184,7 @@ export async function collectEvidence(input: {
   mkdirSync(staging, { recursive: true });
 
   const files: SourceFile[] = [];
-  const gaps: string[] = [];
+  const gaps: string[] = [...skipped];
   const record = (path: string, fetched: Fetched) => {
     if (fetched.kind === 'failed') {
       gaps.push(`${path}: ${fetched.url}: ${fetched.reason}`);

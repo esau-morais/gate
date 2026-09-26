@@ -125,11 +125,11 @@ function writeEntry(path: string, entry: CacheEntry): void {
 
 async function jsonBody(
   response: Response,
-): Promise<{ ok: true; body: unknown } | { ok: false }> {
+): Promise<{ kind: 'parsed'; body: unknown } | { kind: 'unparsable' }> {
   try {
-    return { ok: true, body: JSON.parse(await response.text()) };
+    return { kind: 'parsed', body: JSON.parse(await response.text()) };
   } catch {
-    return { ok: false };
+    return { kind: 'unparsable' };
   }
 }
 
@@ -143,9 +143,15 @@ export async function fetchPackument(
   const path = join(cache.dir, 'packuments', `${name}.json`);
   const cached = readEntry(path);
   const now = cache.http.now();
+  const age =
+    cached === undefined
+      ? undefined
+      : now.getTime() - cached.fetchedAt.getTime();
   const fresh =
     cached?.url === url &&
-    now.getTime() - cached.fetchedAt.getTime() < cached.maxAgeSeconds * 1000;
+    age !== undefined &&
+    age >= 0 &&
+    age < cached.maxAgeSeconds * 1000;
   if (cached !== undefined && fresh) {
     return {
       kind: 'fetched',
@@ -189,7 +195,7 @@ export async function fetchPackument(
   }
 
   const parsed = await jsonBody(response);
-  if (!parsed.ok) {
+  if (parsed.kind === 'unparsable') {
     return { kind: 'failed', url, reason: 'response is not JSON' };
   }
 
@@ -236,7 +242,7 @@ export async function fetchAttestations(
   }
 
   const parsed = await jsonBody(response);
-  if (!parsed.ok) {
+  if (parsed.kind === 'unparsable') {
     return { kind: 'failed', url, reason: 'response is not JSON' };
   }
 

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { Schema } from 'effect';
 import type { Fetch, HttpClient } from '../../src/http';
 import type { CollectSources } from '../../src/npm/collect';
 import { maliciousPackagesUrl } from '../../src/npm/malware-feed';
@@ -24,10 +25,33 @@ export function json(body: unknown, init: ResponseInit = {}): Response {
 
 const collectDir = new URL('./', import.meta.url);
 
-export function feedArchive(dir = collectDir): Uint8Array {
-  return new Uint8Array(
-    readFileSync(new URL('malicious-packages.tar.gz', dir)),
+export function feedArchive(
+  dir = collectDir,
+  file = 'malicious-packages.tar.gz',
+): Uint8Array {
+  return new Uint8Array(readFileSync(new URL(file, dir)));
+}
+
+const RecordedResponse = Schema.fromJsonString(
+  Schema.Struct({
+    url: Schema.String,
+    capturedAt: Schema.String,
+    status: Schema.Int,
+    headers: Schema.Record(Schema.String, Schema.String),
+    body: Schema.Unknown,
+  }),
+);
+const decodeRecorded = Schema.decodeUnknownSync(RecordedResponse);
+
+export function recordedResponse(file: string, dir = collectDir): Response {
+  const recorded = decodeRecorded(
+    readFileSync(new URL(`responses/${file}`, dir), 'utf8'),
   );
+
+  return new Response(JSON.stringify(recorded.body), {
+    status: recorded.status,
+    headers: recorded.headers,
+  });
 }
 
 export function recordedRoutes(

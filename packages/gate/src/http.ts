@@ -14,7 +14,6 @@ export type HttpResult =
   | { readonly kind: 'failed'; readonly reason: string };
 
 const attempts = 3;
-const timeoutMs = 60_000;
 const defaultRetryMs = 1_000;
 const maxRetryMs = 60_000;
 
@@ -39,6 +38,7 @@ export async function request(
   client: HttpClient,
   url: string,
   headers: Record<string, string> = {},
+  timeoutMs = 60_000,
 ): Promise<HttpResult> {
   let reason = 'not attempted';
   for (let attempt = 1; attempt <= attempts; attempt++) {
