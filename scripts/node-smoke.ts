@@ -2,12 +2,22 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {
+  expectedNodes,
+  loadVerifyCases,
+  summarizeOutput,
+  verifyArgs,
+} from '../packages/gate/test/verify/cases';
 
 const outdir = await mkdtemp(join(tmpdir(), 'gate-node-smoke-'));
 
 try {
   const build = await Bun.build({
-    entrypoints: ['packages/cel/src/index.ts', 'packages/gate/src/index.ts'],
+    entrypoints: [
+      'packages/cel/src/index.ts',
+      'packages/gate/src/index.ts',
+      'packages/gate/src/cli.ts',
+    ],
     target: 'node',
     outdir,
     root: 'packages',
@@ -55,6 +65,31 @@ try {
   });
   if (node.exitCode !== 0) {
     process.exitCode = 1;
+  }
+
+  const cli = join(outdir, 'gate/src/cli.js');
+  for (const { name, dir, fixture } of loadVerifyCases()) {
+    for (const evaluation of fixture.evaluations) {
+      const run = Bun.spawnSync(
+        ['node', cli, ...verifyArgs(dir, fixture, evaluation)],
+        { stdout: 'pipe', stderr: 'inherit' },
+      );
+      const actual = summarizeOutput(run.stdout.toString());
+      if (
+        run.exitCode !== evaluation.exitCode ||
+        JSON.stringify(actual) !== JSON.stringify(expectedNodes(evaluation))
+      ) {
+        console.error(
+          `gate verify differs on Node for ${name} at ${evaluation.at.toISOString()}: exit ${run.exitCode}`,
+          actual,
+        );
+        process.exitCode = 1;
+      }
+    }
+  }
+
+  if (process.exitCode !== 1) {
+    console.log('gate verify bundle replays every lockfile case on Node');
   }
 } finally {
   await rm(outdir, { recursive: true, force: true });

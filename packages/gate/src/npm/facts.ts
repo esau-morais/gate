@@ -12,6 +12,7 @@ export const NpmVersionFacts = Schema.Struct({
       repository: Schema.NonEmptyString,
       workflow: Schema.NonEmptyString,
     }),
+    Schema.Struct({ unavailable: Schema.NonEmptyString }),
   ]),
   npmUser: Schema.NullOr(Schema.NonEmptyString),
   scripts: Schema.Union([

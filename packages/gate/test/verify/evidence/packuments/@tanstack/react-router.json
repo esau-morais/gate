@@ -1,0 +1,225 @@
+{
+  "name": "@tanstack/react-router",
+  "time": {
+    "1.168.21": "2026-04-13T23:31:11.089Z",
+    "1.168.22": "2026-04-15T00:22:54.343Z",
+    "1.168.23": "2026-04-18T20:08:24.208Z",
+    "1.168.24": "2026-04-24T23:24:05.277Z",
+    "1.168.25": "2026-04-27T07:58:07.277Z",
+    "1.168.26": "2026-04-29T20:18:51.204Z",
+    "1.169.0": "2026-04-30T17:52:04.270Z",
+    "1.169.1": "2026-05-01T00:07:33.123Z",
+    "1.169.2": "2026-05-05T20:37:38.526Z",
+    "1.169.5": "2026-05-11T19:20:42.105Z",
+    "1.169.8": "2026-05-11T19:26:17.716Z"
+  },
+  "versions": {
+    "1.168.21": {
+      "name": "@tanstack/react-router",
+      "version": "1.168.21",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-slnitYiHHmU52eMWtW8JbV9EMT5q6mRMbTA5yepBmJAnj5WZDrDRsLY/TuUrdD97A4W7/25tEQRoqc1G2X0oCw==",
+        "shasum": "08322c20b5e6b06b62a9950416feca47597583f8",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.168.21.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.168.21",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.168.22": {
+      "name": "@tanstack/react-router",
+      "version": "1.168.22",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-W2LyfkfJtDCf//jOjZeUBWwOVl8iDRVTECpGHa2M28MT3T5/VVnjgicYNHR/ax0Filk1iU67MRjcjHheTYvK1Q==",
+        "shasum": "f5d16ab03363dd5bcfca36d5f2e5115a90c166af",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.168.22.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.168.22",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.168.23": {
+      "name": "@tanstack/react-router",
+      "version": "1.168.23",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-+GblieDnutG6oipJJPNtRJjrWF8QTZEG/l0532+BngFkVK48oHNOcvIkSoAFYftK1egAwM7KBxXsb0Ou+X6/MQ==",
+        "shasum": "a350bfdb401c7ca01929980b54cec238a91fc7b9",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.168.23.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.168.23",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.168.24": {
+      "name": "@tanstack/react-router",
+      "version": "1.168.24",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-CQWd9ywDZU6icG65SrjJMzWcNg/ehBKFxfxYssKSuELk0eM9SzJxJ3JBI760kdLXIsXewOX9PHpJDknxC/R5Ag==",
+        "shasum": "d33a5b9e41ebff4b4407845c4efbe0f68501a1ce",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.168.24.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.168.24",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.168.25": {
+      "name": "@tanstack/react-router",
+      "version": "1.168.25",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-4U/E76dc+fYuLixjV1RLNfqrkQoexSL8MqGNpIHOodtvY3fMPGaALrvDVtBDQYBEU4z5r5fHaV6+kclWAVFP9A==",
+        "shasum": "9301cb8e1f3cbe4b14eddb88e947fd529a84d1b7",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.168.25.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.168.25",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.168.26": {
+      "name": "@tanstack/react-router",
+      "version": "1.168.26",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-+MV+U5KfMUQGZIU/x8MU3FMRSujxLs678v2jhu1Y8P9ndQBKLVOBYKFY+vv/ypxBUYiyDiOsZkDxPJC8UPo/Ig==",
+        "shasum": "34943def22a96ef60ca2bf833947dee21a35445d",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.168.26.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.168.26",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.169.0": {
+      "name": "@tanstack/react-router",
+      "version": "1.169.0",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-HI4eIwxw9ccTIRMZTwFKcpsBPguUshhGmY5EhUZpW7hV/Ag7gqQ9v+T7S+lc1isAKiOXUf6PKh9x43v6PkSprw==",
+        "shasum": "aebdb2546b24ebb13715328fe5d419a594e509e9",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.169.0.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.169.0",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.169.1": {
+      "name": "@tanstack/react-router",
+      "version": "1.169.1",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-MBtQKSvac3OCcsSa6oBpDrrN90IV47I6Gtv05NxhbFVh+gVjtqvs6HSU4XM9+y5sHZPgS+35eArflX4vM8GEnQ==",
+        "shasum": "6dac03bca8db469208a596de5f5b81a7a3178cef",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.169.1.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.169.1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    },
+    "1.169.2": {
+      "name": "@tanstack/react-router",
+      "version": "1.169.2",
+      "scripts": {},
+      "_npmUser": {
+        "name": "GitHub Actions",
+        "trustedPublisher": {
+          "id": "github",
+          "oidcConfigId": "oidc:3bb9f032-aa47-415c-a32a-6d3277f24f0b"
+        }
+      },
+      "dist": {
+        "integrity": "sha512-OJM7Kguc7ERnweaNRWsyWgIKcl3z23rD1B4jaxjzd9RGdnzpt2HfrWa9rggbT0Hfzhfo4D2ZmsfoTme035tniQ==",
+        "shasum": "9590a308fa3a7369f0db7b4d6c39e64167671781",
+        "tarball": "https://registry.npmjs.org/@tanstack/react-router/-/react-router-1.169.2.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.169.2",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        }
+      }
+    }
+  }
+}

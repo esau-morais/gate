@@ -1,0 +1,33 @@
+{
+  "capturedAt": "2026-09-26",
+  "files": [
+    {
+      "path": "packuments/vite.json",
+      "url": "https://registry.npmjs.org/vite",
+      "sanitized": "kept name, time and versions for 8.3.0 and the 10 versions published before it; each version keeps name, version, install hooks from scripts, gypfile, _npmUser without email, and dist integrity, shasum, tarball, attestations"
+    },
+    {
+      "path": "packuments/@tanstack/react-router.json",
+      "url": "https://registry.npmjs.org/@tanstack%2freact-router",
+      "sanitized": "same trim as vite, around 1.169.8; npm removed the 1.169.5 and 1.169.8 version documents and kept their time entries"
+    },
+    {
+      "path": "attestations/vite@<version>.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/vite@<version>",
+      "sanitized": "unchanged, one response per version in packuments/vite.json"
+    },
+    {
+      "path": "osv/MAL-2026-3465.json",
+      "url": "https://api.osv.dev/v1/vulns/MAL-2026-3465",
+      "sanitized": "unchanged. OSV query by package (https://api.osv.dev/v1/query) returned no MAL entry for vite or @tanstack/setup"
+    },
+    {
+      "path": "trusted_root.json",
+      "url": "https://tuf-repo-cdn.sigstore.dev/targets/6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66.trusted_root.json",
+      "sanitized": "unchanged; fetched with @sigstore/tuf 5.0.0, targets.json version 14, sha256 6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66"
+    }
+  ],
+  "gaps": [
+    "no attestation bundles for @tanstack/react-router: 1.169.8 returns 404, and the earlier versions' bundles are not recorded, so their provenance reads as unknown"
+  ]
+}

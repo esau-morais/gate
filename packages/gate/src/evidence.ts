@@ -44,7 +44,7 @@ export const PackageVersionEvidence = Schema.Struct({
   subject: Schema.Struct({
     ecosystem: Schema.Literal('npm'),
     name: Text,
-    version: Text,
+    version: Schema.NullOr(Text),
   }),
   source: Schema.Union([
     Schema.Struct({
@@ -98,6 +98,7 @@ export const PackageVersionEvidence = Schema.Struct({
     }),
     Unknown,
   ]),
+  integrityCheck: Schema.Literals(['matched', 'mismatched', 'unchecked']),
   feeds: Schema.Union([
     Schema.Struct({
       kind: Schema.Literal('checked'),
