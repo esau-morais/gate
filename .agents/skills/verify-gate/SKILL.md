@@ -33,12 +33,15 @@ Each journey names what it proves and what would falsify it. Read the output, no
 set -eu
 probe="$(mktemp -d)/gate-guard-probe"
 git worktree add --detach "$probe" HEAD
-echo ' ' >> "$probe/packages/gate/policies/supply-chain-policy-v1.json"
-if (cd "$probe" && GATE_GUARD_BASE=HEAD bun scripts/guard.ts); then echo 'guard missed an edited policy'; fi
-git worktree remove --force "$probe"
+trap 'git worktree remove --force "$probe"' EXIT
+cd "$probe"
+bun install --frozen-lockfile --ignore-scripts
+echo ' ' >> packages/gate/policies/supply-chain-policy-v1.json
+if GATE_GUARD_BASE=HEAD bun scripts/guard.ts 2> guard.log; then exit 1; fi
+grep -F 'published policies are immutable' guard.log
 ```
 
-The guard must print `published policies are immutable` and exit 1.
+The probe must print the matching line and exit 0. Any other result means the guard missed the edit or crashed.
 
 ## Unverified journeys
 

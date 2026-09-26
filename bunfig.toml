@@ -1,3 +1,4 @@
 [install]
+auto = "disable"
 exact = true
 minimumReleaseAge = 259200

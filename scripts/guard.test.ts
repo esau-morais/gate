@@ -55,7 +55,8 @@ function editFirstReport(edit: (evaluation: Evaluation) => Evaluation) {
 }
 
 const base = {
-  'bunfig.toml': '[install]\nexact = true\nminimumReleaseAge = 259200\n',
+  'bunfig.toml':
+    '[install]\nauto = "disable"\nexact = true\nminimumReleaseAge = 259200\n',
   'package.json': json({ devDependencies: { typescript: '5.9.3' } }),
   'packages/cel/package.json': json({
     devDependencies: { '@bufbuild/cel-spec': '0.6.1' },
@@ -234,25 +235,35 @@ describe('install settings', () => {
   test('flags a shorter release age', () => {
     expectViolation(
       check({
-        'bunfig.toml': '[install]\nexact = true\nminimumReleaseAge = 3600\n',
+        'bunfig.toml':
+          '[install]\nauto = "disable"\nexact = true\nminimumReleaseAge = 3600\n',
       }),
       'minimumReleaseAge',
     );
   });
 
   test('flags a missing release age', () => {
-    expect(check({ 'bunfig.toml': '[install]\nexact = true\n' })).toHaveLength(
-      1,
-    );
+    expect(
+      check({ 'bunfig.toml': '[install]\nauto = "disable"\nexact = true\n' }),
+    ).toHaveLength(1);
   });
 
   test('flags release age exclusions', () => {
     expectViolation(
       check({
         'bunfig.toml':
-          '[install]\nexact = true\nminimumReleaseAge = 259200\nminimumReleaseAgeExcludes = ["effect"]\n',
+          '[install]\nauto = "disable"\nexact = true\nminimumReleaseAge = 259200\nminimumReleaseAgeExcludes = ["effect"]\n',
       }),
       'minimumReleaseAgeExcludes',
+    );
+  });
+
+  test('flags auto-install, which ignores the lockfile', () => {
+    expectViolation(
+      check({
+        'bunfig.toml': '[install]\nexact = true\nminimumReleaseAge = 259200\n',
+      }),
+      'auto',
     );
   });
 

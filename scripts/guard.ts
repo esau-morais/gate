@@ -167,6 +167,11 @@ function checkBunfig(head: Tree): string[] {
           `bunfig.toml: minimumReleaseAge must be at least ${minimumReleaseAge}`,
         ]),
     ...(install['exact'] === true ? [] : ['bunfig.toml: exact must be true']),
+    ...(install['auto'] === 'disable'
+      ? []
+      : [
+          'bunfig.toml: auto must be "disable"; auto-install ignores the lockfile',
+        ]),
     ...('minimumReleaseAgeExcludes' in install
       ? ['bunfig.toml: minimumReleaseAgeExcludes bypasses the release age']
       : []),
