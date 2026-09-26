@@ -453,3 +453,32 @@ describe('workspace links', () => {
     }
   });
 });
+
+describe('entries outside node_modules', () => {
+  const kinds = (packages: Record<string, unknown>) =>
+    nodes(lock(packages)).map((node) => [node.path, node.kind]);
+
+  test('a link entry outside node_modules is unreadable', () => {
+    expect(
+      kinds({
+        'vendor/x': { resolved: '../evil', link: true },
+        '../evil': { name: 'evil', version: '1.0.0' },
+      }),
+    ).toEqual([['vendor/x', 'unreadable']]);
+  });
+
+  test('a folder entry no link points at and no workspace declares is unreadable', () => {
+    expect(kinds({ '../evil': { name: 'evil', version: '1.0.0' } })).toEqual([
+      ['../evil', 'unreadable'],
+    ]);
+  });
+
+  test('the target of a link is read through the link', () => {
+    expect(
+      kinds({
+        'node_modules/x': { resolved: '../x', link: true },
+        '../x': { name: 'x', version: '1.0.0' },
+      }),
+    ).toEqual([['node_modules/x', 'package']]);
+  });
+});
