@@ -7,7 +7,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@effect/platform-bun": "4.0.0-rc.117",
     "@gate/cel": "workspace:*",
+    "@sigstore/bundle": "5.0.0",
+    "@sigstore/protobuf-specs": "0.5.2",
+    "@sigstore/verify": "4.1.2",
     "effect": "4.0.0-rc.117"
   }
 }
