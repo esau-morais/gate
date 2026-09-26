@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { noContext } from '../src/context';
 import { Sha512Integrity } from '../src/evidence';
 import type { LockfileNode } from '../src/npm/lockfile';
 import { readOsvSnapshot } from '../src/npm/osv';
@@ -49,6 +50,7 @@ function decide(node: LockfileNode, evidenceStore = store) {
     store: evidenceStore,
     at,
     policy,
+    context: noContext,
   });
   if (record?.kind !== 'decision') {
     throw new Error('expected a decision');
@@ -135,7 +137,13 @@ describe('gate verify', () => {
   });
 
   test('only a run where every node is accepted exits 0', () => {
-    const accepted = verifyNodes({ nodes: [vite], store, at, policy });
+    const accepted = verifyNodes({
+      nodes: [vite],
+      store,
+      at,
+      policy,
+      context: noContext,
+    });
     const unreadable = verifyNodes({
       nodes: [
         vite,
@@ -144,6 +152,7 @@ describe('gate verify', () => {
       store,
       at,
       policy,
+      context: noContext,
     });
 
     expect(verifyExitCode(accepted)).toBe(0);

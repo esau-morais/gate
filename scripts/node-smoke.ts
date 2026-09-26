@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -5,9 +6,12 @@ import { pathToFileURL } from 'node:url';
 import {
   expectedNodes,
   loadVerifyCases,
+  replayLines,
+  summarizeMatch,
   summarizeOutput,
   verifyArgs,
 } from '../packages/gate/test/verify/cases';
+import { generateTestLogKey } from '../packages/gate/test/support/log';
 
 const outdir = await mkdtemp(join(tmpdir(), 'gate-node-smoke-'));
 
@@ -90,6 +94,65 @@ try {
 
   if (process.exitCode !== 1) {
     console.log('gate verify bundle replays every lockfile case on Node');
+  }
+
+  const key = generateTestLogKey('gate.test/node-smoke');
+  const skey = join(outdir, 'log.key');
+  const vkey = join(outdir, 'log.vkey');
+  const log = join(outdir, 'log');
+  writeFileSync(skey, key.skey, { mode: 0o600 });
+  writeFileSync(vkey, key.vkey);
+  const logged = loadVerifyCases().flatMap(({ dir, fixture }) =>
+    fixture.evaluations.map((evaluation) => {
+      const run = Bun.spawnSync(
+        [
+          'node',
+          cli,
+          ...verifyArgs(dir, fixture, evaluation),
+          '--log',
+          log,
+          '--log-key',
+          skey,
+        ],
+        { stdout: 'pipe', stderr: 'inherit' },
+      );
+      if (run.exitCode !== evaluation.exitCode) {
+        console.error(`gate verify --log failed on Node: exit ${run.exitCode}`);
+        process.exitCode = 1;
+      }
+
+      return summarizeOutput(run.stdout.toString());
+    }),
+  );
+  const expected = JSON.stringify(
+    logged.flat().map((node) => ({ result: 'match', ...node })),
+  );
+  const runtimes = [
+    ['node', cli],
+    ['bun', 'packages/gate/src/cli.ts'],
+  ];
+  for (const runtime of runtimes) {
+    const run = Bun.spawnSync(
+      [...runtime, 'replay', '--log', log, '--public-key', vkey],
+      { stdout: 'pipe', stderr: 'inherit' },
+    );
+    const replayed = replayLines(run.stdout.toString()).map((line) => ({
+      result: line.result,
+      ...summarizeMatch(line),
+    }));
+    if (run.exitCode !== 0 || JSON.stringify(replayed) !== expected) {
+      console.error(
+        `gate replay under ${runtime[0]} differs from the decisions Node logged: exit ${run.exitCode}`,
+        replayed,
+      );
+      process.exitCode = 1;
+    }
+  }
+
+  if (process.exitCode !== 1) {
+    console.log(
+      'gate replay verifies a log written on Node, under Node and Bun',
+    );
   }
 } finally {
   await rm(outdir, { recursive: true, force: true });

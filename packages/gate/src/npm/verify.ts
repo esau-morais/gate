@@ -1,5 +1,7 @@
+import type { DecisionContext } from '../context';
 import type { PackageVersionEvidence } from '../evidence';
 import { decide, type Decision, type Policy } from '../policy';
+import type { DecisionRecord, LockfileDigest } from '../record';
 import { npmVersionEvidence } from './evidence';
 import {
   npmRegistry,
@@ -146,6 +148,7 @@ export function verifyNodes(input: {
   store: EvidenceStore;
   at: Date;
   policy: Policy;
+  context: DecisionContext;
 }): VerifyRecord[] {
   return input.nodes.map((node): VerifyRecord => {
     if (node.kind === 'unreadable') {
@@ -160,7 +163,7 @@ export function verifyNodes(input: {
     const decision = decide({
       evidence,
       now: input.at,
-      context: { allowedSources: [], waivers: [] },
+      context: input.context,
       canonical: input.policy,
     });
 
@@ -174,6 +177,36 @@ export function verifyNodes(input: {
       evidence,
     };
   });
+}
+
+export function decisionRecords(input: {
+  records: readonly VerifyRecord[];
+  context: DecisionContext;
+  lockfile: LockfileDigest;
+}): DecisionRecord[] {
+  return input.records.flatMap((record): DecisionRecord[] =>
+    record.kind === 'decision'
+      ? [
+          {
+            type: 'gate.decision/v1',
+            path: record.path,
+            ...(record.dependency === undefined
+              ? {}
+              : { dependency: record.dependency }),
+            dev: record.dev,
+            optional: record.optional,
+            subject: record.evidence.subject,
+            at: record.at,
+            lockfile: input.lockfile,
+            context: input.context,
+            evidence: record.evidence,
+            outcome: record.outcome,
+            reasons: record.reasons,
+            policies: record.policies,
+          },
+        ]
+      : [],
+  );
 }
 
 export function verifyExitCode(records: readonly VerifyRecord[]): 0 | 1 {

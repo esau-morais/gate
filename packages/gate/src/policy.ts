@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Environment, type ParseResult } from '@gate/cel';
 import { Schema } from 'effect';
-import type { DecisionContext, Waiver } from './context';
+import { Waiver, type DecisionContext } from './context';
 import type { PackageVersionEvidence } from './evidence';
 
 export const PolicyDigest = Schema.String.check(
@@ -9,36 +9,47 @@ export const PolicyDigest = Schema.String.check(
 ).pipe(Schema.brand('PolicyDigest'));
 export type PolicyDigest = typeof PolicyDigest.Type;
 
-export type Outcome = 'ACCEPT' | 'QUARANTINE' | 'REJECT';
-export type PolicyRef = { readonly id: string; readonly digest: PolicyDigest };
+export const Outcome = Schema.Literals(['ACCEPT', 'QUARANTINE', 'REJECT']);
+export type Outcome = typeof Outcome.Type;
 
-export type Reason =
-  | {
-      readonly kind: 'fired';
-      readonly policy: PolicyRef;
-      readonly code: string;
-      readonly outcome: 'QUARANTINE' | 'REJECT';
-    }
-  | {
-      readonly kind: 'failed';
-      readonly policy: PolicyRef;
-      readonly code: string;
-      readonly outcome: 'QUARANTINE' | 'REJECT';
-      readonly error: string;
-    }
-  | {
-      readonly kind: 'waived';
-      readonly policy: PolicyRef;
-      readonly code: string;
-      readonly outcome: 'QUARANTINE';
-      readonly waiver: Waiver;
-    };
+export const PolicyRef = Schema.Struct({
+  id: Schema.NonEmptyString,
+  digest: PolicyDigest,
+});
+export type PolicyRef = typeof PolicyRef.Type;
 
-export type Decision = {
-  readonly outcome: Outcome;
-  readonly reasons: readonly Reason[];
-  readonly policies: readonly PolicyRef[];
-};
+const RuleOutcome = Schema.Literals(['QUARANTINE', 'REJECT']);
+
+export const Reason = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('fired'),
+    policy: PolicyRef,
+    code: Schema.String,
+    outcome: RuleOutcome,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('failed'),
+    policy: PolicyRef,
+    code: Schema.String,
+    outcome: RuleOutcome,
+    error: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('waived'),
+    policy: PolicyRef,
+    code: Schema.String,
+    outcome: Schema.Literal('QUARANTINE'),
+    waiver: Waiver,
+  }),
+]);
+export type Reason = typeof Reason.Type;
+
+export const Decision = Schema.Struct({
+  outcome: Outcome,
+  reasons: Schema.Array(Reason),
+  policies: Schema.NonEmptyArray(PolicyRef),
+});
+export type Decision = typeof Decision.Type;
 
 type Rule = {
   readonly code: string;
@@ -62,7 +73,7 @@ const PolicyDocument = Schema.fromJsonString(
     rules: Schema.NonEmptyArray(
       Schema.Struct({
         code: Schema.String.check(Schema.isPattern(/^[a-z][a-z0-9_]*$/)),
-        outcome: Schema.Literals(['QUARANTINE', 'REJECT']),
+        outcome: RuleOutcome,
         when: Schema.NonEmptyString,
         waivable: Schema.optionalKey(Schema.Boolean),
       }),
@@ -284,7 +295,7 @@ export function decide(input: {
   canonical: Policy;
   org?: Policy;
 }): Decision {
-  const policies =
+  const policies: readonly [Policy, ...Policy[]] =
     input.org === undefined ? [input.canonical] : [input.canonical, input.org];
   const { evidence, now, context } = input;
   const variables = {
@@ -318,5 +329,11 @@ export function decide(input: {
     'ACCEPT',
   );
 
-  return { outcome, reasons, policies: policies.map((policy) => policy.ref) };
+  const [canonical, ...org] = policies;
+
+  return {
+    outcome,
+    reasons,
+    policies: [canonical.ref, ...org.map((policy) => policy.ref)],
+  };
 }
