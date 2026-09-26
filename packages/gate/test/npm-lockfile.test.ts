@@ -2,6 +2,12 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { Sha512Integrity } from '../src/evidence';
 import { readPackageLock, type LockfileNode } from '../src/npm/lockfile';
+import {
+  linkNoPatternCovers,
+  linkOutsideRepository,
+  recordedLock,
+  rootWithoutWorkspaces,
+} from './workspaces/locks';
 
 const sha512 = Sha512Integrity.make(`sha512-${'A'.repeat(86)}==`);
 
@@ -318,4 +324,123 @@ test('the recorded TanStack lockfile declares the injected git dependency', () =
     ['@tanstack/react-router', '1.169.8', 'registry'],
     ['@tanstack/setup', null, 'git'],
   ]);
+});
+
+describe('workspace links', () => {
+  const linkNodes = (value: unknown) =>
+    nodes(JSON.stringify(value)).flatMap((node) =>
+      node.kind === 'package' && node.source.kind === 'file'
+        ? [[node.path, node.source.spec]]
+        : [],
+    );
+  const workspace = (
+    workspaces: unknown,
+    packages: Record<string, unknown>,
+  ) => ({
+    lockfileVersion: 3,
+    packages: { '': { name: 'app', workspaces }, ...packages },
+  });
+
+  test('links to the workspaces npm/cli declares are not nodes', () => {
+    expect(linkNodes(recordedLock('npm-cli'))).toEqual([]);
+  });
+
+  test('links to the workspaces sigstore-js declares with ./packages/* are not nodes', () => {
+    expect(linkNodes(recordedLock('sigstore-js'))).toEqual([]);
+  });
+
+  test('a link to a folder outside the repository stays a file source', () => {
+    expect(linkNodes(linkOutsideRepository())).toEqual([
+      ['node_modules/libnpmaccess', '../libnpmaccess'],
+    ]);
+  });
+
+  test('a link to a folder no workspaces pattern covers stays a file source', () => {
+    expect(linkNodes(linkNoPatternCovers())).toEqual([
+      ['node_modules/vendored', 'vendor/vendored'],
+    ]);
+  });
+
+  test('links stay file sources when the root declares no workspaces', () => {
+    expect(linkNodes(rootWithoutWorkspaces())).toHaveLength(16);
+  });
+
+  test('a link named differently from its workspace stays a file source', () => {
+    const lock = recordedLock('sigstore-js');
+
+    expect(
+      linkNodes({
+        ...lock,
+        packages: {
+          ...lock.packages,
+          'node_modules/sigstore-jest-extended': {
+            resolved: 'packages/jest-types',
+            link: true,
+          },
+        },
+      }),
+    ).toEqual([['node_modules/sigstore-jest-extended', 'packages/jest-types']]);
+  });
+
+  test('a link whose target has no entry stays a file source', () => {
+    expect(
+      linkNodes(
+        workspace(['packages/*'], {
+          'node_modules/a': { resolved: 'packages/a', link: true },
+        }),
+      ),
+    ).toEqual([['node_modules/a', 'packages/a']]);
+  });
+
+  test('the {"packages": [...]} form declares workspaces too', () => {
+    expect(
+      linkNodes(
+        workspace(
+          { packages: ['packages/*'] },
+          {
+            'node_modules/a': { resolved: 'packages/a', link: true },
+            'packages/a': { version: '1.0.0' },
+          },
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  test('* and ** do not match folders that start with a dot', () => {
+    const packages = {
+      'node_modules/a': { resolved: 'packages/.a', link: true },
+      'packages/.a': { name: 'a' },
+      'node_modules/b': { resolved: 'libs/.hidden/b', link: true },
+      'libs/.hidden/b': { version: '1.0.0' },
+      'node_modules/c': { resolved: 'libs/x/y/c', link: true },
+      'libs/x/y/c': { version: '1.0.0' },
+    };
+
+    expect(linkNodes(workspace(['packages/*', 'libs/**'], packages))).toEqual([
+      ['node_modules/a', 'packages/.a'],
+      ['node_modules/b', 'libs/.hidden/b'],
+    ]);
+  });
+
+  test('a declaration with a pattern gate cannot match exactly passes no link', () => {
+    const packages = {
+      'node_modules/a': { resolved: 'packages/a', link: true },
+      'packages/a': { version: '1.0.0' },
+    };
+
+    for (const unsupported of [
+      '!packages/b',
+      'packages/{a,b}',
+      'packages/[ab]',
+      'packages/@(a|b)',
+      '#packages/*',
+      'packages/*/',
+      '../packages/*',
+      'packages\\*',
+    ]) {
+      expect(
+        linkNodes(workspace(['packages/*', unsupported], packages)),
+      ).toEqual([['node_modules/a', 'packages/a']]);
+    }
+  });
 });

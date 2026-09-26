@@ -20,7 +20,7 @@ Who it's for, in order:
 2. **Fails closed.** Missing evidence is never a pass (AGENTS.md).
 3. **Works with the clients people use** through `gate verify` in CI: package-lock today, pnpm-lock in M2, yarn.lock and bun.lock after. Client hooks are early warnings.
 4. **Sends nothing an install wouldn't, by default.** gate fetches public data (packuments, attestations, feed snapshots) and matches locally. It never uploads a lockfile or a dependency list.
-5. **Good experience.** Targets for M2. Today `verify` needs `--lockfile` and `--evidence` and prints JSON lines only:
+5. **Good experience.** Targets for M2. Today `verify` prints JSON lines only:
    - One command on a real repo, no config: `npx <name> verify`.
    - npm workspaces pass without a context file.
    - Every non-ACCEPT line names the rule, the evidence, and the next step: the waiver to write, or the time the version clears `release_age`.
@@ -127,7 +127,6 @@ Decide before the milestone named.
 |---|---|
 | Apply to NLnet, and the European dimension | 2026-11-03 |
 | npm package name for the CLI | M2 |
-| Workspace defaults: which link nodes pass without `--context` (today they reject, REVIEW §12) | M2 |
 | Certificate output: in-toto VSA or keep JSON lines (REVIEW §6.7) | M2 |
 | Urgent-fix lane for `release_age` (REVIEW §6.4) | M2 |
 | Who signs policy v3 and how orgs upgrade (REVIEW §6.9) | Before v3 |

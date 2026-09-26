@@ -1,5 +1,6 @@
 import { Option, Result, Schema } from 'effect';
 import { Sha512Integrity } from '../evidence';
+import { workspaceLinks } from './workspaces';
 
 export const npmRegistry = 'https://registry.npmjs.org';
 
@@ -263,6 +264,7 @@ export function readPackageLock(text: string): PackageLockRead {
   }
 
   const { packages } = lock.success;
+  const workspaces = workspaceLinks(packages);
   const nodes = Object.entries(packages).flatMap(
     ([path, raw]): LockfileNode[] => {
       const decoded = decodeEntry(raw);
@@ -272,7 +274,11 @@ export function readPackageLock(text: string): PackageLockRead {
 
       const entry = decoded.success;
       const edges = undeclaredExoticNodes(packages, path, entry);
-      if (isWorkspaceFolder(path) || entry.inBundle === true) {
+      if (
+        isWorkspaceFolder(path) ||
+        workspaces.has(path) ||
+        entry.inBundle === true
+      ) {
         return edges;
       }
 

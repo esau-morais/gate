@@ -1,9 +1,10 @@
-import { writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
+  evidenceDir,
   expectedNodes,
   loadVerifyCases,
   replayLines,
@@ -12,6 +13,7 @@ import {
   verifyArgs,
 } from '../packages/gate/test/verify/cases';
 import { generateTestLogKey } from '../packages/gate/test/support/log';
+import { recordedLockPath } from '../packages/gate/test/workspaces/locks';
 
 const outdir = await mkdtemp(join(tmpdir(), 'gate-node-smoke-'));
 
@@ -95,6 +97,33 @@ try {
 
   if (process.exitCode !== 1) {
     console.log('gate verify bundle replays every lockfile case on Node');
+  }
+
+  const repo = join(outdir, 'npm-cli');
+  mkdirSync(repo);
+  copyFileSync(recordedLockPath('npm-cli'), join(repo, 'package-lock.json'));
+  const workspaces = Bun.spawnSync(
+    [
+      'node',
+      cli,
+      'verify',
+      '--evidence',
+      fileURLToPath(evidenceDir),
+      '--at',
+      '2026-09-26T00:00:00Z',
+    ],
+    { cwd: repo, stdout: 'pipe', stderr: 'inherit' },
+  );
+  if (workspaces.exitCode !== 0 || workspaces.stdout.toString() !== '') {
+    console.error(
+      `gate verify of ./package-lock.json with npm/cli's workspaces differs on Node: exit ${workspaces.exitCode}`,
+      workspaces.stdout.toString(),
+    );
+    process.exitCode = 1;
+  } else {
+    console.log(
+      "gate verify reads ./package-lock.json and passes npm/cli's workspace links on Node",
+    );
   }
 
   const collect = Bun.spawnSync(

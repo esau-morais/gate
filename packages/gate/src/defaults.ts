@@ -1,0 +1,50 @@
+import { posix, win32 } from 'node:path';
+
+export function defaultCacheDir(input: {
+  platform: NodeJS.Platform;
+  env: Readonly<Record<string, string | undefined>>;
+  home: string;
+}): string {
+  const { platform, env, home } = input;
+  if (platform === 'win32') {
+    const local = env['LOCALAPPDATA'];
+
+    return win32.join(
+      local !== undefined && win32.isAbsolute(local)
+        ? local
+        : win32.join(home, 'AppData', 'Local'),
+      'gate',
+      'cache',
+    );
+  }
+
+  if (platform === 'darwin') {
+    return posix.join(home, 'Library', 'Caches', 'gate');
+  }
+
+  const xdg = env['XDG_CACHE_HOME'];
+
+  return posix.join(
+    xdg !== undefined && posix.isAbsolute(xdg)
+      ? xdg
+      : posix.join(home, '.cache'),
+    'gate',
+  );
+}
+
+export type EvidenceSource =
+  | { readonly kind: 'recorded'; readonly dir: string }
+  | { readonly kind: 'fetch'; readonly cacheDir: string };
+
+export function evidenceSource(
+  flags: { readonly evidence?: string; readonly fetch?: string },
+  defaultCache: () => string,
+): EvidenceSource | undefined {
+  if (flags.evidence !== undefined) {
+    return flags.fetch === undefined
+      ? { kind: 'recorded', dir: flags.evidence }
+      : undefined;
+  }
+
+  return { kind: 'fetch', cacheDir: flags.fetch ?? defaultCache() };
+}

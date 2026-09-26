@@ -1,9 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
 import { DecisionContext, noContext } from './context';
+import { defaultCacheDir, evidenceSource } from './defaults';
 import { appendToLog, LogError, readLog } from './log/log';
 import {
   NoteError,
@@ -27,6 +29,7 @@ import { replayEntry, replayExitCode } from './replay';
 import { UtcTimestamp } from './time';
 
 const decodeAt = Schema.decodeUnknownOption(UtcTimestamp);
+const defaultLockfile = 'package-lock.json';
 const decodeContext = Schema.decodeUnknownSync(
   Schema.fromJsonString(DecisionContext),
 );
@@ -85,7 +88,7 @@ function readKeyFile<A>(path: string, parse: (text: string) => A): A {
 }
 
 type VerifyConfig = {
-  readonly lockfile: string;
+  readonly lockfile: Option.Option<string>;
   readonly evidence: Option.Option<string>;
   readonly fetch: Option.Option<string>;
   readonly context: Option.Option<string>;
@@ -110,22 +113,50 @@ function logTarget(
   };
 }
 
-function evidenceSource(
-  config: VerifyConfig,
-): { kind: 'recorded'; dir: string } | { kind: 'fetch'; cacheDir: string } {
-  if (Option.isSome(config.evidence) === Option.isSome(config.fetch)) {
-    throw new InputError('pass exactly one of --evidence and --fetch');
+function sourceOf(config: VerifyConfig) {
+  const source = evidenceSource(
+    {
+      ...Option.match(config.evidence, {
+        onNone: () => ({}),
+        onSome: (evidence) => ({ evidence }),
+      }),
+      ...Option.match(config.fetch, {
+        onNone: () => ({}),
+        onSome: (fetch) => ({ fetch }),
+      }),
+    },
+    () =>
+      defaultCacheDir({
+        platform: process.platform,
+        env: process.env,
+        home: homedir(),
+      }),
+  );
+  if (source === undefined) {
+    throw new InputError('pass --evidence or --fetch, not both');
   }
 
-  return Option.isSome(config.evidence)
-    ? { kind: 'recorded', dir: config.evidence.value }
-    : { kind: 'fetch', cacheDir: Option.getOrThrow(config.fetch) };
+  return source;
+}
+
+function lockfilePath(config: VerifyConfig): string {
+  if (Option.isSome(config.lockfile)) {
+    return config.lockfile.value;
+  }
+
+  if (!existsSync(defaultLockfile)) {
+    throw new InputError(
+      `no ${defaultLockfile} in ${process.cwd()}; pass --lockfile`,
+    );
+  }
+
+  return defaultLockfile;
 }
 
 const readInputs = (config: VerifyConfig) =>
   attempt(() => {
-    const source = evidenceSource(config);
-    const bytes = readFileSync(config.lockfile);
+    const source = sourceOf(config);
+    const bytes = readFileSync(lockfilePath(config));
 
     return {
       source,
@@ -165,7 +196,10 @@ const verify = Command.make(
   'verify',
   {
     lockfile: Flag.String('lockfile').pipe(
-      Flag.withDescription('package-lock.json (v2 or v3) to verify'),
+      Flag.withDescription(
+        'package-lock.json (v2 or v3) to verify; defaults to ./package-lock.json',
+      ),
+      Flag.optional,
     ),
     evidence: Flag.String('evidence').pipe(
       Flag.withDescription(
@@ -175,7 +209,7 @@ const verify = Command.make(
     ),
     fetch: Flag.String('fetch').pipe(
       Flag.withDescription(
-        'cache directory; fetch live evidence into <dir>/evidence, then verify against it',
+        'cache directory; fetch live evidence into <dir>/evidence, then verify against it. Without --evidence or --fetch, gate fetches into the per-user cache directory',
       ),
       Flag.optional,
     ),

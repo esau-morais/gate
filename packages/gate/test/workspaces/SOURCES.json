@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-09-26",
+  "files": [
+    {
+      "path": "npm-cli.package-lock.json",
+      "url": "https://github.com/npm/cli/blob/0c3b82a9a612c3f9399d35c28c86708b1f8ea7d4/package-lock.json",
+      "sanitized": "lockfileVersion 3, written by arborist 10.0.3 from the same commit (file last changed in c039090578a5b21a1aa3aba9c96e199feaf1823a, 2026-09-22). Kept the root entry's name, version and workspaces, the 16 link entries verbatim, and the name and version of the 16 workspace folder entries; dropped every other field and the other 866 entries"
+    },
+    {
+      "path": "sigstore-js.package-lock.json",
+      "url": "https://github.com/sigstore/sigstore-js/blob/769a53d8713248a8bf49edfc2a5d1955b0dcc24d/package-lock.json",
+      "sanitized": "fetched 2026-09-26T19:16Z. lockfileVersion 3. Kept the root entry's name, version and workspaces (\"./packages/*\"), the 14 link entries verbatim, and the name and version of the 14 workspace folder entries; dropped every other field and entry"
+    }
+  ],
+  "gaps": [
+    "neither lockfile holds a link outside the repository, a link no workspaces pattern covers, or a root without workspaces; the tests derive those cases from these files by hand",
+    "neither root uses the {\"packages\": [...]} form, a negated pattern or **; those cases are hand-written in the tests"
+  ]
+}
