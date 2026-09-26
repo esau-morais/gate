@@ -7,7 +7,11 @@ export class TarError extends Error {
   override readonly name = 'TarError';
 }
 
-export type TarEntry = { readonly path: string; readonly body: Buffer };
+export type TarEntry = {
+  readonly path: string;
+  readonly body: Buffer;
+  readonly mtime: Date;
+};
 
 function field(header: Buffer, start: number, length: number): string {
   const raw = header.subarray(start, start + length);
@@ -61,6 +65,7 @@ type Pending = {
   readonly type: string;
   readonly path: string;
   readonly size: number;
+  readonly mtime: Date;
 };
 
 export async function readTarGz(
@@ -97,7 +102,11 @@ export async function readTarGz(
           nextPath = paxRecords(body).get('path');
         } else {
           if (entry.type === '0' || entry.type === '\0') {
-            onFile({ path: entry.path, body: Buffer.from(body) });
+            onFile({
+              path: entry.path,
+              body: Buffer.from(body),
+              mtime: entry.mtime,
+            });
           }
 
           nextPath = undefined;
@@ -127,6 +136,7 @@ export async function readTarGz(
         type: String.fromCharCode(header[156] ?? 0),
         path: nextPath ?? (prefix === '' ? name : `${prefix}/${name}`),
         size: octal(header, 124, 12),
+        mtime: new Date(octal(header, 136, 12) * 1000),
       };
     }
 

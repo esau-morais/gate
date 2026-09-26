@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
@@ -152,7 +152,7 @@ const collect = (cacheDir: string, lock: PackageLockRead) =>
         cacheDir,
         sources: {
           http: { fetch, now: () => new Date(), sleep },
-          trustedRoot: () => sigstoreTrustedRoot(join(cacheDir, 'tuf')),
+          trustedRoot: () => sigstoreTrustedRoot(resolve(cacheDir, 'tuf')),
         },
       }),
     catch: (error) =>

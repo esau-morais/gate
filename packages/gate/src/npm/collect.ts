@@ -93,7 +93,11 @@ function writeFeed(
   writeJson(root, 'osv/manifest.json', {
     capturedAt: fetchedAt,
     packages: [first, ...rest],
-    source: { url: feed.url, commit: feed.commit },
+    source: {
+      url: feed.url,
+      commit: feed.commit,
+      committedAt: feed.committedAt.toISOString(),
+    },
   });
   for (const record of feed.records) {
     writeJson(root, `osv/${record.id}.json`, record.body);

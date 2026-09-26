@@ -210,6 +210,21 @@ describe('malware feed', () => {
     ]);
   });
 
+  test('the manifest names the commit and commit time the archive was cut from', async () => {
+    const collected = await collect(fakeNetwork(), feedNodes);
+    const manifest: unknown = JSON.parse(
+      readFileSync(join(collected.dir, 'osv/manifest.json'), 'utf8'),
+    );
+
+    expect(manifest).toMatchObject({
+      capturedAt: collectedAt.toISOString(),
+      source: {
+        commit: '673f2310ffc87df8cd80340bf43293eed5837dac',
+        committedAt: '2026-09-26T15:18:56.000Z',
+      },
+    });
+  });
+
   test('keeps withdrawn records, which count until their withdrawal', async () => {
     const collected = await collect(fakeNetwork(), feedNodes);
 
