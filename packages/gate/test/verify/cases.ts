@@ -111,6 +111,47 @@ export function summarizeOutput(stdout: string): NodeSummary[] {
     });
 }
 
+const ReplayLine = Schema.fromJsonString(
+  Schema.Union([
+    Schema.Struct({
+      index: Schema.Int,
+      result: Schema.Literal('match'),
+      path: Schema.String,
+      dependency: Schema.optionalKey(Schema.String),
+      outcome: Schema.String,
+      reasons: Schema.Array(Schema.Struct({ code: Schema.String })),
+    }),
+    Schema.Struct({
+      index: Schema.Int,
+      result: Schema.Literals(['mismatch', 'failed']),
+      error: Schema.String,
+    }),
+  ]),
+);
+const decodeReplayLine = Schema.decodeUnknownSync(ReplayLine);
+
+export function replayLines(stdout: string) {
+  return stdout
+    .split('\n')
+    .filter((line) => line !== '')
+    .map((line) => decodeReplayLine(line));
+}
+
+export function summarizeMatch(
+  line: ReturnType<typeof replayLines>[number],
+): NodeSummary {
+  if (line.result !== 'match') {
+    throw new Error(`entry ${line.index} did not match: ${line.error}`);
+  }
+
+  return {
+    path: line.path,
+    ...(line.dependency === undefined ? {} : { dependency: line.dependency }),
+    outcome: line.outcome,
+    reasons: line.reasons.map((reason) => reason.code).toSorted(),
+  };
+}
+
 export function expectedNodes(
   evaluation: VerifyCase['evaluations'][number],
 ): NodeSummary[] {

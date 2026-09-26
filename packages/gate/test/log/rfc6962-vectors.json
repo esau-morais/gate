@@ -1,0 +1,132 @@
+{
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testonly/constants.go",
+      "facts": "leafInputs (hex) and rootHashes (hex) for tree sizes 0 to 8"
+    },
+    {
+      "url": "https://github.com/transparency-dev/merkle/tree/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion",
+      "facts": "inclusion cases over the same leaves, each with its own source"
+    }
+  ],
+  "leafInputs": [
+    "",
+    "00",
+    "10",
+    "2021",
+    "3031",
+    "40414243",
+    "5051525354555657",
+    "606162636465666768696a6b6c6d6e6f"
+  ],
+  "rootHashes": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+    "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+    "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+    "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+    "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+    "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+    "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+    "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
+  ],
+  "inclusion": [
+    {
+      "leafIdx": 0,
+      "treeSize": 1,
+      "root": "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=",
+      "leafHash": "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=",
+      "proof": [],
+      "wantErr": false,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/0/happy-path.json"
+    },
+    {
+      "leafIdx": 0,
+      "treeSize": 8,
+      "root": "XcnaeacGWamtVZy3Ad7ZoqudgjqtL0lgz+Nw7/RgQyg=",
+      "leafHash": "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=",
+      "proof": [
+        "lqKW0iTyhcZ77pPDD4owkVfw2qNdxbh+QQt4YwoJz8c=",
+        "Xwg/ChozygdqlSeYMlgNs+DvRYS9/x9UyKNg9Q3jAx4=",
+        "a0eq8p7jwq+a+Im8H7klTavTEXfxYjLdaqsDXKOb9uQ="
+      ],
+      "wantErr": false,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/1/happy-path.json"
+    },
+    {
+      "leafIdx": 5,
+      "treeSize": 8,
+      "root": "XcnaeacGWamtVZy3Ad7ZoqudgjqtL0lgz+Nw7/RgQyg=",
+      "leafHash": "QnGia+DYqE8L1UyMMC58s6O10fpngKQLzOKHNHfatlg=",
+      "proof": [
+        "vBoGQ7EuTS18d5GPROD095qDi2z57FtcKD4fTYhZnms=",
+        "yoVOoSjtBQtBs1/8G4e46yveRh6eO1WW7Oa51ZdaCuA=",
+        "037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc="
+      ],
+      "wantErr": false,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/2/happy-path.json"
+    },
+    {
+      "leafIdx": 2,
+      "treeSize": 3,
+      "root": "rra8/idLcKFPsGel5VeCZNsPqbUa9eC6FZFY8yngbnc=",
+      "leafHash": "ApjRIpBtz8EIkstTpzmS/FufST6kybrbJ7eRtBJ6f+c=",
+      "proof": ["+sVCA+fMaWzw38tCySodnbr3CtnmIfS9jZhmLwDjwSU="],
+      "wantErr": false,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/3/happy-path.json"
+    },
+    {
+      "leafIdx": 1,
+      "treeSize": 5,
+      "root": "Tju7H3tHjc/nH7YxYxUZo7yhLJrvyhYSv85ME6hiZNQ=",
+      "leafHash": "lqKW0iTyhcZ77pPDD4owkVfw2qNdxbh+QQt4YwoJz8c=",
+      "proof": [
+        "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=",
+        "Xwg/ChozygdqlSeYMlgNs+DvRYS9/x9UyKNg9Q3jAx4=",
+        "vBoGQ7EuTS18d5GPROD095qDi2z57FtcKD4fTYhZnms="
+      ],
+      "wantErr": false,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/4/happy-path.json"
+    },
+    {
+      "leafIdx": 0,
+      "treeSize": 8,
+      "root": "XcnaeacGWamtVZy3Ad7ZoqudgjqtL0lgz+Nw7/RgQyg=",
+      "leafHash": "V3JvbmdMZWFm",
+      "proof": [
+        "lqKW0iTyhcZ77pPDD4owkVfw2qNdxbh+QQt4YwoJz8c=",
+        "Xwg/ChozygdqlSeYMlgNs+DvRYS9/x9UyKNg9Q3jAx4=",
+        "a0eq8p7jwq+a+Im8H7klTavTEXfxYjLdaqsDXKOb9uQ="
+      ],
+      "wantErr": true,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/1/wrong-leaf.json"
+    },
+    {
+      "leafIdx": 0,
+      "treeSize": 8,
+      "root": "XcnaeacGWamtVZy3Ad7ZoqudgjqtL0lgz+Nw7/RgQyg=",
+      "leafHash": "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=",
+      "proof": [
+        "nqKW0iTyhcZ77pPDD4owkVfw2qNdxbh+QQt4YwoJz8c=",
+        "Xwg/ChozygdqlSeYMlgNs+DvRYS9/x9UyKNg9Q3jAx4=",
+        "a0eq8p7jwq+a+Im8H7klTavTEXfxYjLdaqsDXKOb9uQ="
+      ],
+      "wantErr": true,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/1/modified-proof[0]-bit-@3.json"
+    },
+    {
+      "leafIdx": 1,
+      "treeSize": 8,
+      "root": "XcnaeacGWamtVZy3Ad7ZoqudgjqtL0lgz+Nw7/RgQyg=",
+      "leafHash": "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=",
+      "proof": [
+        "lqKW0iTyhcZ77pPDD4owkVfw2qNdxbh+QQt4YwoJz8c=",
+        "Xwg/ChozygdqlSeYMlgNs+DvRYS9/x9UyKNg9Q3jAx4=",
+        "a0eq8p7jwq+a+Im8H7klTavTEXfxYjLdaqsDXKOb9uQ="
+      ],
+      "wantErr": true,
+      "source": "https://github.com/transparency-dev/merkle/blob/fbbcd741c3d1c69d8498487baa8edc9e5824847c/testdata/inclusion/1/leafIdx-plus-@1.json"
+    }
+  ]
+}

@@ -40,7 +40,10 @@ export const Waiver = Schema.Struct({
 });
 export type Waiver = typeof Waiver.Type;
 
-export type DecisionContext = {
-  readonly allowedSources: readonly AllowedSource[];
-  readonly waivers: readonly Waiver[];
-};
+export const DecisionContext = Schema.Struct({
+  allowedSources: Schema.Array(AllowedSource),
+  waivers: Schema.Array(Waiver),
+});
+export type DecisionContext = typeof DecisionContext.Type;
+
+export const noContext: DecisionContext = { allowedSources: [], waivers: [] };
