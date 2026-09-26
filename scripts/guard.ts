@@ -187,6 +187,10 @@ const dependencyFields = [
   'resolutions',
 ];
 
+function namedIn(review: string, name: string): boolean {
+  return review.includes(`\`${name}\``) || review.includes(`\`${name}@`);
+}
+
 function checkManifest(
   path: string,
   manifest: JsonObject,
@@ -219,7 +223,7 @@ function checkManifest(
   const known = previous?.['dependencies'];
   const undocumented = (isObject(runtime) ? Object.keys(runtime) : [])
     .filter((name) => !(isObject(known) && name in known))
-    .filter((name) => !review.includes(`\`${name}\``))
+    .filter((name) => !namedIn(review, name))
     .map(
       (name) =>
         `${path}: new runtime dependency ${name} is not named in ${reviewPath}`,

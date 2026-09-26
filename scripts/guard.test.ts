@@ -323,6 +323,16 @@ describe('runtime dependencies', () => {
     );
   });
 
+  test('allows a new dependency named with its version', () => {
+    expect(
+      check({
+        'packages/gate/package.json': withDependency('@scope/pkg'),
+        'docs/REVIEW.md':
+          'Use Effect v4 (`effect`). Added `@scope/pkg@1.0.0` because…\n',
+      }),
+    ).toEqual([]);
+  });
+
   test('allows a new dependency named in docs/REVIEW.md', () => {
     expect(
       check({
