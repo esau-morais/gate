@@ -25,7 +25,7 @@ gate's own dependencies come from npm, the registry it protects.
 
 ## Checks
 
-Run `bun run check` before handoff: typecheck, lint, the guard (`scripts/guard.ts`, which rejects weakened policies, fixtures, known failures and install settings against the base branch), then tests under Bun and Node. CI runs the same on every PR. Never claim an absent check passed.
+Run `bun run check` before handoff: typecheck, lint, the guard (`scripts/guard.ts`), then tests under Bun and Node. CI runs the same on every PR. Never claim an absent check passed.
 
 ## packages/cel
 
@@ -75,4 +75,4 @@ Edit skills in `.agents/skills`, which `.claude/skills` points to.
 
 ## Finish the task
 
-Keep changes scoped. Publishing, deploying, merging and destructive operations need task authorization. gate-mode defines the report.
+Keep changes scoped. Publishing, deploying, merging and destructive operations need task authorization. Report what changed, the checks run and their results, and what remains unverified.

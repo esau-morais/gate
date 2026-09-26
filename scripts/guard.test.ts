@@ -1,4 +1,9 @@
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import {
+  decodeReplayFixture,
+  type ReplayFixture,
+} from '../packages/gate/test/replay/fixture';
 import { guardViolations, type Tree } from './guard';
 
 function tree(files: Record<string, string | undefined>): Tree {
@@ -27,14 +32,27 @@ function expectViolation(violations: string[], text: string) {
 }
 
 const digest = `sha256:${'a'.repeat(64)}`;
-const fixturePath = 'packages/gate/test/replay/fixtures/incident.json';
-const fixture = (evaluations: unknown[], miss?: string) =>
-  json({ ...(miss === undefined ? {} : { miss }), evaluations });
-const quarantineAt = (at: string) => ({
-  at,
-  moment: 'first public report',
-  expected: { outcome: 'QUARANTINE', reasons: ['release_age'] },
-});
+const fixturePath =
+  'packages/gate/test/replay/fixtures/tanstack-2026-05-11.json';
+const recorded = readFileSync(
+  new URL(`../${fixturePath}`, import.meta.url),
+  'utf8',
+);
+const recordedFixture = decodeReplayFixture(recorded);
+const firstReport = '2026-05-11T19:46:46Z';
+
+type Evaluation = ReplayFixture['evaluations'][number];
+
+function editFirstReport(edit: (evaluation: Evaluation) => Evaluation) {
+  return json({
+    ...recordedFixture,
+    evaluations: recordedFixture.evaluations.map((evaluation) =>
+      evaluation.at.getTime() === Date.parse(firstReport)
+        ? edit(evaluation)
+        : evaluation,
+    ),
+  });
+}
 
 const base = {
   'bunfig.toml': '[install]\nexact = true\nminimumReleaseAge = 259200\n',
@@ -46,12 +64,12 @@ const base = {
     dependencies: { '@gate/cel': 'workspace:*', effect: '4.0.0-rc.117' },
   }),
   'packages/gate/policies/supply-chain-policy-v1.json': '{"rules":[]}\n',
-  'packages/gate/src/policies.ts': `PolicyDigest.make('${digest}');\n`,
+  'packages/gate/src/policies.ts': `export const v1 = PolicyDigest.make(\n  '${digest}',\n);\n`,
   'packages/cel/test/conformance-known-failures.json': json({
     'basic/a': 'fail',
   }),
-  [fixturePath]: fixture([quarantineAt('2026-05-11T19:46:46Z')]),
-  'docs/REVIEW.md': 'Use Effect v4 (`effect`).\n',
+  [fixturePath]: recorded,
+  'docs/REVIEW.md': 'Use Effect v4 (`effect`) with ms timestamps.\n',
 };
 
 function check(changes: Record<string, string | undefined>) {
@@ -89,10 +107,19 @@ describe('policies', () => {
     ).toEqual([]);
   });
 
-  test('flags a removed pinned digest', () => {
+  test('flags a replaced pinned digest', () => {
     expectViolation(
       check({
-        'packages/gate/src/policies.ts': `PolicyDigest.make('sha256:${'b'.repeat(64)}');\n`,
+        'packages/gate/src/policies.ts': `export const v1 = PolicyDigest.make('sha256:${'b'.repeat(64)}');\n`,
+      }),
+      digest,
+    );
+  });
+
+  test('flags a pinned digest kept only in a comment', () => {
+    expectViolation(
+      check({
+        'packages/gate/src/policies.ts': `// was ${digest}\nexport const v1 = PolicyDigest.make('sha256:${'b'.repeat(64)}');\n`,
       }),
       digest,
     );
@@ -109,20 +136,21 @@ describe('conformance known failures', () => {
     );
   });
 
-  test('allows removing an entry that now passes', () => {
-    expect(
-      check({ 'packages/cel/test/conformance-known-failures.json': json({}) }),
-    ).toEqual([]);
-  });
-
-  test('allows new entries when the cel-spec suite version changes', () => {
-    expect(
+  test('flags a new entry even when the cel-spec suite version changes', () => {
+    expectViolation(
       check({
         'packages/cel/test/conformance-known-failures.json': added,
         'packages/cel/package.json': json({
           devDependencies: { '@bufbuild/cel-spec': '0.7.0' },
         }),
       }),
+      'basic/b',
+    );
+  });
+
+  test('allows removing an entry that now passes', () => {
+    expect(
+      check({ 'packages/cel/test/conformance-known-failures.json': json({}) }),
     ).toEqual([]);
   });
 });
@@ -131,34 +159,47 @@ describe('replay fixtures', () => {
   test('flags a weaker expected outcome', () => {
     expectViolation(
       check({
-        [fixturePath]: fixture([
-          {
-            ...quarantineAt('2026-05-11T19:46:46Z'),
-            expected: { outcome: 'ACCEPT', reasons: [] },
-          },
-        ]),
+        [fixturePath]: editFirstReport((evaluation) => ({
+          ...evaluation,
+          expected: { outcome: 'ACCEPT', reasons: [] },
+        })),
       }),
       'QUARANTINE to ACCEPT',
+    );
+  });
+
+  test('flags a reason dropped at the same outcome', () => {
+    expectViolation(
+      check({
+        [fixturePath]: editFirstReport((evaluation) => ({
+          ...evaluation,
+          expected: { outcome: 'QUARANTINE', reasons: ['release_age'] },
+        })),
+      }),
+      'integrity_unknown',
     );
   });
 
   test('allows a stricter expected outcome', () => {
     expect(
       check({
-        [fixturePath]: fixture([
-          {
-            ...quarantineAt('2026-05-11T19:46:46Z'),
-            expected: { outcome: 'REJECT', reasons: ['feed_hit'] },
-          },
-        ]),
+        [fixturePath]: editFirstReport((evaluation) => ({
+          ...evaluation,
+          expected: { outcome: 'REJECT', reasons: ['feed_hit'] },
+        })),
       }),
     ).toEqual([]);
   });
 
   test('flags a removed evaluation', () => {
     expectViolation(
-      check({ [fixturePath]: fixture([quarantineAt('2026-05-11T20:00:00Z')]) }),
-      '2026-05-11T19:46:46Z',
+      check({
+        [fixturePath]: editFirstReport((evaluation) => ({
+          ...evaluation,
+          at: new Date('2026-05-11T20:00:00Z'),
+        })),
+      }),
+      firstReport,
     );
   });
 
@@ -169,10 +210,7 @@ describe('replay fixtures', () => {
   test('flags a miss added to a caught incident', () => {
     expectViolation(
       check({
-        [fixturePath]: fixture(
-          [quarantineAt('2026-05-11T19:46:46Z')],
-          'not caught',
-        ),
+        [fixturePath]: json({ ...recordedFixture, miss: 'not caught' }),
       }),
       'miss',
     );
@@ -180,6 +218,15 @@ describe('replay fixtures', () => {
 
   test('flags an unreadable fixture instead of skipping it', () => {
     expect(check({ [fixturePath]: '{' })).toHaveLength(1);
+  });
+
+  test('flags an unreadable base fixture instead of skipping it', () => {
+    expect(
+      guardViolations({
+        base: tree({ ...base, [fixturePath]: '{' }),
+        head: tree(base),
+      }),
+    ).toHaveLength(1);
   });
 });
 
@@ -232,34 +279,43 @@ describe('install settings', () => {
       );
     },
   );
+
+  test('flags a dependency field that is not an object', () => {
+    expectViolation(
+      check({ 'package.json': json({ devDependencies: ['typescript'] }) }),
+      'devDependencies',
+    );
+  });
 });
 
 describe('runtime dependencies', () => {
+  const withDependency = (name: string) =>
+    json({
+      dependencies: {
+        '@gate/cel': 'workspace:*',
+        effect: '4.0.0-rc.117',
+        [name]: '1.0.0',
+      },
+    });
+
   test('flags a new dependency with no recorded reason', () => {
     expectViolation(
-      check({
-        'packages/gate/package.json': json({
-          dependencies: {
-            '@gate/cel': 'workspace:*',
-            effect: '4.0.0-rc.117',
-            'left-pad': '1.3.0',
-          },
-        }),
-      }),
+      check({ 'packages/gate/package.json': withDependency('left-pad') }),
       'left-pad',
+    );
+  });
+
+  test('flags a new dependency whose name only appears inside other words', () => {
+    expectViolation(
+      check({ 'packages/gate/package.json': withDependency('ms') }),
+      'ms',
     );
   });
 
   test('allows a new dependency named in docs/REVIEW.md', () => {
     expect(
       check({
-        'packages/gate/package.json': json({
-          dependencies: {
-            '@gate/cel': 'workspace:*',
-            effect: '4.0.0-rc.117',
-            'left-pad': '1.3.0',
-          },
-        }),
+        'packages/gate/package.json': withDependency('left-pad'),
         'docs/REVIEW.md': 'Use Effect v4 (`effect`). `left-pad` because…\n',
       }),
     ).toEqual([]);

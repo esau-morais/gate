@@ -14,7 +14,7 @@ Other agents often work in this repository at the same time. Before editing, run
 ```bash
 git fetch origin
 git worktree add -b <type>/<slice> ../gate-<slice> origin/main
-cd ../gate-<slice> && bun install --frozen-lockfile
+cd ../gate-<slice> && bun install --frozen-lockfile --ignore-scripts
 ```
 
 ## Settle questions yourself
@@ -31,11 +31,9 @@ For a behavior change, write the test first. Run it and confirm it fails for the
 
 ## Report
 
-Lead with the PR link. Then list:
+Lead with the PR link. Beyond what AGENTS.md asks for, list:
 
-- what changed and the checks run, with their results
 - fixtures used, with source URLs and their gaps
 - the failing-before and passing-after runs
 - dependencies added, with their §12 entries
 - questions you settled, and the basis for each
-- what remains unverified
