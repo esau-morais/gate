@@ -41,7 +41,9 @@
     "version": "21.5.0",
     "time": "2025-08-26T22:32:25.482Z",
     "integrity": null,
-    "provenance": "absent",
+    "provenance": {
+      "kind": "absent"
+    },
     "npmUser": null,
     "scripts": {
       "postinstall": "node telemetry.js"
@@ -53,6 +55,7 @@
       "time": "2025-08-21T02:00:07.033Z",
       "integrity": "sha512-WWqUbJxWMxF9Y+g4HdVyZPKnY30itYbaj8RzJPUpipTBsq/U23V+RJ4pa/hnUeZW2XaDLMF4HiTMYzfSr9kclA==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -66,6 +69,7 @@
       "time": "2025-08-21T02:40:35.239Z",
       "integrity": "sha512-clRpBBLW+fI6vnsc0tXyFzUjGj8t/Kk3NS9u7vhWzwh5uWXifpormhaAdv/Grz6RPfBjXfETAcie3nYvmInsHQ==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -79,6 +83,7 @@
       "time": "2025-08-21T03:36:36.348Z",
       "integrity": "sha512-DJYu/AyDXBTv0j9unltOz8FoJUTXiqlBVp7gq+ptnjtIVkPq+cl9Zk2715D745Q/WfUQTBOvwUV3Agvld0WKbg==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -92,6 +97,7 @@
       "time": "2025-08-21T18:52:28.319Z",
       "integrity": "sha512-0LjquNKy9vpoBBAf6yIMZOHAEZvxNQo+V35hcVT2A+d03h+HazlPEnAcBRu3qYhdHPaMANdwmjhKymf93vzP2Q==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -105,6 +111,7 @@
       "time": "2025-08-22T03:53:31.062Z",
       "integrity": "sha512-djwL0FUMIXUH93mQ8vPQ9hERku4yUdZDNJcCtA+Zoi3O4Walangu1WbXrLxh/wj4kwQ7rJ6Quwskv5Jh/3wmKQ==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -118,6 +125,7 @@
       "time": "2025-08-22T15:55:40.777Z",
       "integrity": "sha512-ngIel0qVERk7uRCPGG+9BUm4TFU3eUQuuaQYzRsUll1pPAMwbeEJLFySdgoL01O7L2v0zPS7miHxuMDTbswV/Q==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -131,6 +139,7 @@
       "time": "2025-08-22T19:16:43.845Z",
       "integrity": "sha512-nD8NjJGYk5wcqiATzlsLauvyrSHV2S2YmM2HBIKqTTwVP2sey07MF3wDB9U2BwxIjboahiITQ6pfqFgB79TF2A==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -144,6 +153,7 @@
       "time": "2025-08-23T01:24:03.164Z",
       "integrity": "sha512-+usT6AABYKglmR1fGWRfWC5q31roEvt8ZjBWDwMA0+9KJHjnJYuiUjm1H4M4IUqs9jlVzKi8TimEGWDdWIQwHA==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -157,6 +167,7 @@
       "time": "2025-08-23T03:33:40.092Z",
       "integrity": "sha512-pvL7kE3ZyxzWb5BVkpli3ax5jsnwhmvSQDz6g5vsvJQkj+jObHPhrhrnWmY32RuFrd/DPs4TxXY60bz+rKR0KA==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },
@@ -170,6 +181,7 @@
       "time": "2025-08-26T03:55:53.998Z",
       "integrity": "sha512-jqO7spj1O6LBakv+NogxR/bHcgzV1ZYGyQU9DWjb9a6BHSc/SlXK00UR9Mg5AxVRRhexEkcGZlKK2xfLdtnK4w==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/nrwl/nx",
         "workflow": ".github/workflows/publish.yml"
       },

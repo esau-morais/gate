@@ -130,6 +130,19 @@ describe('registry entries', () => {
     });
   });
 
+  test('two different sha512 digests tie the entry to no bytes', () => {
+    const other = `sha512-${'B'.repeat(86)}==`;
+    const read = (integrity: string) =>
+      only(lock({ 'node_modules/lib': { ...registryEntry, integrity } }));
+
+    expect(read(`${sha512} ${other}`)).toMatchObject({
+      source: { kind: 'registry', integrity: null },
+    });
+    expect(read(`${sha512} ${sha512}`)).toMatchObject({
+      source: { kind: 'registry', integrity: sha512 },
+    });
+  });
+
   test('a registry entry without a version is unreadable', () => {
     expect(
       only(lock({ 'node_modules/lib': { resolved: registryEntry.resolved } }))
@@ -223,6 +236,19 @@ describe('exotic sources', () => {
         hasInstallScript: null,
       },
     ]);
+  });
+
+  test('a declared exotic devDependency is a dev node', () => {
+    expect(
+      nodes(
+        lock({
+          '': {
+            name: 'app',
+            devDependencies: { tool: `github:o/r#${commit}` },
+          },
+        }),
+      ),
+    ).toMatchObject([{ dependency: 'tool', dev: true, optional: false }]);
   });
 
   test('a declared exotic dependency without a pinned commit is unreadable', () => {

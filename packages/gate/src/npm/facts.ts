@@ -1,19 +1,12 @@
 import { Schema } from 'effect';
-import { Sha512Integrity } from '../evidence';
+import { Provenance, Sha512Integrity } from '../evidence';
 import { UtcTimestamp } from '../time';
 
 export const NpmVersionFacts = Schema.Struct({
   version: Schema.NonEmptyString,
   time: UtcTimestamp,
   integrity: Schema.NullOr(Sha512Integrity),
-  provenance: Schema.Union([
-    Schema.Literals(['absent', 'unknown']),
-    Schema.Struct({
-      repository: Schema.NonEmptyString,
-      workflow: Schema.NonEmptyString,
-    }),
-    Schema.Struct({ unavailable: Schema.NonEmptyString }),
-  ]),
+  provenance: Provenance,
   npmUser: Schema.NullOr(Schema.NonEmptyString),
   scripts: Schema.Union([
     Schema.Literal('unknown'),

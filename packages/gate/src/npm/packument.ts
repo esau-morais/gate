@@ -1,8 +1,8 @@
 import { Option, Result, Schema } from 'effect';
-import { Sha512Integrity } from '../evidence';
+import { Sha512Integrity, type Provenance } from '../evidence';
 import { UtcTimestamp } from '../time';
 import type { NpmVersionFacts } from './facts';
-import { verifyNpmProvenance, type TrustMaterial } from './provenance';
+import { verifyNpmProvenance, type TrustRoot } from './provenance';
 
 export type PackumentFacts =
   | {
@@ -53,65 +53,72 @@ function installScripts(doc: VersionDocument): Record<string, string> {
   return runsGyp ? { ...scripts, install: 'node-gyp rebuild' } : scripts;
 }
 
-function provenanceOf(
+type ProvenanceSources = {
+  readonly name: string;
+  readonly attestations: ReadonlyMap<string, unknown>;
+  readonly trust: TrustRoot;
+};
+
+function provenanceFacts(
   doc: VersionDocument,
   integrity: Sha512Integrity | null,
-  input: {
-    name: string;
-    attestations: ReadonlyMap<string, unknown>;
-    trust: TrustMaterial | null;
-  },
-): NpmVersionFacts['provenance'] {
+  sources: ProvenanceSources,
+): Provenance {
+  const unavailable = (reason: string): Provenance => ({
+    kind: 'unavailable',
+    reason,
+  });
   if (doc.dist.attestations?.provenance === undefined) {
-    return 'absent';
+    return { kind: 'absent' };
   }
 
   if (integrity === null) {
-    return { unavailable: 'no sha512 integrity to match' };
+    return unavailable('no sha512 integrity to match');
   }
 
-  if (input.trust === null) {
-    return { unavailable: 'no trusted root' };
+  if (sources.trust.kind === 'unavailable') {
+    return unavailable(sources.trust.reason);
   }
 
-  const attestations = input.attestations.get(doc.version);
+  const attestations = sources.attestations.get(doc.version);
   if (attestations === undefined) {
-    return { unavailable: 'attestation bundle not recorded' };
+    return unavailable('attestation bundle not recorded');
   }
 
   const verified = verifyNpmProvenance({
-    trust: input.trust,
+    trust: sources.trust.material,
     attestations,
-    name: input.name,
+    name: sources.name,
     version: doc.version,
     integrity,
   });
 
   return verified.kind === 'verified'
-    ? { repository: verified.repository, workflow: verified.workflow }
-    : { unavailable: verified.reason };
+    ? {
+        kind: 'verified',
+        repository: verified.repository,
+        workflow: verified.workflow,
+      }
+    : unavailable(verified.reason);
 }
 
 function versionFacts(
   published: Published,
   raw: unknown,
-  input: {
-    name: string;
-    attestations: ReadonlyMap<string, unknown>;
-    trust: TrustMaterial | null;
-  },
+  sources: ProvenanceSources,
 ): NpmVersionFacts {
   const doc = Option.getOrUndefined(decodeVersion(raw));
   if (
     doc === undefined ||
-    doc.name !== input.name ||
+    doc.name !== sources.name ||
     doc.version !== published.version
   ) {
     return {
       ...published,
       integrity: null,
       provenance: {
-        unavailable:
+        kind: 'unavailable',
+        reason:
           raw === undefined
             ? 'version document missing'
             : 'version document unreadable',
@@ -126,19 +133,15 @@ function versionFacts(
   return {
     ...published,
     integrity,
-    provenance: provenanceOf(doc, integrity, input),
+    provenance: provenanceFacts(doc, integrity, sources),
     npmUser: doc._npmUser?.name ?? null,
     scripts: installScripts(doc),
   };
 }
 
-export function npmPackumentFacts(input: {
-  packument: unknown;
-  name: string;
-  version: string;
-  attestations: ReadonlyMap<string, unknown>;
-  trust: TrustMaterial | null;
-}): PackumentFacts {
+export function npmPackumentFacts(
+  input: ProvenanceSources & { packument: unknown; version: string },
+): PackumentFacts {
   const decoded = decodePackument(input.packument);
   if (Result.isFailure(decoded)) {
     return { kind: 'unreadable', reason: 'packument is unreadable' };

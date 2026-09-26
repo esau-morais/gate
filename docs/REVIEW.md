@@ -360,11 +360,10 @@ Accepted 2026-09-26. `packages/gate/test/verify` holds recorded lockfile fragmen
 
 Accepted 2026-09-26. Hand-written with Effect Schema, v2 and v3 only. `@npmcli/arborist` pulls 115 packages (§11).
 
-- A v1 or unknown `lockfileVersion`, or text that isn't a lockfile, is one unreadable record and a non-zero exit. An unreadable entry becomes its own unreadable record and doesn't hide the others.
-- A registry entry must resolve to `https://registry.npmjs.org/<name>/-/<base>-<version>.tgz` for its own name and version. Any other tarball on that host is unreadable. That's the lockfile-injection case lockfile-lint checks. Tarballs on other hosts, including private registries and mirrors, are `url` sources and fail `exotic_source`.
-- Git sources must end in a 40-hex commit or the entry is unreadable. Links and `file:` are `file` sources.
-- A declared git, URL or file dependency with no installed node, found by npm's `node_modules` lookup, becomes its own node. That is how the TanStack edge reaches the policy. Declared registry ranges without a node aren't checked, so a truncated lockfile passes for the entries it lacks.
-- Bundled entries (`inBundle`) ship inside the parent tarball and aren't nodes. Only a sha512 integrity counts.
+- A registry entry must resolve to its own name and version's tarball on registry.npmjs.org, the lockfile-injection check lockfile-lint does. Tarballs on other hosts, mirrors included, are `url` sources until `gate verify` takes a registry setting.
+- An integrity with two different sha512 digests ties the entry to no bytes. ssri accepts a tarball matching any of them, so a second digest could admit other bytes.
+- A declared git, URL or file dependency with no installed node becomes its own node, which is how the TanStack edge reaches the policy. A declared registry range without a node isn't checked, so a truncated lockfile passes for the entries it lacks.
+- Bundled entries ship inside their parent's tarball and aren't nodes.
 
 ### Sigstore dependencies
 
@@ -382,12 +381,12 @@ Accepted 2026-09-26. Added at `4.0.0-rc.117` for the CLI, as the Effect v4 entry
 
 ### gate verify, offline
 
-Accepted 2026-09-26. `gate verify --lockfile <path> --evidence <dir> [--at <UTC>]` prints one JSON line per node: path, dependency for edge nodes, time, outcome, reasons, policy ids and digests, and the evidence. It exits 0 only if every node is ACCEPT. Input and usage errors exit 1 with a message on stderr.
+Accepted 2026-09-26. Missing evidence never reads as clean.
 
-- The evidence directory holds `packuments/<name>.json`, `attestations/<name>@<version>.json` (the npm attestations response), `osv/**/*.json` and `trusted_root.json`. Scoped names are subdirectories. A name that isn't a valid npm name is never turned into a path.
-- History provenance needs a bundle per earlier version. An earlier version whose bundle isn't recorded reads as unknown.
-- A registry node with no packument, a packument for another name, or a target missing from `time` gets all-unknown evidence and quarantines.
-- If the lockfile records `hasInstallScript` and the packument lists no install hook, scripts are unknown. A `gypfile` with no install hook counts as `install: node-gyp rebuild`, which is what npm runs.
-- Non-registry nodes have no publish time, provenance or publisher. Their scripts are `none` only if the lockfile says so.
-- OSV: a hit counts from the earliest `import_time` of an origin that lists the version, then any origin, then `published`. Withdrawn entries stop counting when withdrawn. gate evaluates version lists and ranges open from `0`. Any other range makes feeds unavailable for that package, and an unreadable record makes the whole snapshot unavailable. A node without a version matches every entry for its name.
-- Not yet: allowlists and waivers can't be passed to `gate verify`, so every git, URL, file and workspace-link node is rejected.
+- Install scripts of git, URL and file sources are always unknown. npm runs `prepare` when it builds a git dependency, and the lockfile's `hasInstallScript` doesn't cover that.
+- An OSV snapshot needs `osv/manifest.json` with its capture time and the packages it covers, or `all` for a full clone of ossf/malicious-packages. Without it, feeds are unavailable: an empty or partial directory can't prove a package is clean. A package the manifest doesn't cover is unavailable, and so is every package once evaluation is more than 24 hours after capture. The feed updates several times a day, and 24 hours bounds how long a missed listing can go unnoticed. The manifest isn't bound to its record files, so a record deleted from the directory goes unnoticed. The directory is trusted input offline, and a signed snapshot belongs with network mode.
+- A hit counts from the earliest `import_time` of an origin that lists the version, as in the replay corpus. gate evaluates version lists and ranges open from `0`. Any other range makes feeds unavailable for that package. A node without a version matches every entry for its name.
+- History provenance needs a recorded bundle per earlier version, or that version's publisher reads as unknown.
+- If the lockfile records `hasInstallScript` and the packument lists no install hook, scripts are unknown. A `gypfile` with no install hook counts as `node-gyp rebuild`, which npm runs.
+- Provenance facts share the evidence's `kind` union. The replay fixtures moved to that encoding with the same facts, and their `unknown` provenance became `unavailable` with the reason "no source recorded it".
+- Not yet: `gate verify` takes no allowlist or waivers, so every git, URL, file and workspace-link node rejects, and a repository with npm workspaces can't pass.

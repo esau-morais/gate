@@ -1,36 +1,15 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
 import { npmPackumentFacts } from '../src/npm/packument';
-import { trustMaterialFrom } from '../src/npm/provenance';
+import { trustMaterialFrom, type TrustRoot } from '../src/npm/provenance';
 import { loadReplayFixtures } from './replay/fixture';
+import { recordedEvidence, recordedViteAttestations } from './verify/cases';
 
-const evidence = new URL('./verify/evidence/', import.meta.url);
-
-function recorded(path: string): unknown {
-  return JSON.parse(readFileSync(new URL(path, evidence), 'utf8'));
-}
-
-const trust = trustMaterialFrom(recorded('trusted_root.json'));
-const vitePackument = recorded('packuments/vite.json');
-const viteVersions = [
-  '8.1.2',
-  '8.1.3',
-  '8.1.4',
-  '8.1.5',
-  '8.2.0-beta.0',
-  '8.2.0',
-  '8.2.1',
-  '8.2.2',
-  '8.3.0-beta.0',
-  '8.3.0-beta.1',
-  '8.3.0',
-];
-const viteAttestations = new Map(
-  viteVersions.map((version) => [
-    version,
-    recorded(`attestations/vite@${version}.json`),
-  ]),
-);
+const trust: TrustRoot = {
+  kind: 'loaded',
+  material: trustMaterialFrom(recordedEvidence('trusted_root.json')),
+};
+const vitePackument = recordedEvidence('packuments/vite.json');
+const viteAttestations = recordedViteAttestations();
 
 const sha512 = `sha512-${'A'.repeat(86)}==`;
 
@@ -60,14 +39,14 @@ function packument(versions: Record<string, Record<string, unknown>>) {
 
 function lib(
   versions: Record<string, Record<string, unknown>>,
-  options: { trust?: typeof trust | null } = {},
+  options: { trust?: TrustRoot } = {},
 ) {
   return npmPackumentFacts({
     packument: packument(versions),
     name: 'lib',
     version: '1.1.0',
     attestations: new Map(),
-    trust: options.trust === undefined ? trust : options.trust,
+    trust: options.trust ?? trust,
   });
 }
 
@@ -97,7 +76,7 @@ describe('recorded packuments', () => {
 
   test('a version document npm removed keeps its publish time and nothing else', () => {
     const read = npmPackumentFacts({
-      packument: recorded('packuments/@tanstack/react-router.json'),
+      packument: recordedEvidence('packuments/@tanstack/react-router.json'),
       name: '@tanstack/react-router',
       version: '1.169.8',
       attestations: new Map(),
@@ -110,7 +89,7 @@ describe('recorded packuments', () => {
         version: '1.169.8',
         time: new Date('2026-05-11T19:26:17.716Z'),
         integrity: null,
-        provenance: { unavailable: 'version document missing' },
+        provenance: { kind: 'unavailable', reason: 'version document missing' },
         npmUser: null,
         scripts: 'unknown',
       },
@@ -145,21 +124,28 @@ describe('provenance', () => {
 
   test('a version without attestations has none', () => {
     expect(lib({ '1.1.0': {} })).toMatchObject({
-      target: { provenance: 'absent' },
+      target: { provenance: { kind: 'absent' } },
     });
   });
 
   test('an advertised attestation that was not recorded is unavailable, not absent', () => {
     expect(lib({ '1.1.0': attested })).toMatchObject({
       target: {
-        provenance: { unavailable: 'attestation bundle not recorded' },
+        provenance: {
+          kind: 'unavailable',
+          reason: 'attestation bundle not recorded',
+        },
       },
     });
   });
 
-  test('without a trusted root nothing verifies', () => {
-    expect(lib({ '1.1.0': attested }, { trust: null })).toMatchObject({
-      target: { provenance: { unavailable: 'no trusted root' } },
+  test('without a trusted root nothing verifies, and the reason says why', () => {
+    const reason = 'trusted root is unreadable: not a Sigstore trusted root';
+
+    expect(
+      lib({ '1.1.0': attested }, { trust: { kind: 'unavailable', reason } }),
+    ).toMatchObject({
+      target: { provenance: { kind: 'unavailable', reason } },
     });
   });
 
@@ -169,7 +155,10 @@ describe('provenance', () => {
     ).toMatchObject({
       target: {
         integrity: null,
-        provenance: { unavailable: 'no sha512 integrity to match' },
+        provenance: {
+          kind: 'unavailable',
+          reason: 'no sha512 integrity to match',
+        },
       },
     });
   });

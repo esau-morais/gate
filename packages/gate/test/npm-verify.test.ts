@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
 import { Sha512Integrity } from '../src/evidence';
 import type { LockfileNode } from '../src/npm/lockfile';
 import { readOsvSnapshot } from '../src/npm/osv';
@@ -10,41 +9,21 @@ import {
   type EvidenceStore,
 } from '../src/npm/verify';
 import { loadSupplyChainPolicyV2 } from './support/policies';
-
-const evidence = new URL('./verify/evidence/', import.meta.url);
-
-function recorded(path: string): unknown {
-  return JSON.parse(readFileSync(new URL(path, evidence), 'utf8'));
-}
-
-const viteVersions = [
-  '8.1.2',
-  '8.1.3',
-  '8.1.4',
-  '8.1.5',
-  '8.2.0-beta.0',
-  '8.2.0',
-  '8.2.1',
-  '8.2.2',
-  '8.3.0-beta.0',
-  '8.3.0-beta.1',
-  '8.3.0',
-];
+import { recordedEvidence, recordedViteAttestations } from './verify/cases';
 
 const store: EvidenceStore = {
   packument: (name) =>
-    name === 'vite' ? recorded('packuments/vite.json') : undefined,
+    name === 'vite' ? recordedEvidence('packuments/vite.json') : undefined,
   attestations: (name) =>
-    new Map(
-      name === 'vite'
-        ? viteVersions.map((version) => [
-            version,
-            recorded(`attestations/vite@${version}.json`),
-          ])
-        : [],
-    ),
-  trust: trustMaterialFrom(recorded('trusted_root.json')),
-  osv: readOsvSnapshot([recorded('osv/MAL-2026-3465.json')]),
+    name === 'vite' ? recordedViteAttestations() : new Map(),
+  trust: {
+    kind: 'loaded',
+    material: trustMaterialFrom(recordedEvidence('trusted_root.json')),
+  },
+  osv: readOsvSnapshot({
+    manifest: recordedEvidence('osv/manifest.json'),
+    records: [recordedEvidence('osv/MAL-2026-3465.json')],
+  }),
 };
 
 const policy = loadSupplyChainPolicyV2();
@@ -100,6 +79,7 @@ describe('gate verify', () => {
     expect(decide({ ...vite, name: 'unrecorded' })).toEqual({
       outcome: 'QUARANTINE',
       reasons: [
+        'feeds_unavailable',
         'install_scripts_unknown',
         'integrity_unknown',
         'provenance_unavailable',
@@ -116,6 +96,23 @@ describe('gate verify', () => {
     });
   });
 
+  test('a git source never reads as having no install scripts', () => {
+    expect(
+      decide({
+        ...vite,
+        version: '1.0.0',
+        source: {
+          kind: 'git',
+          spec: `git+ssh://git@github.com/o/r.git#${'a'.repeat(40)}`,
+        },
+        hasInstallScript: false,
+      }),
+    ).toEqual({
+      outcome: 'REJECT',
+      reasons: ['exotic_source', 'install_scripts_unknown'],
+    });
+  });
+
   test('a missing feed snapshot quarantines instead of passing', () => {
     expect(
       decide(vite, {
@@ -126,25 +123,15 @@ describe('gate verify', () => {
   });
 
   test('without a trusted root, verified provenance is unavailable', () => {
-    expect(decide(vite, { ...store, trust: null })).toEqual({
+    expect(
+      decide(vite, {
+        ...store,
+        trust: { kind: 'unavailable', reason: 'no trusted root recorded' },
+      }),
+    ).toEqual({
       outcome: 'QUARANTINE',
       reasons: ['provenance_unavailable', 'publisher_unknown'],
     });
-  });
-
-  test('a package name that could leave the evidence directory is not looked up', () => {
-    const looked: string[] = [];
-    const spy: EvidenceStore = {
-      ...store,
-      packument: (name) => {
-        looked.push(name);
-
-        return undefined;
-      },
-    };
-
-    decide({ ...vite, name: '../../etc/passwd' }, spy);
-    expect(looked).toEqual([]);
   });
 
   test('only a run where every node is accepted exits 0', () => {

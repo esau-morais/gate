@@ -35,6 +35,17 @@ export const Claim = Schema.Struct({
 });
 export type Claim = typeof Claim.Type;
 
+export const Provenance = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('verified'),
+    repository: Text,
+    workflow: Text,
+  }),
+  Schema.Struct({ kind: Schema.Literal('absent') }),
+  Schema.Struct({ kind: Schema.Literal('unavailable'), reason: Text }),
+]);
+export type Provenance = typeof Provenance.Type;
+
 const Unknown = Schema.Struct({
   kind: Schema.Literal('unknown'),
   reason: Text,
@@ -62,15 +73,7 @@ export const PackageVersionEvidence = Schema.Struct({
     Schema.Struct({ kind: Schema.Literal('packument'), at: Schema.Date }),
     Unknown,
   ]),
-  provenance: Schema.Union([
-    Schema.Struct({
-      kind: Schema.Literal('verified'),
-      repository: Text,
-      workflow: Text,
-    }),
-    Schema.Struct({ kind: Schema.Literal('absent') }),
-    Schema.Struct({ kind: Schema.Literal('unavailable'), reason: Text }),
-  ]),
+  provenance: Provenance,
   earlierProvenance: Schema.Literals(['some', 'none', 'unknown']),
   publisher: Schema.Union([
     Schema.Struct({

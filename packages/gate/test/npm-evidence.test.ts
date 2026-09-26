@@ -15,7 +15,7 @@ function facts(
     version,
     time,
     integrity: null,
-    provenance: 'absent',
+    provenance: { kind: 'absent' },
     npmUser: 'maintainer',
     scripts: {},
     ...overrides,
@@ -26,6 +26,10 @@ const release = {
   repository: 'github.com/acme/lib',
   workflow: '.github/workflows/release.yml',
 };
+const verified = (identity: { repository: string; workflow: string }) => ({
+  kind: 'verified' as const,
+  ...identity,
+});
 const canary = {
   repository: 'github.com/acme/lib',
   workflow: '.github/workflows/canary.yml',
@@ -50,12 +54,16 @@ function evidenceFor(
 describe('publisher continuity', () => {
   test('alternating between two trusted-publisher workflows stays continuous', () => {
     const earlier = [
-      facts('1.0.0', '2026-01-01T00:00:00Z', { provenance: release }),
-      facts('1.1.0-canary.0', '2026-01-08T00:00:00Z', { provenance: canary }),
-      facts('1.1.0', '2026-01-15T00:00:00Z', { provenance: release }),
+      facts('1.0.0', '2026-01-01T00:00:00Z', { provenance: verified(release) }),
+      facts('1.1.0-canary.0', '2026-01-08T00:00:00Z', {
+        provenance: verified(canary),
+      }),
+      facts('1.1.0', '2026-01-15T00:00:00Z', { provenance: verified(release) }),
     ];
     const evidence = evidenceFor(
-      facts('1.2.0-canary.0', '2026-01-22T00:00:00Z', { provenance: canary }),
+      facts('1.2.0-canary.0', '2026-01-22T00:00:00Z', {
+        provenance: verified(canary),
+      }),
       earlier,
     );
 
@@ -65,9 +73,16 @@ describe('publisher continuity', () => {
   test('a workflow never seen before is a change', () => {
     const evidence = evidenceFor(
       facts('1.2.0', '2026-01-22T00:00:00Z', {
-        provenance: { ...release, workflow: '.github/workflows/other.yml' },
+        provenance: verified({
+          ...release,
+          workflow: '.github/workflows/other.yml',
+        }),
       }),
-      [facts('1.1.0', '2026-01-15T00:00:00Z', { provenance: release })],
+      [
+        facts('1.1.0', '2026-01-15T00:00:00Z', {
+          provenance: verified(release),
+        }),
+      ],
     );
 
     expect(evidence.publisher).toEqual({
@@ -84,7 +99,7 @@ describe('publisher continuity', () => {
   test('adopting provenance on an established package is a change', () => {
     const evidence = evidenceFor(
       facts('1.2.0', '2026-01-22T00:00:00Z', {
-        provenance: release,
+        provenance: verified(release),
         npmUser: 'GitHub Actions',
       }),
       [
@@ -221,9 +236,11 @@ describe('install scripts', () => {
 });
 
 describe('provenance', () => {
+  const unreadable = { kind: 'unavailable', reason: 'provenance unreadable' };
+
   test('unknown provenance is unavailable, not absent', () => {
     const evidence = evidenceFor(
-      facts('1.2.0', '2026-01-22T00:00:00Z', { provenance: 'unknown' }),
+      facts('1.2.0', '2026-01-22T00:00:00Z', { provenance: unreadable }),
       [],
     );
 
@@ -232,21 +249,24 @@ describe('provenance', () => {
 
   test('earlier provenance is unknown when history is partly unreadable', () => {
     const evidence = evidenceFor(facts('1.2.0', '2026-01-22T00:00:00Z'), [
-      facts('1.1.0', '2026-01-15T00:00:00Z', { provenance: 'unknown' }),
+      facts('1.1.0', '2026-01-15T00:00:00Z', { provenance: unreadable }),
     ]);
 
     expect(evidence.earlierProvenance).toBe('unknown');
   });
 
   test('failed verification keeps its reason and vouches for no publisher', () => {
-    const failed = { unavailable: 'signed subject is not pkg:npm/lib@1.2.0' };
+    const failed = {
+      kind: 'unavailable',
+      reason: 'signed subject is not pkg:npm/lib@1.2.0',
+    };
     const evidence = evidenceFor(
       facts('1.2.0', '2026-01-22T00:00:00Z', { provenance: failed }),
       [facts('1.1.0', '2026-01-01T00:00:00Z', { provenance: failed })],
     );
 
     expect(evidence).toMatchObject({
-      provenance: { kind: 'unavailable', reason: failed.unavailable },
+      provenance: failed,
       earlierProvenance: 'unknown',
       publisher: { kind: 'unknown' },
     });

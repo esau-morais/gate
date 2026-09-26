@@ -1,31 +1,68 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { readOsvSnapshot, type OsvSnapshot } from './osv';
-import { trustMaterialFrom, type TrustMaterial } from './provenance';
-import { isEvidenceName, type EvidenceStore } from './verify';
+import { trustMaterialFrom, type TrustRoot } from './provenance';
+import type { EvidenceStore } from './verify';
+
+const npmName = /^(@[\w.~-]+\/)?[\w.~-]+$/;
+const osvManifest = 'manifest.json';
+
+function isEvidenceName(name: string): boolean {
+  return (
+    npmName.test(name) &&
+    !name.split('/').some((segment) => segment === '.' || segment === '..')
+  );
+}
 
 export class EvidenceDirectoryError extends Error {
   override readonly name = 'EvidenceDirectoryError';
 }
 
+export function isFileSystemError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    'syscall' in error
+  );
+}
+
 function readJson(path: string): unknown {
+  let text: string;
   try {
-    return JSON.parse(readFileSync(path, 'utf8'));
-  } catch {
-    return null;
+    text = readFileSync(path, 'utf8');
+  } catch (error) {
+    if (isFileSystemError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return null;
+    }
+
+    throw error;
   }
 }
 
-function readTrust(root: string): TrustMaterial | null {
+function readTrust(root: string): TrustRoot {
   const path = join(root, 'trusted_root.json');
   if (!existsSync(path)) {
-    return null;
+    return { kind: 'unavailable', reason: 'no trusted root recorded' };
   }
 
   try {
-    return trustMaterialFrom(readJson(path));
-  } catch {
-    return null;
+    return { kind: 'loaded', material: trustMaterialFrom(readJson(path)) };
+  } catch (error) {
+    return {
+      kind: 'unavailable',
+      reason: `trusted root is unreadable: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -35,11 +72,15 @@ function readOsv(root: string): OsvSnapshot {
     return { kind: 'unavailable', reason: 'no OSV snapshot recorded' };
   }
 
+  const manifest = join(dir, osvManifest);
   const files = readdirSync(dir, { recursive: true, encoding: 'utf8' })
-    .filter((file) => file.endsWith('.json'))
+    .filter((file) => file.endsWith('.json') && file !== osvManifest)
     .toSorted();
 
-  return readOsvSnapshot(files.map((file) => readJson(join(dir, file))));
+  return readOsvSnapshot({
+    manifest: existsSync(manifest) ? readJson(manifest) : undefined,
+    records: files.map((file) => readJson(join(dir, file))),
+  });
 }
 
 function readAttestations(
