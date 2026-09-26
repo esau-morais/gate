@@ -11,10 +11,11 @@
     "packages/*"
   ],
   "scripts": {
-    "check": "bun run typecheck && bun run lint && bun run test && bun run test:node",
+    "check": "bun run typecheck && bun run lint && bun run guard && bun run test && bun run test:node",
     "typecheck": "bun run --bun tsc --noEmit -p packages/cel && bun run --bun tsc --noEmit -p packages/gate && bun run --bun tsc --noEmit -p .",
     "lint": "bun run --bun eslint . && bun run --bun prettier --check .",
     "format": "bun run --bun prettier --write .",
+    "guard": "bun scripts/guard.ts",
     "test": "bun test",
     "test:node": "bun scripts/node-smoke.ts"
   },
