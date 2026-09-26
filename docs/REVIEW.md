@@ -1,6 +1,6 @@
 # Plan review: gate
 
-Reviewed 2026-09-25 against [PLAN.md](PLAN.md) v1. Three research passes checked the plan's factual claims, its tech stack, and the projects and gaps around it. Each claim below links to a source that was opened during the review. *Opinion* marks my own judgment. Recommendations here are proposals until PLAN.md absorbs them.
+Reviewed 2026-09-25 against the first plan (`docs/PLAN.md` before 2026-09-26, in git history). Three research passes checked the plan's factual claims, its tech stack, and the projects and gaps around it. Each claim below links to a source that was opened during the review. *Opinion* marks my own judgment. Recommendations here are proposals until [PLAN.md](PLAN.md) or §12 absorbs them.
 
 ## 1. Summary
 
@@ -98,6 +98,21 @@ This table assumed Go. The maintainer later chose TypeScript, and §11 replaces 
 
 ## 6. Gaps, most important first
 
+Status on 2026-09-26. Open items are scheduled in [PLAN.md](PLAN.md).
+
+| Gap | Status |
+|---|---|
+| 1. Tarball endpoint | Deferred with the proxy. `gate verify` in CI is the enforcement point |
+| 2. Upstream publish time | Done: `release_age` reads `time[version]` |
+| 3. Keys and signatures | Open. Offline mode reads a recorded trusted root. Network mode must fetch it through TUF |
+| 4. Urgent-fix lane | Open. `release_age` is not waivable |
+| 5. Provenance is not safety | Done: v1 has no trust tiers. Publisher continuity does the work. zizmor is not built |
+| 6. Exotic sources and scripts | Done for sources (`exotic_source`) and scripts (`new_install_script`). Client config checks are not scheduled |
+| 7. Certificate format | Open. `gate verify` prints JSON lines and logs records, no in-toto output |
+| 8. npm terms | Open, see PLAN.md |
+| 9. Compromise of gate | Open. Policies are pinned by digest in the source. Release hardening is in M2, key roles are an open decision |
+| 10. Cooldown critiques | Open. The M2 README covers it |
+
 1. **Enforce at the tarball endpoint.** Verdaccio's filter says tarballs already cached "are not affected". Bun's age gate leaves `bun.lock` entries alone. Aikido blocks tarball downloads separately for this reason. Lockfile `resolved` URLs point at registry.npmjs.org, so npm needs `replace-registry-host`. npm 12's `allow-remote=none` default can also break proxied installs ([npm/cli#9548](https://github.com/npm/cli/issues/9548)). Add a tested setup page for each client. Add an M1 exit criterion: a lockfile pinned to a quarantined version fails to install through the gate.
 2. **Anchor quarantine on the upstream publish time.** *Opinion:* `firstSeenAt` from the gate's clock makes decisions depend on when a gate was deployed, which breaks goal 2 (reproducible decisions). Use the packument `time[version]`, cross-checked against deps.dev. Keep `firstSeenAt` for audit, and raise a claim when a version first appears long after its stated publish time. That pattern suggests backdating.
 3. **Keys and signatures.**
@@ -156,7 +171,7 @@ Sources: [Sigstore conformance](https://sigstore.github.io/sigstore-conformance)
 
 ## 10. Reuse first, build the gaps
 
-Rule: reuse unless a component fails on license (vs Apache-2.0), maintenance, its own supply-chain risk or a hard requirement.
+Rule: reuse unless a component fails on license (vs MIT), maintenance, its own supply-chain risk or a hard requirement.
 
 | Role | Use | Why not build |
 |---|---|---|
@@ -235,7 +250,7 @@ Witnessing works from TS because the protocol is plain HTTP. Joining witness-net
 
 Frozen CI installs skip the npm and pnpm hooks, so **`gate verify` as a separate CI step stays required**. The hooks are an early warning on developer machines.
 
-**Tested 2026-09-25** ([evidence](evidence/2026-09-25/README.md)):
+**Tested 2026-09-25.** The evidence notes were never committed; the results below and in AGENTS.md are the record:
 - pnpm 11 and 12 hooks don't run for lockfile installs at all, frozen or not. On pnpm 12, `afterAllResolved` fails only after the package is already linked.
 - Bun's scanner runs on every install path, including `--frozen-lockfile` and `bun ci`. It receives the tarball URL but no integrity. It must come from npm or a bunfig path, because local `file:` and `workspace:` scanners fail.
 - A Verdaccio auth plugin must deny with `cb(err)`. `cb(null, false)` falls through to the default allow. Verdaccio's filename version parser gets some valid semver versions wrong.
@@ -269,14 +284,14 @@ Frozen CI installs skip the npm and pnpm hooks, so **`gate verify` as a separate
 
 ## Unresolved questions
 
-- Resolved by testing on 2026-09-25: whether Bun's scanner runs on frozen installs (yes), the Verdaccio filename parser (four valid versions misparsed), and whether sigstore-js hits Bun's X509 bug (no). See the evidence file.
+- Resolved by testing on 2026-09-25: whether Bun's scanner runs on frozen installs (yes), the Verdaccio filename parser (four valid versions misparsed), and whether sigstore-js hits Bun's X509 bug (no).
 - Resolved by decision: CEL through a cel-js fork ([§12](#cel-fork)), and Effect Schema v4 at rc.117 ([§12](#effect-v4)).
 - Rekor v2 write limits, and whether a daily checkpoint anchor is worth it.
 - Resolved 2026-09-25: the CLI uses `effect/unstable/cli` with `@effect/platform-bun`. The bundle also runs on Node ([§12](#effect-v4)).
 
 ## 12. Decisions
 
-Accepted decisions. Each one holds until a later entry here replaces it. PLAN.md predates most of them.
+Accepted decisions. Each one holds until a later entry here replaces it. The first plan predates most of them.
 
 ### TypeScript
 
@@ -435,3 +450,11 @@ Accepted 2026-09-26. `gate replay --log <dir> --public-key <file>` runs offline,
 - A record must name one pinned policy (v1 or v2) by digest and id. An unknown digest or a second policy fails, because org policies aren't pinned.
 - gate reruns `decide()` with the logged evidence, time and context, and compares the canonical bytes of outcome, reasons and policies. It prints one JSON line per entry (`match`, `mismatch` or `failed`) and exits 0 only if all match. A signed empty log exits 0, since only the key holder can sign one.
 - Replay shows a decision follows from its logged evidence. It can't show the evidence was right. That needs the recorded packuments and bundles, which the log doesn't hold.
+
+### License
+
+Accepted 2026-09-26. gate is MIT, the maintainer's default, replacing the first plan's Apache-2.0. The hosted service, if built, is separate closed code. Everything needed to check a decision stays MIT.
+
+- `packages/gate/src/log/merkle.ts` and `packages/gate/src/log/note.ts` stay Apache-2.0, as ported from sigstore-js, which has no NOTICE file. The root LICENSE carries the Apache text and names both files. Apache §4 allows this inside an MIT project ([Apache FAQ](https://www.apache.org/foundation/license-faq.html)).
+- Apache-2.0 would add a patent grant and remove the mixed-license note. That wasn't worth changing the default for a CLI with no patents at stake.
+- No AGPL or FSL. Both protect a hosted business by restricting the code, and the relicensing fights at Redis, Elastic and HashiCorp came from changing license after adoption. The license is set before launch.

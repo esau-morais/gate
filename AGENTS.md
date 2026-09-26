@@ -4,7 +4,7 @@ gate checks npm dependencies against a versioned supply-chain policy and records
 
 Current milestone: `gate verify` (lockfile in, verdict out), the CEL policy and the decision log. No proxy or publishing registry yet.
 
-Code, tests and config are the source of truth. Don't add docs that restate them. All docs live in `docs/`. Record decisions code can't explain in `docs/REVIEW.md` §12, and keep each one short. `docs/PLAN.md` is background and predates those decisions.
+Code, tests and config are the source of truth. Don't add docs that restate them. All docs live in `docs/`. Record decisions code can't explain in `docs/REVIEW.md` §12, and keep each one short. `docs/PLAN.md` holds the positioning, roadmap and open decisions.
 
 ## Stack
 
