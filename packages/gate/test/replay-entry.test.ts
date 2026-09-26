@@ -140,3 +140,17 @@ test('an unreadable record or a failed entry fails', () => {
     replayEntry({ index: 4, kind: 'failed', error: 'missing' }, policies),
   ).toEqual({ index: 4, result: 'failed', error: 'missing' });
 });
+
+test('a record naming a second policy fails, since only canonical policies are pinned', () => {
+  const logged = record(loadSupplyChainPolicyV2());
+
+  expect(
+    replayEntry(
+      included({
+        ...logged,
+        policies: [...logged.policies, loadSupplyChainPolicyV1().ref],
+      }),
+      policies,
+    ).result,
+  ).toBe('failed');
+});

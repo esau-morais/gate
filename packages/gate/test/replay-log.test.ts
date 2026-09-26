@@ -12,7 +12,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeBundle } from '../src/log/tiles';
 import { decodeRecord } from '../src/record';
-import { generateTestLogKey } from './support/log';
+import { openTree } from '../src/log/log';
+import { generateTestLogKey, oracleCheckpoint } from './support/log';
 import {
   expectedNodes,
   loadVerifyCases,
@@ -87,6 +88,16 @@ test('replay reproduces every logged TanStack decision from the log alone', () =
   const verify = verifyInto(log, key.skey);
   expect(verify.stderr).toBe('');
   expect(verify.exitCode).toBe(evaluation.exitCode);
+
+  const checkpoint = oracleCheckpoint(
+    readFileSync(join(log, 'checkpoint')),
+    readFileSync(key.vkey, 'utf8'),
+  );
+  expect(checkpoint.origin).toBe(origin);
+  expect(checkpoint.size).toBe(2n);
+  expect(Buffer.from(openTree(log, 2).root()).equals(checkpoint.rootHash)).toBe(
+    true,
+  );
 
   const replay = gate(['replay', '--log', log, '--public-key', key.vkey]);
 

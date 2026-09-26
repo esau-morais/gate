@@ -3,12 +3,13 @@ import {
   fsyncSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
   writeSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { hashChildren, hashLeaf, sameHash, verifyInclusion } from './merkle';
 import {
   formatCheckpoint,
@@ -104,7 +105,16 @@ function readCheckpoint(dir: string, verifier: NoteVerifier): Checkpoint {
   return checkpoint;
 }
 
-function writeAtomically(path: string, bytes: Uint8Array): void {
+function fsyncDirectory(path: string): void {
+  const fd = openSync(path, 'r');
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function writeAtomically(path: string, bytes: Uint8Array): string {
   mkdirSync(dirname(path), { recursive: true });
   const temporary = `${path}.tmp`;
   const fd = openSync(temporary, 'w', 0o644);
@@ -116,6 +126,8 @@ function writeAtomically(path: string, bytes: Uint8Array): void {
   }
 
   renameSync(temporary, path);
+
+  return dirname(path);
 }
 
 function perfectRoot(hashes: readonly Uint8Array[]): Uint8Array {
@@ -199,12 +211,18 @@ function hasCheckpoint(dir: string): boolean {
 
     return true;
   } catch (error) {
-    if (isErrno(error, 'ENOENT')) {
-      return false;
+    if (!isErrno(error, 'ENOENT')) {
+      throw error;
     }
-
-    throw error;
   }
+
+  if (readdirSync(dir).some((name) => name !== 'lock')) {
+    throw new LogError(
+      `${dir} holds files but no checkpoint; gate starts a new log only in an empty directory`,
+    );
+  }
+
+  return false;
 }
 
 function readCarried(dir: string, oldSize: number): Uint8Array[] {
@@ -230,7 +248,8 @@ export function appendToLog(input: {
   signer: NoteSigner;
   entries: readonly Uint8Array[];
 }): { first: number; size: number } {
-  const { dir, signer } = input;
+  const { signer } = input;
+  const dir = resolve(input.dir);
   encodeBundle(input.entries);
   const unlock = lock(dir);
   try {
@@ -261,6 +280,7 @@ export function appendToLog(input: {
     }
 
     const size = leaves.length;
+    const written = new Set<string>();
     for (const [level, hashes] of levels.entries()) {
       const oldCount = Math.floor(oldSize / tileWidth ** level);
       if (hashes.length === oldCount) {
@@ -273,10 +293,11 @@ export function appendToLog(input: {
         index += 1
       ) {
         const width = Math.min(tileWidth, hashes.length - index * tileWidth);
-        writeAtomically(
-          join(dir, tilePath({ level, index, width })),
-          Buffer.concat(
-            hashes.slice(index * tileWidth, index * tileWidth + width),
+        const tile = hashes.slice(index * tileWidth, index * tileWidth + width);
+        written.add(
+          writeAtomically(
+            join(dir, tilePath({ level, index, width })),
+            Buffer.concat(tile),
           ),
         );
       }
@@ -290,22 +311,38 @@ export function appendToLog(input: {
     ) {
       const offset = (index - firstBundle) * tileWidth;
       const width = Math.min(tileWidth, size - index * tileWidth);
-      writeAtomically(
-        join(dir, entryBundlePath({ index, width })),
-        encodeBundle(pending.slice(offset, offset + width)),
+      written.add(
+        writeAtomically(
+          join(dir, entryBundlePath({ index, width })),
+          encodeBundle(pending.slice(offset, offset + width)),
+        ),
       );
     }
 
-    writeAtomically(
-      join(dir, 'checkpoint'),
-      signNote(
-        formatCheckpoint({
-          origin: signer.name,
-          size,
-          root: levelsTree(size, levels).root(),
-          extensions: [],
-        }),
-        signer,
+    const synced = new Set<string>();
+    for (const directory of written) {
+      for (
+        let current = directory;
+        current.startsWith(dir) && !synced.has(current);
+        current = dirname(current)
+      ) {
+        fsyncDirectory(current);
+        synced.add(current);
+      }
+    }
+
+    fsyncDirectory(
+      writeAtomically(
+        join(dir, 'checkpoint'),
+        signNote(
+          formatCheckpoint({
+            origin: signer.name,
+            size,
+            root: levelsTree(size, levels).root(),
+            extensions: [],
+          }),
+          signer,
+        ),
       ),
     );
 
@@ -331,20 +368,27 @@ export type LogRead =
     }
   | { readonly kind: 'unreadable'; readonly error: string };
 
-function bundleEntries(
+type Bundle =
+  | { readonly kind: 'read'; readonly entries: readonly Uint8Array[] }
+  | { readonly kind: 'unreadable'; readonly error: string };
+
+function readBundle(
   dir: string,
   bundle: { index: number; width: number },
-): Uint8Array[] | string {
+): Bundle {
   const path = entryBundlePath(bundle);
   try {
     const entries = decodeBundle(readLogFile(dir, path));
 
     return entries.length === bundle.width
-      ? entries
-      : `${path} holds ${entries.length} entries, not ${bundle.width}`;
+      ? { kind: 'read', entries }
+      : {
+          kind: 'unreadable',
+          error: `${path} holds ${entries.length} entries, not ${bundle.width}`,
+        };
   } catch (error) {
     if (error instanceof LogError) {
-      return `${path}: ${error.message}`;
+      return { kind: 'unreadable', error: `${path}: ${error.message}` };
     }
 
     throw error;
@@ -357,16 +401,18 @@ function proveEntries(dir: string, checkpoint: Checkpoint): LogEntry[] {
   const results: LogEntry[] = [];
   for (let bundle = 0; bundle * tileWidth < size; bundle += 1) {
     const width = Math.min(tileWidth, size - bundle * tileWidth);
-    const entries = bundleEntries(dir, { index: bundle, width });
+    const read = readBundle(dir, { index: bundle, width });
     for (let offset = 0; offset < width; offset += 1) {
       const index = bundle * tileWidth + offset;
-      const bytes = typeof entries === 'string' ? undefined : entries[offset];
+      const bytes = read.kind === 'read' ? read.entries[offset] : undefined;
       if (bytes === undefined) {
         results.push({
           index,
           kind: 'failed',
           error:
-            typeof entries === 'string' ? entries : `entry ${index} is missing`,
+            read.kind === 'unreadable'
+              ? read.error
+              : `entry ${index} is missing`,
         });
         continue;
       }

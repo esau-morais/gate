@@ -407,31 +407,31 @@ Accepted 2026-09-26. `gate verify --context <file>` reads `{"allowedSources": [.
 
 ### Decision log
 
-Accepted 2026-09-26. `gate verify --log <dir> --log-key <file>` appends one entry per decision to a single-writer [tlog-tiles](https://c2sp.org/tlog-tiles) log on local disk. The directory holds `checkpoint`, `tile/<L>/<N>[.p/<W>]` and `tile/entries/<N>[.p/<W>]`, as the spec lays them out, so any tlog-tiles client can read it if the directory is served over HTTP.
+Accepted 2026-09-26. `gate verify --log <dir> --log-key <file>` appends one entry per decision to a single-writer [tlog-tiles](https://c2sp.org/tlog-tiles) log on local disk: `checkpoint`, `tile/<L>/<N>[.p/<W>]` and `tile/entries/<N>[.p/<W>]`, as the spec lays them out.
 
-- The checkpoint is an Ed25519 [signed note](https://c2sp.org/signed-note). Its origin is the key name, and gate refuses a checkpoint whose origin differs, although the spec only says SHOULD. There are no extension lines.
-- Keys use the `golang.org/x/mod/sumdb/note` encoding, which Tessera and the Go checksum database also use: `PRIVATE+KEY+<name>+<id>+<key>` for the signer and `<name>+<id>+<key>` for the verifier. C2SP defines only the verifier form. The key ID is SHA-256(name, newline, 0x01, public key)[:4]. Base64 key data can contain `+`, so parsers cut only the leading fields, as Go's does. gate never writes the signer key. A test scans every log file for its seed.
-- A lock file created with `O_EXCL` keeps a second writer out. A crashed writer leaves the lock behind, and the next run fails until someone removes it. gate doesn't guess whether a lock is stale.
-- Before appending, the writer reads every level 0 hash and checks the tree root against the signed checkpoint. It also checks the partial entry bundle against its tile. A log that fails either check is refused, not extended. This costs time linear in the log size on every run, which is fine at M1 volumes.
-- Tiles and bundles go to a temporary file, then `fsync` and `rename`. The checkpoint goes last. A crash leaves tiles no checkpoint references, and the next run overwrites them. gate never rewrites a full tile that a checkpoint covers. Old partial tiles stay on disk.
-- An entry bundle prefixes each entry with a uint16 length, so a record over 65,535 bytes fails the run rather than being truncated. The TanStack records are about 2 KB.
-- Inclusion verification is ported from sigstore-js `packages/verify/src/tlog/merkle.ts`, and note parsing follows the structure of its `checkpoint.ts`, both at `769a53d8`, with the Apache-2.0 notice and a list of changes kept in each file. sigstore-js matches a signature's name by substring and takes the key hint from the log ID. gate parses every signature line and counts a signature only when the name and the computed key ID both match.
+- The checkpoint is an Ed25519 [signed note](https://c2sp.org/signed-note) with no extension lines. Its origin must equal the key name, where the spec only says SHOULD.
+- Keys use the `golang.org/x/mod/sumdb/note` encoding that Tessera and the Go checksum database use: `PRIVATE+KEY+<name>+<id>+<key>` and `<name>+<id>+<key>`. C2SP defines only the verifier form. Key data can contain `+`, so parsers cut only the leading fields.
+- An `O_EXCL` lock file keeps out a second writer. A crash leaves the lock, and gate fails until someone removes it rather than guessing it's stale.
+- gate starts a log only in an empty or missing directory. Files without a checkpoint are refused, because starting over would sign a checkpoint inconsistent with an earlier one, which tlog-checkpoint forbids.
+- Before appending, the writer checks the level 0 tiles against the checkpoint root and the partial bundle against its tile, re-reading every level 0 hash. That's linear per run and fine at M1 volumes. A corrupted full tile above level 0 is caught only by replay.
+- Files are written to a temporary name, fsynced, renamed, and their directories fsynced, with the checkpoint last. Tiles a crash leaves behind are past the checkpoint, and the next append overwrites them (tested).
+- The log is written before stdout, so a failed append prints no verdicts and exits 1.
+- Entry bundles use uint16 lengths, so a record over 65,535 bytes fails the run. TanStack records are about 1.8 KB.
+- Inclusion verification is ported from sigstore-js `packages/verify/src/tlog/merkle.ts`, and note parsing follows its `checkpoint.ts`, both at `769a53d8`, with the Apache-2.0 notice and changes listed in each file. sigstore-js matches signature names by substring. gate requires the name and computed key ID to match.
 
 ### Log test oracles
 
-Accepted 2026-09-26. Added `@cloudflare/tlog-tiles-wasm@0.2.0` and `@cloudflare/signed-note-wasm@0.2.0` as devDependencies, used only by tests. Both are BSD-3-Clause, have no dependencies or install scripts, carry trusted-publisher provenance from `cloudflare/azul`, were published 2026-08-21, and had no OSV or GitHub advisories on 2026-09-26.
+Accepted 2026-09-26. Added `@cloudflare/tlog-tiles-wasm@0.2.0` and `@cloudflare/signed-note-wasm@0.2.0` as devDependencies for tests only. Both are BSD-3-Clause, with no dependencies or install scripts, and trusted-publisher provenance from `cloudflare/azul`. They were published 2026-08-21 and had no OSV or GitHub advisories on 2026-09-26.
 
-- The signed-note oracle verifies every checkpoint gate signs in the tests, and the tlog-tiles oracle parses its text.
-- tlog-tiles-wasm exposes checkpoint parsing and consistency proof verification, but no inclusion verification or tile reading. The tests build consistency proofs from gate's tiles and have the oracle check them. They check inclusion proofs and roots against the transparency-dev RFC 6962 vectors in `test/log/rfc6962-vectors.json`, and tile paths against the spec's 70,000-entry example.
-- The consistency oracle found a real bug. Every level 1 and higher tile hash was wrong, and gate's own writer and reader agreed with each other, so only an independent check could catch it.
+- The signed-note oracle verifies checkpoints written by `appendToLog` and by `gate verify`, and the tlog-tiles oracle parses them.
+- tlog-tiles-wasm has no inclusion verification or tile reader. The tests check gate's tiles through consistency proofs the oracle verifies, and inclusion proofs and roots against the transparency-dev vectors in `test/log/rfc6962-vectors.json`.
 
 ### gate replay
 
-Accepted 2026-09-26. `gate replay --log <dir> --public-key <file>` runs offline, with no evidence directory and no network.
+Accepted 2026-09-26. `gate replay --log <dir> --public-key <file>` runs offline, with no evidence directory.
 
-- The checkpoint must carry a valid signature from the given key, matched by name and key ID. A checkpoint signed by another key with the same name is refused: signed-note says to ignore signatures from unknown keys, then reject a note that no known key signed.
-- Each entry is proven against the checkpoint root with an inclusion proof built from the tiles. A missing or truncated bundle or tile fails the entries it covers, never skips them.
-- Each record's policy digests must name a policy gate pins (v1 or v2) under the same id. A record may name a canonical policy and at most one org policy. An unknown digest fails.
-- gate reruns `decide()` with the logged evidence, time and context, and compares the canonical bytes of outcome, reasons and policies. The output has one JSON line per entry, `match`, `mismatch` or `failed`, and the exit code is 0 only when every entry matches.
-- Replay proves that a decision follows from its logged evidence under its policy. It doesn't prove the evidence was right. That needs the recorded packuments and bundles, which the log doesn't hold.
-- The Node smoke check writes a log with the Node bundle and replays it under Node and Bun.
+- The checkpoint needs a valid signature matching the key's name and ID. A same-name checkpoint from another key is refused, as signed-note requires.
+- Every entry is proven against the checkpoint root from the tiles. A missing bundle or tile fails the entries it covers.
+- A record must name one pinned policy (v1 or v2) by digest and id. An unknown digest or a second policy fails, because org policies aren't pinned.
+- gate reruns `decide()` with the logged evidence, time and context, and compares the canonical bytes of outcome, reasons and policies. It prints one JSON line per entry (`match`, `mismatch` or `failed`) and exits 0 only if all match. A signed empty log exits 0, since only the key holder can sign one.
+- Replay shows a decision follows from its logged evidence. It can't show the evidence was right. That needs the recorded packuments and bundles, which the log doesn't hold.

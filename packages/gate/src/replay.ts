@@ -40,34 +40,33 @@ const decisionJson = Schema.encodeSync(Schema.toCodecJson(Decision));
 const decisionBytes = (decision: Decision) =>
   canonicalJson(decisionJson(decision));
 
-function resolvePolicies(
+type Resolved =
+  | { readonly kind: 'resolved'; readonly canonical: Policy }
+  | { readonly kind: 'unresolved'; readonly error: string };
+
+function resolvePolicy(
   refs: readonly PolicyRef[],
   pinned: ReadonlyMap<PolicyDigest, Policy>,
-): { canonical: Policy; org?: Policy } | string {
-  if (refs.length > 2) {
-    return `record names ${refs.length} policies; a decision has a canonical and at most one org policy`;
+): Resolved {
+  const [ref, ...org] = refs;
+  if (ref === undefined || org.length > 0) {
+    return {
+      kind: 'unresolved',
+      error: `record names ${refs.length} policies; replay knows only the pinned canonical policies`,
+    };
   }
 
-  const resolved: Policy[] = [];
-  for (const ref of refs) {
-    const policy = pinned.get(ref.digest);
-    if (policy === undefined) {
-      return `unknown policy digest ${ref.digest}`;
-    }
-
-    if (policy.ref.id !== ref.id) {
-      return `policy ${ref.digest} is ${policy.ref.id}, not ${ref.id}`;
-    }
-
-    resolved.push(policy);
+  const policy = pinned.get(ref.digest);
+  if (policy === undefined) {
+    return { kind: 'unresolved', error: `unknown policy digest ${ref.digest}` };
   }
 
-  const [canonical, org] = resolved;
-  if (canonical === undefined) {
-    return 'record names no policy';
-  }
-
-  return org === undefined ? { canonical } : { canonical, org };
+  return policy.ref.id === ref.id
+    ? { kind: 'resolved', canonical: policy }
+    : {
+        kind: 'unresolved',
+        error: `policy ${ref.digest} is ${policy.ref.id}, not ${ref.id}`,
+      };
 }
 
 function replayRecord(
@@ -83,9 +82,9 @@ function replayRecord(
     };
   }
 
-  const policies = resolvePolicies(record.policies, pinned);
-  if (typeof policies === 'string') {
-    return { index, result: 'failed', error: policies };
+  const policy = resolvePolicy(record.policies, pinned);
+  if (policy.kind === 'unresolved') {
+    return { index, result: 'failed', error: policy.error };
   }
 
   const logged: Decision = {
@@ -97,7 +96,7 @@ function replayRecord(
     evidence: record.evidence,
     now: record.at,
     context: record.context,
-    ...policies,
+    canonical: policy.canonical,
   });
   if (decisionBytes(replayed) !== decisionBytes(logged)) {
     return {

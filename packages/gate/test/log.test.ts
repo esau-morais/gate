@@ -258,6 +258,39 @@ test('append refuses a log whose entries no longer match their tile', () => {
   ).toThrow('entry');
 });
 
+test('append refuses a directory that holds files but no checkpoint', () => {
+  appendToLog({ dir, signer: signer(), entries: leaves.slice(0, 3) });
+  rmSync(join(dir, 'checkpoint'));
+
+  expect(() =>
+    appendToLog({ dir, signer: signer(), entries: leaves.slice(3) }),
+  ).toThrow('checkpoint');
+  expect(existsSync(join(dir, 'checkpoint'))).toBe(false);
+  expect(existsSync(join(dir, 'lock'))).toBe(false);
+});
+
+test('an append interrupted before its checkpoint is overwritten by the next one', () => {
+  appendToLog({ dir, signer: signer(), entries: leaves.slice(0, 3) });
+  const signed = checkpointBytes();
+  appendToLog({ dir, signer: signer(), entries: leaves.slice(3, 5) });
+  writeFileSync(join(dir, 'checkpoint'), signed);
+
+  const replacement = leaves.slice(4).toReversed();
+  appendToLog({ dir, signer: signer(), entries: replacement });
+  const log = readLog({ dir, verifier: parseVerifierKey(key.vkey) });
+  if (log.kind !== 'read') {
+    throw new Error(log.error);
+  }
+
+  expect(
+    log
+      .entries()
+      .map((entry) =>
+        entry.kind === 'included' ? hex(entry.bytes) : entry.error,
+      ),
+  ).toEqual([...leaves.slice(0, 3), ...replacement].map(hex));
+});
+
 test('append refuses a checkpoint signed by another key', () => {
   appendToLog({ dir, signer: signer(), entries: leaves.slice(0, 2) });
   const other = parseSignerKey(generateTestLogKey(origin).skey);
