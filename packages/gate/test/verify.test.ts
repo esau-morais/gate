@@ -17,12 +17,7 @@ import {
   summarizeOutput,
   verifyArgs,
 } from './verify/cases';
-import {
-  linkNoPatternCovers,
-  linkOutsideRepository,
-  recordedLockPath,
-  rootWithoutWorkspaces,
-} from './workspaces/locks';
+import { recordedLock, recordedLockPath, type Lock } from './workspaces/locks';
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 
@@ -184,6 +179,33 @@ describe('zero config', () => {
   });
 });
 
+function withPackages(lock: Lock, packages: Lock['packages']): Lock {
+  return { ...lock, packages: { ...lock.packages, ...packages } };
+}
+
+export function linkOutsideRepository(): Lock {
+  return withPackages(recordedLock('npm-cli'), {
+    'node_modules/libnpmaccess': { resolved: '../libnpmaccess', link: true },
+    '../libnpmaccess': { version: '11.0.0' },
+  });
+}
+
+export function linkNoPatternCovers(): Lock {
+  return withPackages(recordedLock('npm-cli'), {
+    'node_modules/vendored': { resolved: 'vendor/vendored', link: true },
+    'vendor/vendored': { version: '1.0.0' },
+  });
+}
+
+export function rootWithoutWorkspaces(): Lock {
+  const lock = recordedLock('npm-cli');
+  const root = Object.entries(lock.packages[''] ?? {}).filter(
+    ([key]) => key !== 'workspaces',
+  );
+
+  return withPackages(lock, { '': Object.fromEntries(root) });
+}
+
 describe('workspace links', () => {
   const at = '2026-09-26T00:00:00Z';
   const verifyLock = (lockfile: string) =>
@@ -207,38 +229,46 @@ describe('workspace links', () => {
     }
   });
 
-  test('a link outside the repository, a link no pattern covers, and a root without workspaces still reject', () => {
+  const rejectedLinks = (lock: unknown) => {
     const dir = mkdtempSync(join(tmpdir(), 'gate-workspaces-'));
     try {
-      const rejected = Object.entries({
-        outside: linkOutsideRepository(),
-        uncovered: linkNoPatternCovers(),
-        undeclared: rootWithoutWorkspaces(),
-      }).map(([name, lock]) => {
-        const file = join(dir, `${name}.json`);
-        writeFileSync(file, JSON.stringify(lock));
-        const run = verifyLock(file);
+      const file = join(dir, 'package-lock.json');
+      writeFileSync(file, JSON.stringify(lock));
+      const run = verifyLock(file);
 
-        return [
-          name,
-          run.exitCode,
-          run.nodes.flatMap((node) =>
-            'outcome' in node &&
-            node.outcome === 'REJECT' &&
-            node.reasons.includes('exotic_source')
-              ? [node.path]
-              : [],
-          ).length,
-        ];
-      });
-
-      expect(rejected).toEqual([
-        ['outside', 1, 1],
-        ['uncovered', 1, 1],
-        ['undeclared', 1, 16],
-      ]);
+      return {
+        exitCode: run.exitCode,
+        paths: run.nodes.flatMap((node) =>
+          'outcome' in node &&
+          node.outcome === 'REJECT' &&
+          node.reasons.includes('exotic_source')
+            ? [node.path]
+            : [],
+        ),
+      };
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  };
+
+  test('a link to a folder outside the repository still rejects', () => {
+    expect(rejectedLinks(linkOutsideRepository())).toEqual({
+      exitCode: 1,
+      paths: ['node_modules/libnpmaccess'],
+    });
+  });
+
+  test('a link no workspaces pattern covers still rejects', () => {
+    expect(rejectedLinks(linkNoPatternCovers())).toEqual({
+      exitCode: 1,
+      paths: ['node_modules/vendored'],
+    });
+  });
+
+  test('every link rejects when the root declares no workspaces', () => {
+    const run = rejectedLinks(rootWithoutWorkspaces());
+
+    expect(run.exitCode).toBe(1);
+    expect(run.paths).toHaveLength(16);
   });
 });

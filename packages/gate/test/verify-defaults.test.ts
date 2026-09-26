@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { defaultCacheDir, evidenceSource } from '../src/defaults';
+import { defaultCacheDir, evidenceSource } from '../src/verify-defaults';
 
 const home = '/home/u';
 
@@ -33,22 +33,27 @@ test('Windows uses LOCALAPPDATA, or its documented default under the profile', (
   }
 });
 
-test('without --evidence or --fetch, evidence is fetched into the default cache', () => {
-  const cache = () => '/home/u/.cache/gate';
+const cache = () => '/home/u/.cache/gate';
 
-  expect(evidenceSource({}, cache)).toEqual({
-    kind: 'fetch',
-    cacheDir: '/home/u/.cache/gate',
-  });
-  expect(evidenceSource({ fetch: '/c' }, cache)).toEqual({
+test('without --evidence or --fetch, evidence is fetched into the default cache', () => {
+  expect(
+    evidenceSource({ evidence: undefined, fetch: undefined }, cache),
+  ).toEqual({ kind: 'fetch', cacheDir: '/home/u/.cache/gate' });
+});
+
+test('--fetch and --evidence override the default cache', () => {
+  expect(evidenceSource({ evidence: undefined, fetch: '/c' }, cache)).toEqual({
     kind: 'fetch',
     cacheDir: '/c',
   });
-  expect(evidenceSource({ evidence: '/e' }, cache)).toEqual({
+  expect(evidenceSource({ evidence: '/e', fetch: undefined }, cache)).toEqual({
     kind: 'recorded',
     dir: '/e',
   });
-  expect(evidenceSource({ evidence: '/e', fetch: '/c' }, cache)).toBe(
-    undefined,
-  );
+});
+
+test('--evidence and --fetch together conflict', () => {
+  expect(evidenceSource({ evidence: '/e', fetch: '/c' }, cache)).toEqual({
+    kind: 'conflict',
+  });
 });

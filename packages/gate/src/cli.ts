@@ -5,7 +5,7 @@ import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
 import { DecisionContext, noContext } from './context';
-import { defaultCacheDir, evidenceSource } from './defaults';
+import { defaultCacheDir, evidenceSource } from './verify-defaults';
 import { appendToLog, LogError, readLog } from './log/log';
 import {
   NoteError,
@@ -113,32 +113,6 @@ function logTarget(
   };
 }
 
-function sourceOf(config: VerifyConfig) {
-  const source = evidenceSource(
-    {
-      ...Option.match(config.evidence, {
-        onNone: () => ({}),
-        onSome: (evidence) => ({ evidence }),
-      }),
-      ...Option.match(config.fetch, {
-        onNone: () => ({}),
-        onSome: (fetch) => ({ fetch }),
-      }),
-    },
-    () =>
-      defaultCacheDir({
-        platform: process.platform,
-        env: process.env,
-        home: homedir(),
-      }),
-  );
-  if (source === undefined) {
-    throw new InputError('pass --evidence or --fetch, not both');
-  }
-
-  return source;
-}
-
 function lockfilePath(config: VerifyConfig): string {
   if (Option.isSome(config.lockfile)) {
     return config.lockfile.value;
@@ -155,7 +129,22 @@ function lockfilePath(config: VerifyConfig): string {
 
 const readInputs = (config: VerifyConfig) =>
   attempt(() => {
-    const source = sourceOf(config);
+    const source = evidenceSource(
+      {
+        evidence: Option.getOrUndefined(config.evidence),
+        fetch: Option.getOrUndefined(config.fetch),
+      },
+      () =>
+        defaultCacheDir({
+          platform: process.platform,
+          env: process.env,
+          home: homedir(),
+        }),
+    );
+    if (source.kind === 'conflict') {
+      throw new InputError('pass --evidence or --fetch, not both');
+    }
+
     const bytes = readFileSync(lockfilePath(config));
 
     return {
@@ -209,7 +198,7 @@ const verify = Command.make(
     ),
     fetch: Flag.String('fetch').pipe(
       Flag.withDescription(
-        'cache directory; fetch live evidence into <dir>/evidence, then verify against it. Without --evidence or --fetch, gate fetches into the per-user cache directory',
+        'cache directory; fetch live evidence into <dir>/evidence, then verify against it; defaults to the per-user cache when --evidence is absent',
       ),
       Flag.optional,
     ),

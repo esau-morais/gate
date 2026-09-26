@@ -2,12 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { Sha512Integrity } from '../src/evidence';
 import { readPackageLock, type LockfileNode } from '../src/npm/lockfile';
-import {
-  linkNoPatternCovers,
-  linkOutsideRepository,
-  recordedLock,
-  rootWithoutWorkspaces,
-} from './workspaces/locks';
+import { recordedLock } from './workspaces/locks';
 
 const sha512 = Sha512Integrity.make(`sha512-${'A'.repeat(86)}==`);
 
@@ -349,22 +344,6 @@ describe('workspace links', () => {
     expect(linkNodes(recordedLock('sigstore-js'))).toEqual([]);
   });
 
-  test('a link to a folder outside the repository stays a file source', () => {
-    expect(linkNodes(linkOutsideRepository())).toEqual([
-      ['node_modules/libnpmaccess', '../libnpmaccess'],
-    ]);
-  });
-
-  test('a link to a folder no workspaces pattern covers stays a file source', () => {
-    expect(linkNodes(linkNoPatternCovers())).toEqual([
-      ['node_modules/vendored', 'vendor/vendored'],
-    ]);
-  });
-
-  test('links stay file sources when the root declares no workspaces', () => {
-    expect(linkNodes(rootWithoutWorkspaces())).toHaveLength(16);
-  });
-
   test('a link named differently from its workspace stays a file source', () => {
     const lock = recordedLock('sigstore-js');
 
@@ -390,6 +369,36 @@ describe('workspace links', () => {
         }),
       ),
     ).toEqual([['node_modules/a', 'packages/a']]);
+  });
+
+  test('a link to a workspace entry that is itself a link stays a file source', () => {
+    expect(
+      linkNodes(
+        workspace(['packages/*'], {
+          'node_modules/a': { resolved: 'packages/a', link: true },
+          'packages/a': { name: 'a', resolved: '../evil', link: true },
+        }),
+      ),
+    ).toEqual([['node_modules/a', 'packages/a']]);
+  });
+
+  test('links to two workspaces with the same name stay file sources', () => {
+    expect(
+      linkNodes(
+        workspace(['packages/*'], {
+          'node_modules/a': { resolved: 'packages/a', link: true },
+          'packages/a': { version: '1.0.0' },
+          'node_modules/b/node_modules/a': {
+            resolved: 'packages/c',
+            link: true,
+          },
+          'packages/c': { name: 'a' },
+        }),
+      ),
+    ).toEqual([
+      ['node_modules/a', 'packages/a'],
+      ['node_modules/b/node_modules/a', 'packages/c'],
+    ]);
   });
 
   test('the {"packages": [...]} form declares workspaces too', () => {

@@ -20,9 +20,8 @@ Who it's for, in order:
 2. **Fails closed.** Missing evidence is never a pass (AGENTS.md).
 3. **Works with the clients people use** through `gate verify` in CI: package-lock today, pnpm-lock in M2, yarn.lock and bun.lock after. Client hooks are early warnings.
 4. **Sends nothing an install wouldn't, by default.** gate fetches public data (packuments, attestations, feed snapshots) and matches locally. It never uploads a lockfile or a dependency list.
-5. **Good experience.** Targets for M2. Today `verify` prints JSON lines only:
+5. **Good experience.** Targets for M2. Today `verify` runs with no flags in a package-lock repository and passes npm workspace links, and prints JSON lines only:
    - One command on a real repo, no config: `npx <name> verify`.
-   - npm workspaces pass without a context file.
    - Every non-ACCEPT line names the rule, the evidence, and the next step: the waiver to write, or the time the version clears `release_age`.
    - Human output on a terminal, JSON lines with `--json`.
    - A 1,000-node lockfile in under 10 s with a warm cache and under 60 s cold. These are targets, not measurements.

@@ -1,31 +1,22 @@
 import { Option, Schema } from 'effect';
 
 const Patterns = Schema.Array(Schema.String);
-const Root = Schema.Struct({
-  workspaces: Schema.Union([Schema.Struct({ packages: Patterns }), Patterns]),
-});
-const Link = Schema.Struct({
-  link: Schema.Literal(true),
-  resolved: Schema.NonEmptyString,
-});
-const Folder = Schema.Struct({
-  name: Schema.optionalKey(Schema.NonEmptyString),
-});
-
-const decodeRoot = Schema.decodeUnknownOption(Root);
-const decodeLink = Schema.decodeUnknownOption(Link);
-const decodeFolder = Schema.decodeUnknownOption(Folder);
+const Declaration = Schema.Union([
+  Schema.Struct({ packages: Patterns }),
+  Patterns,
+]);
+const decodeDeclaration = Schema.decodeUnknownOption(Declaration);
 
 const globstar = Symbol('globstar');
 type Segment = RegExp | typeof globstar;
+type Pattern = readonly Segment[];
 
 const patternSegment = /^[A-Za-z0-9._@+~*?-]+$/;
 const folderSegment = /^[A-Za-z0-9._@+~-]+$/;
 
-function parsePattern(raw: string): readonly Segment[] | undefined {
-  const segments = raw.replace(/^\.?\/+/, '').split('/');
+function parsePattern(raw: string): Pattern | undefined {
   const parsed: Segment[] = [];
-  for (const segment of segments) {
+  for (const segment of raw.replace(/^\.?\/+/, '').split('/')) {
     if (segment === '**') {
       parsed.push(globstar);
       continue;
@@ -51,10 +42,7 @@ function parsePattern(raw: string): readonly Segment[] | undefined {
   return parsed;
 }
 
-function matches(
-  pattern: readonly Segment[],
-  path: readonly string[],
-): boolean {
+function matches(pattern: Pattern, path: readonly string[]): boolean {
   const [head, ...rest] = pattern;
   if (head === undefined) {
     return path.length === 0;
@@ -89,58 +77,40 @@ function folderSegments(path: string): readonly string[] | undefined {
     : undefined;
 }
 
-function nameFromFolder(segments: readonly string[]): string {
-  const base = segments.at(-1) ?? '';
-  const parent = segments.at(-2);
-
-  return parent?.startsWith('@') === true ? `${parent}/${base}` : base;
-}
-
-function nameFromLink(path: string): string {
-  const marker = 'node_modules/';
-
-  return path.slice(path.lastIndexOf(marker) + marker.length);
-}
-
-export function workspaceLinks(
-  packages: Record<string, unknown>,
-): ReadonlySet<string> {
-  const root = decodeRoot(packages['']);
-  if (Option.isNone(root)) {
-    return new Set();
+export function workspaceMatcher(
+  workspaces: unknown,
+): (path: string) => boolean {
+  const declaration = decodeDeclaration(workspaces);
+  if (Option.isNone(declaration)) {
+    return () => false;
   }
 
-  const { workspaces } = root.value;
-  const declared = 'packages' in workspaces ? workspaces.packages : workspaces;
-  const patterns: (readonly Segment[])[] = [];
+  const declared =
+    'packages' in declaration.value
+      ? declaration.value.packages
+      : declaration.value;
+  const patterns: Pattern[] = [];
   for (const raw of declared) {
     const pattern = parsePattern(raw);
     if (pattern === undefined) {
-      return new Set();
+      return () => false;
     }
 
     patterns.push(pattern);
   }
 
-  const links = new Set<string>();
-  for (const [path, raw] of Object.entries(packages)) {
-    const link = decodeLink(raw);
-    if (Option.isNone(link) || !Object.hasOwn(packages, link.value.resolved)) {
-      continue;
-    }
+  return (path) => {
+    const segments = folderSegments(path);
 
-    const target = link.value.resolved;
-    const segments = folderSegments(target);
-    const folder = decodeFolder(packages[target]);
-    if (
+    return (
       segments !== undefined &&
-      Option.isSome(folder) &&
-      patterns.some((pattern) => matches(pattern, segments)) &&
-      nameFromLink(path) === (folder.value.name ?? nameFromFolder(segments))
-    ) {
-      links.add(path);
-    }
-  }
+      patterns.some((pattern) => matches(pattern, segments))
+    );
+  };
+}
 
-  return links;
+export function nameFromFolder(path: string): string {
+  const [base = '', parent] = path.split('/').toReversed();
+
+  return parent?.startsWith('@') === true ? `${parent}/${base}` : base;
 }

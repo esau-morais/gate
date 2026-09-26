@@ -34,17 +34,21 @@ export function defaultCacheDir(input: {
 
 export type EvidenceSource =
   | { readonly kind: 'recorded'; readonly dir: string }
-  | { readonly kind: 'fetch'; readonly cacheDir: string };
+  | { readonly kind: 'fetch'; readonly cacheDir: string }
+  | { readonly kind: 'conflict' };
 
 export function evidenceSource(
-  flags: { readonly evidence?: string; readonly fetch?: string },
+  flags: {
+    readonly evidence: string | undefined;
+    readonly fetch: string | undefined;
+  },
   defaultCache: () => string,
-): EvidenceSource | undefined {
-  if (flags.evidence !== undefined) {
-    return flags.fetch === undefined
-      ? { kind: 'recorded', dir: flags.evidence }
-      : undefined;
+): EvidenceSource {
+  if (flags.evidence === undefined) {
+    return { kind: 'fetch', cacheDir: flags.fetch ?? defaultCache() };
   }
 
-  return { kind: 'fetch', cacheDir: flags.fetch ?? defaultCache() };
+  return flags.fetch === undefined
+    ? { kind: 'recorded', dir: flags.evidence }
+    : { kind: 'conflict' };
 }
