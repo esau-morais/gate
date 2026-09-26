@@ -389,4 +389,49 @@ Accepted 2026-09-26. Missing evidence never reads as clean.
 - History provenance needs a recorded bundle per earlier version, or that version's publisher reads as unknown.
 - If the lockfile records `hasInstallScript` and the packument lists no install hook, scripts are unknown. A `gypfile` with no install hook counts as `node-gyp rebuild`, which npm runs.
 - Provenance facts share the evidence's `kind` union. The replay fixtures moved to that encoding with the same facts, and their `unknown` provenance became `unavailable` with the reason "no source recorded it".
-- Not yet: `gate verify` takes no allowlist or waivers, so every git, URL, file and workspace-link node rejects, and a repository with npm workspaces can't pass.
+- `--context` supplies the allowlist and waivers (see [Decision context](#decision-context)). Without one, every git, URL, file and workspace-link node rejects, and a repository with npm workspaces can't pass.
+
+### Decision record
+
+Accepted 2026-09-26. Each log entry is one `gate.decision/v1` record: node location, `dev` and `optional`, subject, evaluation time, the full evidence, the context, the lockfile's sha256, the policy refs, the outcome and the reasons.
+
+- Bytes are RFC 8785 (JCS) canonical JSON in UTF-8: keys sorted by UTF-16 code units, no whitespace, ECMAScript number formatting, lone surrogates refused. The encoder is 45 lines in `src/canonical-json.ts`. JSON matches what `gate verify` already prints and needs no dependency. Deterministic CBOR (RFC 8949 §4.2) would need an encoder, and protobuf has no canonical form.
+- A record reads only if re-encoding it gives the same bytes. Unknown fields, whitespace, another key order, or `20:14:12Z` for `20:14:12.000Z` make it unreadable, so a digest names one decision and one encoding.
+- `subject` repeats `evidence.subject` so a reader can scan subjects without parsing evidence. Replay fails a record where they differ.
+- The lockfile digest covers the file's bytes, not the parsed lockfile.
+- Only decisions are logged. An unreadable lockfile node has no decision. `gate verify` still prints it and exits 1.
+
+### Decision context
+
+Accepted 2026-09-26. `gate verify --context <file>` reads `{"allowedSources": [...], "waivers": [...]}` with the schemas in `src/context.ts`. Both keys are required, and an unknown key fails the run, so a misspelled `waiver` can't silently drop waivers. Every record logs the context it was decided with.
+
+### Decision log
+
+Accepted 2026-09-26. `gate verify --log <dir> --log-key <file>` appends one entry per decision to a single-writer [tlog-tiles](https://c2sp.org/tlog-tiles) log on local disk. The directory holds `checkpoint`, `tile/<L>/<N>[.p/<W>]` and `tile/entries/<N>[.p/<W>]`, as the spec lays them out, so any tlog-tiles client can read it if the directory is served over HTTP.
+
+- The checkpoint is an Ed25519 [signed note](https://c2sp.org/signed-note). Its origin is the key name, and gate refuses a checkpoint whose origin differs, although the spec only says SHOULD. There are no extension lines.
+- Keys use the `golang.org/x/mod/sumdb/note` encoding, which Tessera and the Go checksum database also use: `PRIVATE+KEY+<name>+<id>+<key>` for the signer and `<name>+<id>+<key>` for the verifier. C2SP defines only the verifier form. The key ID is SHA-256(name, newline, 0x01, public key)[:4]. Base64 key data can contain `+`, so parsers cut only the leading fields, as Go's does. gate never writes the signer key. A test scans every log file for its seed.
+- A lock file created with `O_EXCL` keeps a second writer out. A crashed writer leaves the lock behind, and the next run fails until someone removes it. gate doesn't guess whether a lock is stale.
+- Before appending, the writer reads every level 0 hash and checks the tree root against the signed checkpoint. It also checks the partial entry bundle against its tile. A log that fails either check is refused, not extended. This costs time linear in the log size on every run, which is fine at M1 volumes.
+- Tiles and bundles go to a temporary file, then `fsync` and `rename`. The checkpoint goes last. A crash leaves tiles no checkpoint references, and the next run overwrites them. gate never rewrites a full tile that a checkpoint covers. Old partial tiles stay on disk.
+- An entry bundle prefixes each entry with a uint16 length, so a record over 65,535 bytes fails the run rather than being truncated. The TanStack records are about 2 KB.
+- Inclusion verification is ported from sigstore-js `packages/verify/src/tlog/merkle.ts`, and note parsing follows the structure of its `checkpoint.ts`, both at `769a53d8`, with the Apache-2.0 notice and a list of changes kept in each file. sigstore-js matches a signature's name by substring and takes the key hint from the log ID. gate parses every signature line and counts a signature only when the name and the computed key ID both match.
+
+### Log test oracles
+
+Accepted 2026-09-26. Added `@cloudflare/tlog-tiles-wasm@0.2.0` and `@cloudflare/signed-note-wasm@0.2.0` as devDependencies, used only by tests. Both are BSD-3-Clause, have no dependencies or install scripts, carry trusted-publisher provenance from `cloudflare/azul`, were published 2026-08-21, and had no OSV or GitHub advisories on 2026-09-26.
+
+- The signed-note oracle verifies every checkpoint gate signs in the tests, and the tlog-tiles oracle parses its text.
+- tlog-tiles-wasm exposes checkpoint parsing and consistency proof verification, but no inclusion verification or tile reading. The tests build consistency proofs from gate's tiles and have the oracle check them. They check inclusion proofs and roots against the transparency-dev RFC 6962 vectors in `test/log/rfc6962-vectors.json`, and tile paths against the spec's 70,000-entry example.
+- The consistency oracle found a real bug. Every level 1 and higher tile hash was wrong, and gate's own writer and reader agreed with each other, so only an independent check could catch it.
+
+### gate replay
+
+Accepted 2026-09-26. `gate replay --log <dir> --public-key <file>` runs offline, with no evidence directory and no network.
+
+- The checkpoint must carry a valid signature from the given key, matched by name and key ID. A checkpoint signed by another key with the same name is refused: signed-note says to ignore signatures from unknown keys, then reject a note that no known key signed.
+- Each entry is proven against the checkpoint root with an inclusion proof built from the tiles. A missing or truncated bundle or tile fails the entries it covers, never skips them.
+- Each record's policy digests must name a policy gate pins (v1 or v2) under the same id. A record may name a canonical policy and at most one org policy. An unknown digest fails.
+- gate reruns `decide()` with the logged evidence, time and context, and compares the canonical bytes of outcome, reasons and policies. The output has one JSON line per entry, `match`, `mismatch` or `failed`, and the exit code is 0 only when every entry matches.
+- Replay proves that a decision follows from its logged evidence under its policy. It doesn't prove the evidence was right. That needs the recorded packuments and bundles, which the log doesn't hold.
+- The Node smoke check writes a log with the Node bundle and replays it under Node and Bun.
