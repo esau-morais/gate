@@ -59,15 +59,30 @@ type Affected =
 export type OsvSnapshot =
   | {
       readonly kind: 'loaded';
+      readonly capturedAt: Date;
+      readonly packages: 'all' | ReadonlySet<string>;
       readonly byName: ReadonlyMap<string, readonly Affected[]>;
     }
   | { readonly kind: 'unavailable'; readonly reason: string };
 
-function coversEveryVersion(
-  ranges: NonNullable<OsvRecord['affected'][number]['ranges']>,
-): boolean | undefined {
-  if (ranges.length === 0) {
-    return false;
+const freshForMs = 24 * 3_600_000;
+
+const Manifest = Schema.Struct({
+  capturedAt: OsvTimestamp,
+  packages: Schema.Union([
+    Schema.Literal('all'),
+    Schema.NonEmptyArray(Schema.NonEmptyString),
+  ]),
+});
+const decodeManifest = Schema.decodeUnknownResult(Manifest);
+
+type RangeCoverage = 'listed versions' | 'every version' | 'unevaluable';
+
+function rangeCoverage(
+  ranges: OsvRecord['affected'][number]['ranges'],
+): RangeCoverage {
+  if (ranges === undefined || ranges.length === 0) {
+    return 'listed versions';
   }
 
   const open = ranges.every(
@@ -78,7 +93,7 @@ function coversEveryVersion(
       Object.keys(range.events[0]).length === 1,
   );
 
-  return open ? true : undefined;
+  return open ? 'every version' : 'unevaluable';
 }
 
 function availability(record: OsvRecord): (version: string | null) => Date {
@@ -105,9 +120,20 @@ function availability(record: OsvRecord): (version: string | null) => Date {
     record.published;
 }
 
-export function readOsvSnapshot(records: readonly unknown[]): OsvSnapshot {
+export function readOsvSnapshot(input: {
+  manifest: unknown;
+  records: readonly unknown[];
+}): OsvSnapshot {
+  const manifest = decodeManifest(input.manifest);
+  if (Result.isFailure(manifest)) {
+    return {
+      kind: 'unavailable',
+      reason: 'OSV snapshot has no readable manifest',
+    };
+  }
+
   const byName = new Map<string, Affected[]>();
-  for (const raw of records) {
+  for (const raw of input.records) {
     const decoded = decodeRecord(raw);
     if (Result.isFailure(decoded)) {
       return { kind: 'unavailable', reason: 'an OSV record is unreadable' };
@@ -120,17 +146,14 @@ export function readOsvSnapshot(records: readonly unknown[]): OsvSnapshot {
         continue;
       }
 
-      const all =
-        affected.ranges === undefined
-          ? false
-          : coversEveryVersion(affected.ranges);
+      const coverage = rangeCoverage(affected.ranges);
       const entry: Affected =
-        all === undefined
+        coverage === 'unevaluable'
           ? { kind: 'unreadable', id: record.id }
           : {
               kind: 'versions',
               id: record.id,
-              all,
+              all: coverage === 'every version',
               versions: new Set(affected.versions ?? []),
               availableAt,
               withdrawnAt: record.withdrawn,
@@ -142,7 +165,14 @@ export function readOsvSnapshot(records: readonly unknown[]): OsvSnapshot {
     }
   }
 
-  return { kind: 'loaded', byName };
+  const { capturedAt, packages } = manifest.success;
+
+  return {
+    kind: 'loaded',
+    capturedAt,
+    packages: packages === 'all' ? 'all' : new Set(packages),
+    byName,
+  };
 }
 
 export function feedsFor(
@@ -151,6 +181,20 @@ export function feedsFor(
 ): PackageVersionEvidence['feeds'] {
   if (snapshot.kind === 'unavailable') {
     return snapshot;
+  }
+
+  if (query.at.getTime() - snapshot.capturedAt.getTime() > freshForMs) {
+    return {
+      kind: 'unavailable',
+      reason: `OSV snapshot from ${snapshot.capturedAt.toISOString()} is more than a day old`,
+    };
+  }
+
+  if (snapshot.packages !== 'all' && !snapshot.packages.has(query.name)) {
+    return {
+      kind: 'unavailable',
+      reason: `OSV snapshot does not cover ${query.name}`,
+    };
   }
 
   const hits: FeedHit[] = [];

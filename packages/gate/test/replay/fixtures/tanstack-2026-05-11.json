@@ -44,6 +44,7 @@
     "time": "2026-05-11T19:20:42.105Z",
     "integrity": null,
     "provenance": {
+      "kind": "verified",
       "repository": "https://github.com/TanStack/router",
       "workflow": ".github/workflows/release.yml"
     },
@@ -56,6 +57,7 @@
       "time": "2026-04-13T23:10:02.887Z",
       "integrity": "sha512-rasIqBXpRN3a4A7l5yOg5eukRzhW8Ey9XnuRI3xSDxMlmU2su6R+iEbHTUtbmfyNPfVr2E1bq9ReAhhqdYx5EQ==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -67,6 +69,7 @@
       "time": "2026-04-13T23:31:11.089Z",
       "integrity": "sha512-slnitYiHHmU52eMWtW8JbV9EMT5q6mRMbTA5yepBmJAnj5WZDrDRsLY/TuUrdD97A4W7/25tEQRoqc1G2X0oCw==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -78,6 +81,7 @@
       "time": "2026-04-15T00:22:54.343Z",
       "integrity": "sha512-W2LyfkfJtDCf//jOjZeUBWwOVl8iDRVTECpGHa2M28MT3T5/VVnjgicYNHR/ax0Filk1iU67MRjcjHheTYvK1Q==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -89,6 +93,7 @@
       "time": "2026-04-18T20:08:24.208Z",
       "integrity": "sha512-+GblieDnutG6oipJJPNtRJjrWF8QTZEG/l0532+BngFkVK48oHNOcvIkSoAFYftK1egAwM7KBxXsb0Ou+X6/MQ==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -100,6 +105,7 @@
       "time": "2026-04-24T23:24:05.277Z",
       "integrity": "sha512-CQWd9ywDZU6icG65SrjJMzWcNg/ehBKFxfxYssKSuELk0eM9SzJxJ3JBI760kdLXIsXewOX9PHpJDknxC/R5Ag==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -111,6 +117,7 @@
       "time": "2026-04-27T07:58:07.277Z",
       "integrity": "sha512-4U/E76dc+fYuLixjV1RLNfqrkQoexSL8MqGNpIHOodtvY3fMPGaALrvDVtBDQYBEU4z5r5fHaV6+kclWAVFP9A==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -122,6 +129,7 @@
       "time": "2026-04-29T20:18:51.204Z",
       "integrity": "sha512-+MV+U5KfMUQGZIU/x8MU3FMRSujxLs678v2jhu1Y8P9ndQBKLVOBYKFY+vv/ypxBUYiyDiOsZkDxPJC8UPo/Ig==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -133,6 +141,7 @@
       "time": "2026-04-30T17:52:04.270Z",
       "integrity": "sha512-HI4eIwxw9ccTIRMZTwFKcpsBPguUshhGmY5EhUZpW7hV/Ag7gqQ9v+T7S+lc1isAKiOXUf6PKh9x43v6PkSprw==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -144,6 +153,7 @@
       "time": "2026-05-01T00:07:33.123Z",
       "integrity": "sha512-MBtQKSvac3OCcsSa6oBpDrrN90IV47I6Gtv05NxhbFVh+gVjtqvs6HSU4XM9+y5sHZPgS+35eArflX4vM8GEnQ==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },
@@ -155,6 +165,7 @@
       "time": "2026-05-05T20:37:38.526Z",
       "integrity": "sha512-OJM7Kguc7ERnweaNRWsyWgIKcl3z23rD1B4jaxjzd9RGdnzpt2HfrWa9rggbT0Hfzhfo4D2ZmsfoTme035tniQ==",
       "provenance": {
+        "kind": "verified",
         "repository": "https://github.com/TanStack/router",
         "workflow": ".github/workflows/release.yml"
       },

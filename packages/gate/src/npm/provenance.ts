@@ -10,7 +10,9 @@ import {
 import { Result, Schema } from 'effect';
 import type { Sha512Integrity } from '../evidence';
 
-export type { TrustMaterial } from '@sigstore/verify';
+export type TrustRoot =
+  | { readonly kind: 'loaded'; readonly material: TrustMaterial }
+  | { readonly kind: 'unavailable'; readonly reason: string };
 
 export type ProvenanceResult =
   | {
@@ -174,9 +176,10 @@ export function verifyNpmProvenance(input: {
   }
 
   const purl = npmPurl(input.name, input.version);
-  const sha512 = Buffer.from(input.integrity.slice(7), 'base64').toString(
-    'hex',
-  );
+  const sha512 = Buffer.from(
+    input.integrity.slice('sha512-'.length),
+    'base64',
+  ).toString('hex');
   const matches = statement.success.subject.some(
     (subject) => subject.name === purl && subject.digest.sha512 === sha512,
   );

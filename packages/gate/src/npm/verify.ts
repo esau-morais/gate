@@ -5,24 +5,25 @@ import {
   npmRegistry,
   type LockfileNode,
   type LockfileSource,
+  type Location,
 } from './lockfile';
 import { feedsFor, type OsvSnapshot } from './osv';
 import { npmPackumentFacts } from './packument';
-import type { TrustMaterial } from './provenance';
+import type { TrustRoot } from './provenance';
 
 export type EvidenceStore = {
   readonly packument: (name: string) => unknown;
   readonly attestations: (name: string) => ReadonlyMap<string, unknown>;
-  readonly trust: TrustMaterial | null;
+  readonly trust: TrustRoot;
   readonly osv: OsvSnapshot;
 };
-
-type Location = { readonly path: string; readonly dependency?: string };
 
 export type VerifyRecord =
   | (Location &
       Decision & {
         readonly kind: 'decision';
+        readonly dev: boolean;
+        readonly optional: boolean;
         readonly at: Date;
         readonly evidence: PackageVersionEvidence;
       })
@@ -30,23 +31,15 @@ export type VerifyRecord =
 
 type PackageNode = Extract<LockfileNode, { kind: 'package' }>;
 
-const npmName = /^(@[\w.~-]+\/)?[\w.~-]+$/;
-
-export function isEvidenceName(name: string): boolean {
-  return (
-    npmName.test(name) &&
-    !name.split('/').some((segment) => segment === '.' || segment === '..')
-  );
-}
-
-function unknownRegistryEvidence(
+function unknownEvidence(
   node: PackageNode,
+  source: PackageVersionEvidence['source'],
   feeds: PackageVersionEvidence['feeds'],
   reason: string,
 ): PackageVersionEvidence {
   return {
     subject: { ecosystem: 'npm', name: node.name, version: node.version },
-    source: { kind: 'registry', registry: npmRegistry, integrity: null },
+    source,
     publishTime: { kind: 'unknown', reason },
     provenance: { kind: 'unavailable', reason },
     earlierProvenance: 'unknown',
@@ -65,13 +58,14 @@ function registryEvidence(
   feeds: PackageVersionEvidence['feeds'],
 ): PackageVersionEvidence {
   const unknown = (reason: string) =>
-    unknownRegistryEvidence(node, feeds, reason);
+    unknownEvidence(
+      node,
+      { kind: 'registry', registry: npmRegistry, integrity: null },
+      feeds,
+      reason,
+    );
   if (node.version === null) {
     return unknown('registry entry without a version');
-  }
-
-  if (!isEvidenceName(node.name)) {
-    return unknown('package name is not a valid npm name');
   }
 
   const packument = store.packument(node.name);
@@ -118,30 +112,16 @@ function exoticEvidence(
   source: Exclude<LockfileSource, { kind: 'registry' }>,
   feeds: PackageVersionEvidence['feeds'],
 ): PackageVersionEvidence {
-  const reason = `a ${source.kind} source has no registry evidence`;
-
-  return {
-    subject: { ecosystem: 'npm', name: node.name, version: node.version },
-    source: {
+  return unknownEvidence(
+    node,
+    {
       kind: source.kind,
       spec: source.spec,
       integrity: source.kind === 'url' ? source.integrity : null,
     },
-    publishTime: { kind: 'unknown', reason },
-    provenance: { kind: 'unavailable', reason },
-    earlierProvenance: 'unknown',
-    publisher: { kind: 'unknown', reason },
-    installScripts:
-      node.hasInstallScript === false
-        ? { kind: 'none' }
-        : {
-            kind: 'unknown',
-            reason: 'install scripts of this source unreadable',
-          },
-    integrityCheck: 'unchecked',
     feeds,
-    claims: [],
-  };
+    `a ${source.kind} source has no registry evidence`,
+  );
 }
 
 function evidenceFor(
@@ -187,6 +167,8 @@ export function verifyNodes(input: {
     return {
       kind: 'decision',
       ...location,
+      dev: node.dev,
+      optional: node.optional,
       at: input.at,
       ...decision,
       evidence,

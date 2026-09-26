@@ -33,7 +33,9 @@
     "version": "3.3.6",
     "time": "2018-09-09T08:28:59.503Z",
     "integrity": "sha512-dGXNg4F/FgVzlApjzItL+7naHutA3fDqbV/zAZqDDlXTjiMnQmZKu+prImWKszeBM5UQeGvAl3u1wBiKeDh61g==",
-    "provenance": "absent",
+    "provenance": {
+      "kind": "absent"
+    },
     "npmUser": "right9ctrl",
     "scripts": {}
   },
@@ -42,7 +44,9 @@
       "version": "3.1.7",
       "time": "2014-07-21T01:03:45.046Z",
       "integrity": "sha512-ddACn1VEffD+nvbofs8gs/0qJZC9gtEGLG+WykE//rinSpYLSaTsnN96eVQV+gHdUhV/nVtxUNKC3OjrApuEMw==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -50,7 +54,9 @@
       "version": "3.2.0",
       "time": "2014-12-27T06:59:21.624Z",
       "integrity": "sha512-JUVbEoOgDFaZjl5lm+wmoLdZ7vweN+b7OBN7Kr9Oxf/a/7dzThhNPaxAD46a1x9oiVRmnTGDviewZxI7W5rEkA==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -58,7 +64,9 @@
       "version": "3.2.1",
       "time": "2014-12-29T20:38:42.306Z",
       "integrity": "sha512-b4tWlIV4IzVVytPVUIScJtlf7jgjyiaFtVQbHqHxxW730BkvucMl2KaV2TM99erwnMXEhRSGwlvL/IvgnOIerw==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -66,7 +74,9 @@
       "version": "3.2.2",
       "time": "2015-02-02T10:11:31.433Z",
       "integrity": "sha512-E0zUzPQtDvplt8aVncJS5hhMgv7wLGjSOqrLiYZ8jNaZzQ8kafuVoj9hlVLbtDs1oFhZS4LpTKkRl3mUyygtfg==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -74,7 +84,9 @@
       "version": "3.3.0",
       "time": "2015-03-06T10:58:40.308Z",
       "integrity": "sha512-qycX0F4y/eZxXiHHpvyZB7/HxIflYxANP4rAS3gZM+mwOmeeyOfEAJgfAWC7VtAh09etOVtPrk5IkP9SenJkXw==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -82,7 +94,9 @@
       "version": "3.3.1",
       "time": "2015-05-06T02:59:08.992Z",
       "integrity": "sha512-emezUmnHTI7bBbhTr8AVdmI+/TZcOKwBIw8wt07JTNtXUjrDIJyPrdC+8PYx3hIHwO4qbYfCaNlgbYx6yC/QBw==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -90,7 +104,9 @@
       "version": "3.3.2",
       "time": "2015-10-16T04:25:40.139Z",
       "integrity": "sha512-H9QRlVNQxvGj8UFGXs2/t48HGqPKxJHuovP/ymtpzbGIVVXKTM4x85NVDl2pERrtgMOBnkDpdxY0ATRHk4as6A==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -98,7 +114,9 @@
       "version": "3.3.3",
       "time": "2016-06-18T23:39:10.007Z",
       "integrity": "sha512-AZ8CioTQrnT8Uyy/WVx5VW9uj4IbvSs5Bofe5KXcqEWRjlQvZVGRiThRjXEW5Zy2ZEUdgGfT+I5phDpFV4iL9w==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -106,7 +124,9 @@
       "version": "3.3.4",
       "time": "2016-07-17T07:24:09.767Z",
       "integrity": "sha512-QHpkERcGsR0T7Qm3HNJSyXKEEj8AHNxkY3PK8TS2KJvQ7NiSHe3DDpwVKKtoYprL/AreyzFBeIkBIWChAqn60g==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "dominictarr",
       "scripts": {}
     },
@@ -114,7 +134,9 @@
       "version": "3.3.5",
       "time": "2018-09-05T05:27:47.219Z",
       "integrity": "sha512-vyibDcu5JL20Me1fP734QBH/kenBGLZap2n0+XXM7mvuUPzJ20Ydqj1aKcIeMdri1p+PU+4yAKugjN8KCVst+g==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "right9ctrl",
       "scripts": {}
     }

@@ -3,11 +3,15 @@ import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
 import policyText from '../policies/supply-chain-policy-v2.json' with { type: 'text' };
-import { readEvidenceDirectory } from './npm/evidence-directory';
-import { readPackageLock } from './npm/lockfile';
-import { verifyExitCode, verifyNodes } from './npm/verify';
+import {
+  EvidenceDirectoryError,
+  isFileSystemError,
+  readEvidenceDirectory,
+} from './npm/evidence-directory';
+import { readPackageLock, type PackageLockRead } from './npm/lockfile';
+import { verifyExitCode, verifyNodes, type EvidenceStore } from './npm/verify';
 import { supplyChainPolicyV2Digest } from './policies';
-import { loadPolicy, PolicyLoadError } from './policy';
+import { loadPolicy, PolicyLoadError, type Policy } from './policy';
 import { UtcTimestamp } from './time';
 
 const decodeAt = Schema.decodeUnknownOption(UtcTimestamp);
@@ -26,6 +30,38 @@ const fail = (message: string) =>
     yield* Console.error(`gate verify: ${message}`);
     process.exitCode = 1;
   });
+
+function isInputError(error: unknown): error is Error {
+  return (
+    error instanceof EvidenceDirectoryError ||
+    error instanceof PolicyLoadError ||
+    isFileSystemError(error)
+  );
+}
+
+const readInputs = (paths: { lockfile: string; evidence: string }) =>
+  Effect.suspend(
+    (): Effect.Effect<
+      {
+        lock: PackageLockRead;
+        store: EvidenceStore;
+        policy: Policy;
+      },
+      string
+    > => {
+      try {
+        return Effect.succeed({
+          lock: readPackageLock(readFileSync(paths.lockfile, 'utf8')),
+          store: readEvidenceDirectory(paths.evidence),
+          policy: canonicalPolicy(),
+        });
+      } catch (error) {
+        return isInputError(error)
+          ? Effect.fail(error.message)
+          : Effect.die(error);
+      }
+    },
+  );
 
 const verify = Command.make(
   'verify',
@@ -54,15 +90,7 @@ const verify = Command.make(
         return yield* fail('--at must be a UTC timestamp');
       }
 
-      const inputs = yield* Effect.try({
-        try: () => ({
-          lock: readPackageLock(readFileSync(config.lockfile, 'utf8')),
-          store: readEvidenceDirectory(config.evidence),
-          policy: canonicalPolicy(),
-        }),
-        catch: (error) =>
-          error instanceof Error ? error.message : String(error),
-      }).pipe(Effect.result);
+      const inputs = yield* readInputs(config).pipe(Effect.result);
       if (Result.isFailure(inputs)) {
         return yield* fail(inputs.failure);
       }

@@ -12,28 +12,8 @@ const settledAfterMs = 72 * 3_600_000;
 
 type Unknowable<T> = { kind: 'known'; value: T } | { kind: 'unknown' };
 
-type Provenance =
-  | { kind: 'verified'; repository: string; workflow: string }
-  | { kind: 'absent' }
-  | { kind: 'unavailable'; reason: string };
-
-function provenanceOf(facts: NpmVersionFacts): Provenance {
-  const { provenance } = facts;
-  if (provenance === 'absent') {
-    return { kind: 'absent' };
-  }
-
-  if (provenance === 'unknown') {
-    return { kind: 'unavailable', reason: 'provenance unreadable' };
-  }
-
-  return 'unavailable' in provenance
-    ? { kind: 'unavailable', reason: provenance.unavailable }
-    : { kind: 'verified', ...provenance };
-}
-
 function identityOf(facts: NpmVersionFacts): Unknowable<Identity> {
-  const provenance = provenanceOf(facts);
+  const { provenance } = facts;
   if (provenance.kind === 'unavailable') {
     return { kind: 'unknown' };
   }
@@ -119,7 +99,7 @@ function publisherContinuity(
 function earlierProvenance(
   earlier: readonly NpmVersionFacts[],
 ): PackageVersionEvidence['earlierProvenance'] {
-  const kinds = earlier.map((facts) => provenanceOf(facts).kind);
+  const kinds = earlier.map((facts) => facts.provenance.kind);
   if (kinds.includes('verified')) {
     return 'some';
   }
@@ -181,7 +161,7 @@ function installScriptChange(
     : { kind: 'new', added: [firstAdded, ...restAdded] };
 }
 
-function crossCheck(
+function lockfileIntegrityCheck(
   published: Sha512Integrity | null,
   lockfile: { integrity: Sha512Integrity | null } | undefined,
 ): Pick<PackageVersionEvidence, 'integrityCheck'> & {
@@ -224,7 +204,7 @@ export function npmVersionEvidence(input: {
     )
     .toSorted((a, b) => a.time.getTime() - b.time.getTime());
 
-  const { integrity, integrityCheck } = crossCheck(
+  const { integrity, integrityCheck } = lockfileIntegrityCheck(
     target.integrity,
     input.lockfile,
   );
@@ -233,7 +213,7 @@ export function npmVersionEvidence(input: {
     subject: { ecosystem: 'npm', name: input.name, version: target.version },
     source: { kind: 'registry', registry: input.registry, integrity },
     publishTime: { kind: 'packument', at: target.time },
-    provenance: provenanceOf(target),
+    provenance: target.provenance,
     earlierProvenance: earlierProvenance(earlier),
     publisher: publisherContinuity(target, earlier),
     installScripts: installScriptChange(target, earlier.at(-1)),

@@ -38,7 +38,10 @@
     "version": "5.6.1",
     "time": "2025-09-08T13:13:05.239Z",
     "integrity": "sha512-5b8G5vAwZY6ae5Vrp8HcIip49h0n88ASWNfK02h9aUjdPdhac481t5Ry7wXamd0gUvyK1KvS/dePAwAkEms4pw==",
-    "provenance": "unknown",
+    "provenance": {
+      "kind": "unavailable",
+      "reason": "no source recorded it"
+    },
     "npmUser": "qix",
     "scripts": {}
   },
@@ -47,7 +50,9 @@
       "version": "5.0.1",
       "time": "2022-03-08T18:44:36.269Z",
       "integrity": "sha512-Fo07WOYGqMfCWHOzSXOt2CxDbC6skS/jO9ynEcmpANMoPrD+W1r1K6Vx7iNm+AQmETU1Xr2t+n8nzkV9t6xh3w==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -55,7 +60,9 @@
       "version": "5.1.0",
       "time": "2022-10-05T14:46:20.465Z",
       "integrity": "sha512-56zD4khRTBoIyzUYAFgDDaPhUMN/fC/rySe6aZGqbj/VWiU2eI3l6ZLOtYGFZAV5v02mwPjtpzlrOveJiz5eZQ==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -63,7 +70,9 @@
       "version": "5.1.1",
       "time": "2022-10-12T09:37:44.826Z",
       "integrity": "sha512-OItMegkSDU3P7OJRWBbNRsQsL8SzgwlIGXSZRVfHCLBYrDgzYDuozwDMwvEDpiZdjr50tdOTbTzuubirtEozsg==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -71,7 +80,9 @@
       "version": "5.1.2",
       "time": "2022-10-12T16:31:51.839Z",
       "integrity": "sha512-E5CkT4jWURs1Vy5qGJye+XwCkNj7Od3Af7CP6SujMetSMkLs8Do2RWJK5yx1wamHV/op8Rz+9rltjaTQWDnEFQ==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -79,7 +90,9 @@
       "version": "5.2.0",
       "time": "2022-12-08T18:46:27.169Z",
       "integrity": "sha512-ree3Gqw/nazQAPuJJEy+avdl7QfZMcUvmHIKgEZkGL+xOBzRvup5Hxo6LHuMceSxOabuJLJm5Yp/92R9eMmMvA==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -87,7 +100,9 @@
       "version": "5.3.0",
       "time": "2023-06-29T10:58:11.887Z",
       "integrity": "sha512-dLitG79d+GV1Nb/VYcCDFivJeK1hiukt9QjRNVOsUtTy1rR1YJsmpGGTZ3qJos+uw7WmWF4wUwBd9jxjocFC2w==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -95,7 +110,9 @@
       "version": "5.4.0",
       "time": "2024-12-18T18:00:41.792Z",
       "integrity": "sha512-ZkD35Mx92acjB2yNJgziGqT9oKHEOxjTBTDRpOsRWtdecL/0jM3z5kM/CTzHWvHIen1GvkM85p6TuFfDGfc8/Q==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -103,7 +120,9 @@
       "version": "5.4.1",
       "time": "2024-12-21T17:04:53.006Z",
       "integrity": "sha512-zgVZuo2WcZgfUEmsn6eO3kINexW8RAE4maiQ8QNs8CtpPCSyMiYsULR3HQYkm3w8FIA3SberyMJMSldGsW+U3w==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -111,7 +130,9 @@
       "version": "5.5.0",
       "time": "2025-08-03T23:22:09.818Z",
       "integrity": "sha512-1tm8DTaJhPBG3bIkVeZt1iZM9GfSX2lzOeDVZH9R9ffRHpmHvxZ/QhgQH/aDTkswQVt+YHdXAdS/In/30OjCbg==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     },
@@ -119,7 +140,9 @@
       "version": "5.6.0",
       "time": "2025-08-17T07:27:47.572Z",
       "integrity": "sha512-46QrSQFyVSEyYAgQ22hQ+zDa60YHA4fBstHmtSApj1Y5vKtG27fWowW03jCk5KcbXEWPZUIR894aARCA/G1kfQ==",
-      "provenance": "absent",
+      "provenance": {
+        "kind": "absent"
+      },
       "npmUser": "sindresorhus",
       "scripts": {}
     }

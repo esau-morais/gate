@@ -13,7 +13,10 @@ export type LockfileSource =
     }
   | { readonly kind: 'file'; readonly spec: string };
 
-type Location = { readonly path: string; readonly dependency?: string };
+export type Location = {
+  readonly path: string;
+  readonly dependency?: string;
+};
 
 export type LockfileNode =
   | (Location & {
@@ -41,19 +44,19 @@ const PackageLock = Schema.fromJsonString(
 const Dependencies = Schema.optionalKey(
   Schema.Record(Schema.String, Schema.String),
 );
-const Flag = Schema.optionalKey(Schema.Boolean);
+const OptionalBoolean = Schema.optionalKey(Schema.Boolean);
 
 const Entry = Schema.Struct({
   name: Schema.optionalKey(Schema.NonEmptyString),
   version: Schema.optionalKey(Schema.NonEmptyString),
   resolved: Schema.optionalKey(Schema.NonEmptyString),
   integrity: Schema.optionalKey(Schema.String),
-  link: Flag,
-  dev: Flag,
-  optional: Flag,
-  devOptional: Flag,
-  inBundle: Flag,
-  hasInstallScript: Flag,
+  link: OptionalBoolean,
+  dev: OptionalBoolean,
+  optional: OptionalBoolean,
+  devOptional: OptionalBoolean,
+  inBundle: OptionalBoolean,
+  hasInstallScript: OptionalBoolean,
   dependencies: Dependencies,
   optionalDependencies: Dependencies,
   devDependencies: Dependencies,
@@ -71,14 +74,14 @@ const urlSpec = /^https?:\/\//;
 const fileSpec = /^(file:|link:|workspace:|\.{1,2}\/|\/|~\/)/;
 
 function sha512Of(integrity: string | undefined): Sha512Integrity | null {
-  for (const token of integrity?.split(/\s+/) ?? []) {
-    const parsed = decodeSha512(token);
-    if (Option.isSome(parsed)) {
-      return parsed.value;
-    }
-  }
+  const digests = new Set(
+    (integrity?.split(/\s+/) ?? []).flatMap((token) =>
+      Option.toArray(decodeSha512(token)),
+    ),
+  );
+  const [only, ...rest] = digests;
 
-  return null;
+  return only !== undefined && rest.length === 0 ? only : null;
 }
 
 function isWorkspaceFolder(path: string): boolean {
@@ -186,18 +189,27 @@ function undeclaredExoticNodes(
   entry: Entry,
 ): LockfileNode[] {
   const edges = [
-    ...Object.entries(entry.dependencies ?? {}).map(
-      ([name, spec]) => [name, spec, false] as const,
-    ),
-    ...Object.entries(entry.optionalDependencies ?? {}).map(
-      ([name, spec]) => [name, spec, true] as const,
-    ),
-    ...Object.entries(entry.devDependencies ?? {}).map(
-      ([name, spec]) => [name, spec, false] as const,
-    ),
+    ...Object.entries(entry.dependencies ?? {}).map(([name, spec]) => ({
+      name,
+      spec,
+      dev: false,
+      optional: false,
+    })),
+    ...Object.entries(entry.optionalDependencies ?? {}).map(([name, spec]) => ({
+      name,
+      spec,
+      dev: false,
+      optional: true,
+    })),
+    ...Object.entries(entry.devDependencies ?? {}).map(([name, spec]) => ({
+      name,
+      spec,
+      dev: true,
+      optional: false,
+    })),
   ];
 
-  return edges.flatMap(([name, spec, optional]): LockfileNode[] => {
+  return edges.flatMap(({ name, spec, dev, optional }): LockfileNode[] => {
     const classified = classifySpec(spec, undefined);
     if (classified === undefined || installedAt(packages, path, name)) {
       return [];
@@ -214,7 +226,7 @@ function undeclaredExoticNodes(
             name,
             version: null,
             source: classified.source,
-            dev: false,
+            dev,
             optional,
             hasInstallScript: null,
           },

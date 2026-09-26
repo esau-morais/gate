@@ -135,3 +135,30 @@ export function verifyArgs(
     evaluation.at.toISOString(),
   ];
 }
+
+export function recordedEvidence(path: string): unknown {
+  return JSON.parse(readFileSync(new URL(path, evidenceDir), 'utf8'));
+}
+
+export const viteVersions = [
+  '8.1.2',
+  '8.1.3',
+  '8.1.4',
+  '8.1.5',
+  '8.2.0-beta.0',
+  '8.2.0',
+  '8.2.1',
+  '8.2.2',
+  '8.3.0-beta.0',
+  '8.3.0-beta.1',
+  '8.3.0',
+];
+
+export function recordedViteAttestations(): ReadonlyMap<string, unknown> {
+  return new Map(
+    viteVersions.map((version) => [
+      version,
+      recordedEvidence(`attestations/vite@${version}.json`),
+    ]),
+  );
+}

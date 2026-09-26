@@ -19,12 +19,21 @@ function entry(affected: Record<string, unknown>, extra = {}) {
   };
 }
 
+const capturedAt = '2026-09-26T16:50:56Z';
+
+function snapshotOf(
+  records: readonly unknown[],
+  manifest: unknown = { capturedAt, packages: 'all' },
+) {
+  return readOsvSnapshot({ manifest, records });
+}
+
 const at = (time: string) => new Date(time);
 const hitIds = (feeds: ReturnType<typeof feedsFor>) =>
   feeds.kind === 'checked' ? feeds.hits.map((hit) => hit.id) : feeds;
 
 describe('OSV malicious-packages snapshot', () => {
-  const snapshot = readOsvSnapshot([tanstack]);
+  const snapshot = snapshotOf([tanstack]);
 
   test('a listed version hits once the feed imported it', () => {
     const query = { name: '@tanstack/react-router', version: '1.169.8' };
@@ -67,7 +76,7 @@ describe('OSV malicious-packages snapshot', () => {
   });
 
   test('an open range from 0 covers every version', () => {
-    const all = readOsvSnapshot([
+    const all = snapshotOf([
       entry({ ranges: [{ type: 'SEMVER', events: [{ introduced: '0' }] }] }),
     ]);
 
@@ -83,7 +92,7 @@ describe('OSV malicious-packages snapshot', () => {
   });
 
   test('a range gate does not evaluate leaves that package unchecked', () => {
-    const bounded = readOsvSnapshot([
+    const bounded = snapshotOf([
       entry({
         ranges: [
           {
@@ -102,7 +111,7 @@ describe('OSV malicious-packages snapshot', () => {
   });
 
   test('a withdrawn entry stops hitting when withdrawn', () => {
-    const withdrawn = readOsvSnapshot([
+    const withdrawn = snapshotOf([
       entry({ versions: ['1.0.0'] }, { withdrawn: '2026-01-10T00:00:00Z' }),
     ]);
     const query = { name: 'lib', version: '1.0.0' };
@@ -116,7 +125,7 @@ describe('OSV malicious-packages snapshot', () => {
   });
 
   test('entries for other ecosystems are ignored', () => {
-    const pypi = readOsvSnapshot([
+    const pypi = snapshotOf([
       entry({
         package: { ecosystem: 'PyPI', name: 'lib' },
         versions: ['1.0.0'],
@@ -135,7 +144,7 @@ describe('OSV malicious-packages snapshot', () => {
   });
 
   test('one unreadable record makes the whole snapshot unavailable', () => {
-    const broken = readOsvSnapshot([tanstack, { id: 'MAL-2026-0002' }]);
+    const broken = snapshotOf([tanstack, { id: 'MAL-2026-0002' }]);
 
     expect(
       feedsFor(broken, {
@@ -143,6 +152,44 @@ describe('OSV malicious-packages snapshot', () => {
         version: '8.3.0',
         at: at('2026-09-26T00:00:00Z'),
       }).kind,
+    ).toBe('unavailable');
+  });
+
+  test('without a manifest the snapshot proves nothing', () => {
+    for (const manifest of [undefined, {}, { capturedAt, packages: [] }]) {
+      expect(
+        feedsFor(readOsvSnapshot({ manifest, records: [] }), {
+          name: 'vite',
+          version: '8.3.0',
+          at: at('2026-09-26T00:00:00Z'),
+        }).kind,
+      ).toBe('unavailable');
+    }
+  });
+
+  test('a package the snapshot does not cover is unchecked', () => {
+    const partial = snapshotOf([tanstack], {
+      capturedAt,
+      packages: ['@tanstack/react-router'],
+    });
+    const query = { version: '8.3.0', at: at('2026-09-26T00:00:00Z') };
+
+    expect(feedsFor(partial, { ...query, name: 'vite' }).kind).toBe(
+      'unavailable',
+    );
+    expect(
+      feedsFor(partial, { ...query, name: '@tanstack/react-router' }).kind,
+    ).toBe('checked');
+  });
+
+  test('a snapshot more than a day old at evaluation time is unavailable', () => {
+    const query = { name: 'vite', version: '8.3.0' };
+
+    expect(
+      feedsFor(snapshot, { ...query, at: at('2026-09-27T16:50:56Z') }).kind,
+    ).toBe('checked');
+    expect(
+      feedsFor(snapshot, { ...query, at: at('2026-09-27T16:50:57Z') }).kind,
     ).toBe('unavailable');
   });
 });

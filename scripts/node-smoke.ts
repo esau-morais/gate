@@ -47,7 +47,7 @@ try {
       if (evaluate(expr, context) !== true) throw new Error('failed on Node: ' + expr);
     }
     const canonical = gate.loadPolicy(readFileSync(${JSON.stringify(policy)}), gate.supplyChainPolicyV1Digest);
-    const version = (v, time) => ({ version: v, time: new Date(time), integrity: 'sha512-' + 'A'.repeat(86) + '==', provenance: 'absent', npmUser: 'm', scripts: {} });
+    const version = (v, time) => ({ version: v, time: new Date(time), integrity: 'sha512-' + 'A'.repeat(86) + '==', provenance: { kind: 'absent' }, npmUser: 'm', scripts: {} });
     const evidence = gate.npmVersionEvidence({
       name: 'lib', registry: 'https://registry.npmjs.org',
       target: version('1.1.0', '2026-01-02T00:00:00Z'), earlier: [version('1.0.0', '2025-12-01T00:00:00Z')],

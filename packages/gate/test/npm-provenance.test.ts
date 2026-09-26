@@ -1,18 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
 import { Schema } from 'effect';
 import { Sha512Integrity } from '../src/evidence';
 import { trustMaterialFrom, verifyNpmProvenance } from '../src/npm/provenance';
+import { recordedEvidence } from './verify/cases';
 
-const evidence = new URL('./verify/evidence/', import.meta.url);
-
-function recorded(path: string): unknown {
-  return JSON.parse(readFileSync(new URL(path, evidence), 'utf8'));
-}
-
-const trustedRoot = recorded('trusted_root.json');
+const trustedRoot = recordedEvidence('trusted_root.json');
 const trust = trustMaterialFrom(trustedRoot);
-const attestations = recorded('attestations/vite@8.3.0.json');
+const attestations = recordedEvidence('attestations/vite@8.3.0.json');
 const integrity = Schema.decodeUnknownSync(Sha512Integrity)(
   'sha512-lhZBVvEHefgE+HQZC9O7EBJgCU/nVzFNl7vkS4RE0APtWLP02/8QVIkQtzBxPquh7lq5/78NHipTj7ODQ6XuyQ==',
 );
@@ -37,13 +31,13 @@ function object(value: unknown): Json {
   return value;
 }
 
-function entries(response: unknown): unknown[] {
-  const list = object(response).attestations;
+function entries(response: unknown): readonly unknown[] {
+  const list: unknown = object(response).attestations;
   if (!Array.isArray(list)) {
     throw new Error('recorded response has no attestations');
   }
 
-  return list.filter(() => true);
+  return list;
 }
 
 function isProvenance(entry: unknown): boolean {
