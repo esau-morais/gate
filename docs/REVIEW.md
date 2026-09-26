@@ -339,3 +339,55 @@ Accepted 2026-09-26. v1 is frozen at `sha256:891f054d447051807bfa5cd6b7552b592fa
 - **`integrity_unknown`** quarantines a registry version with no `dist.integrity`, so every ACCEPT is tied to bytes. The Bun scanner path, which gets no integrity, can't produce an ACCEPT.
 - **Limits.** The install-script check compares commands, not the files they run, so a changed `bundle.js` behind an old command passes. History that has waited out the window counts even if it was quarantined.
 - A policy that fails to load, or whose bytes don't match the pinned digest, is refused. Org rules are evaluated separately and the stricter outcome wins.
+
+### SupplyChainPolicy/v2
+
+Accepted 2026-09-26. v2 is v1 plus one REJECT rule, `integrity_mismatch`, pinned at `sha256:e864b25d5966d00fc634081b138203ac130d1fd6eddafa1f1374b4e5145aa2c1`. `gate verify` evaluates v2. The replay corpus runs under v1 and v2 with the same expected outcomes.
+
+- Evidence gained `integrityCheck`. `matched` means the lockfile and `dist.integrity` agree, and the decision is tied to those bytes. `mismatched` means the lockfile pins other bytes, and v2 rejects. `unchecked` with a lockfile means one side has no sha512, so `source.integrity` is null and `integrity_unknown` quarantines. Without a lockfile (the replay fixtures) the packument integrity stands and the check is `unchecked`.
+- `subject.version` is nullable. A git dependency declared in a lockfile edge has no version. Waivers can't match it.
+
+### Lockfile replay
+
+Accepted 2026-09-26. `packages/gate/test/verify` holds recorded lockfile fragments, a shared evidence directory, and the expected `gate verify` output per evaluation time. `evidence/SOURCES.json` labels every file.
+
+- No public package-lock.json pins `@tanstack/react-router@1.169.5`. GitHub code search for the injected commit (2026-09-26) found one package-lock.json, `shoonyatech/shoonya.web@b59795e4`, committed during the attack. It pins 1.169.8, the other version in MAL-2026-3465, with the same `github:tanstack/router#79ac49ee…` optionalDependency. It has no node for `@tanstack/setup`, only the edge. That lockfile is the TanStack case. The other hits were scanner code, test fixtures, and one bun.lock (`whycarlindev/videoflow-app`), which is out of scope until the bun.lock parser exists.
+- The vite 8.3.0 case is `camsong/You-Dont-Need-jQuery@d413b575`.
+- Fragments keep the root entry and the target entries verbatim and drop the rest. Packuments keep the target and the 10 versions before it, with only the fields gate reads. `_npmUser` loses its email.
+- Evidence is as of capture. npm removed 1.169.8's version document and attestation, so its integrity, provenance, publisher and scripts read as unknown. A run at the commit time would have seen them. The outcome class matches either way. The lockfile holds the only recorded digest of that tarball.
+
+### package-lock parser
+
+Accepted 2026-09-26. Hand-written with Effect Schema, v2 and v3 only. `@npmcli/arborist` pulls 115 packages (§11).
+
+- A v1 or unknown `lockfileVersion`, or text that isn't a lockfile, is one unreadable record and a non-zero exit. An unreadable entry becomes its own unreadable record and doesn't hide the others.
+- A registry entry must resolve to `https://registry.npmjs.org/<name>/-/<base>-<version>.tgz` for its own name and version. Any other tarball on that host is unreadable. That's the lockfile-injection case lockfile-lint checks. Tarballs on other hosts, including private registries and mirrors, are `url` sources and fail `exotic_source`.
+- Git sources must end in a 40-hex commit or the entry is unreadable. Links and `file:` are `file` sources.
+- A declared git, URL or file dependency with no installed node, found by npm's `node_modules` lookup, becomes its own node. That is how the TanStack edge reaches the policy. Declared registry ranges without a node aren't checked, so a truncated lockfile passes for the entries it lacks.
+- Bundled entries (`inBundle`) ship inside the parent tarball and aren't nodes. Only a sha512 integrity counts.
+
+### Sigstore dependencies
+
+Accepted 2026-09-26. Provenance is `verified` only when a bundle verifies offline against a recorded `trusted_root.json` and its subject matches.
+
+- Added `@sigstore/verify@4.1.2` (certificate chain, SCTs, tlog inclusion, DSSE signature) and `@sigstore/bundle@5.0.0` (bundle parsing). Hand-writing X.509, CT and Rekor checks is the kind of code that fails open. Added `@sigstore/protobuf-specs@0.5.2` for `TrustedRoot.fromJSON`. It is already a dependency of both.
+- Not added. `@sigstore/tuf` (10 packages) only fetches the trusted root, and offline mode reads a recorded one. It comes with network mode. `@sigstore/core` isn't a direct dependency because the verifier's `Signer` already carries the certificate extensions.
+- Identity comes from the Fulcio certificate: Source Repository URI (1.3.6.1.4.1.57264.1.12) and the workflow path in Build Config URI (…1.18). The in-toto predicate is written by the workflow that signs it, so gate doesn't read identity from it. Only the GitHub Actions issuer is accepted. Other issuers are `unavailable`.
+- The statement subject must equal `pkg:npm/<name with %40>@<version>` with the sha512 of `dist.integrity`. A valid bundle for another version, package or tarball is `unavailable`.
+- Failure is always `unavailable` with a reason, never `absent`. An advertised attestation with no recorded bundle, no sha512 integrity, or no trusted root is `unavailable` too.
+
+### @effect/platform-bun
+
+Accepted 2026-09-26. Added at `4.0.0-rc.117` for the CLI, as the Effect v4 entry says. It installs `@effect/platform-node-shared`, `ws` and `@types/ws`. The Node bundle of `gate verify` contains no `ws` code and no `Bun.*` calls.
+
+### gate verify, offline
+
+Accepted 2026-09-26. `gate verify --lockfile <path> --evidence <dir> [--at <UTC>]` prints one JSON line per node: path, dependency for edge nodes, time, outcome, reasons, policy ids and digests, and the evidence. It exits 0 only if every node is ACCEPT. Input and usage errors exit 1 with a message on stderr.
+
+- The evidence directory holds `packuments/<name>.json`, `attestations/<name>@<version>.json` (the npm attestations response), `osv/**/*.json` and `trusted_root.json`. Scoped names are subdirectories. A name that isn't a valid npm name is never turned into a path.
+- History provenance needs a bundle per earlier version. An earlier version whose bundle isn't recorded reads as unknown.
+- A registry node with no packument, a packument for another name, or a target missing from `time` gets all-unknown evidence and quarantines.
+- If the lockfile records `hasInstallScript` and the packument lists no install hook, scripts are unknown. A `gypfile` with no install hook counts as `install: node-gyp rebuild`, which is what npm runs.
+- Non-registry nodes have no publish time, provenance or publisher. Their scripts are `none` only if the lockfile says so.
+- OSV: a hit counts from the earliest `import_time` of an origin that lists the version, then any origin, then `published`. Withdrawn entries stop counting when withdrawn. gate evaluates version lists and ranges open from `0`. Any other range makes feeds unavailable for that package, and an unreadable record makes the whole snapshot unavailable. A node without a version matches every entry for its name.
+- Not yet: allowlists and waivers can't be passed to `gate verify`, so every git, URL, file and workspace-link node is rejected.
