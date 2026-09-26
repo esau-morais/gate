@@ -34,6 +34,10 @@
         "@sigstore/verify": "4.1.2",
         "effect": "4.0.0-rc.117",
       },
+      "devDependencies": {
+        "@cloudflare/signed-note-wasm": "0.2.0",
+        "@cloudflare/tlog-tiles-wasm": "0.2.0",
+      },
     },
   },
   "packages": {
@@ -44,6 +48,10 @@
     "@cacheable/memory": ["@cacheable/memory@2.2.0", "", { "dependencies": { "@cacheable/utils": "^2.5.0", "@keyv/bigmap": "^1.3.1", "hookified": "^1.15.1", "keyv": "^5.6.0" } }, "sha512-CTLKqLItRCEixEAewD3/j9DB3/o96gpTPD4eJ1v+DGOlxZRZncRQkGYqqnAGCscYd6RNeXfGeiuCphsPtqyIfQ=="],
 
     "@cacheable/utils": ["@cacheable/utils@2.5.0", "", { "dependencies": { "hashery": "^1.5.1", "keyv": "^5.6.0" } }, "sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA=="],
+
+    "@cloudflare/signed-note-wasm": ["@cloudflare/signed-note-wasm@0.2.0", "", {}, "sha512-rlUZ+qLxF1UjfFH8Z0CCBQ9mMF0H1xAOFpzD9wMrDf/lWwE+u58x17TSk+4squrvNZ8OPrAgqTuFUcaU99Gx2w=="],
+
+    "@cloudflare/tlog-tiles-wasm": ["@cloudflare/tlog-tiles-wasm@0.2.0", "", {}, "sha512-hZQG1E25LLFRIkz0RG/oIbByy+jvk2004iXVHm//HGgZ4tDfUcb7Rn7T3+mJRoyh7tXEdqtZMpe9k3ScQzONQQ=="],
 
     "@effect/platform-bun": ["@effect/platform-bun@4.0.0-rc.117", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-rc.117" }, "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-jyvoxPjT9562z5Tc2gib9GB16jcgh43jhpsuNQxs9B8WJ7RB2doPBQdrYLSSWRodGPLJBKJGzToRRbJiaGblsw=="],
 
