@@ -458,3 +458,33 @@ Accepted 2026-09-26. gate is MIT, the maintainer's default, replacing the first 
 - `packages/gate/src/log/merkle.ts` and `packages/gate/src/log/note.ts` stay Apache-2.0, as ported from sigstore-js, which has no NOTICE file. The root LICENSE carries the Apache text and names both files. Apache §4 allows this inside an MIT project ([Apache FAQ](https://www.apache.org/foundation/license-faq.html)).
 - Apache-2.0 would add a patent grant and remove the mixed-license note. That wasn't worth changing the default for a CLI with no patents at stake.
 - No AGPL or FSL. Both protect a hosted business by restricting the code, and the relicensing fights at Redis, Elastic and HashiCorp came from changing license after adoption. The license is set before launch.
+
+### Network mode
+
+Accepted 2026-09-26. `gate verify --lockfile <file> --fetch <cache-dir>` fetches live evidence into `<cache-dir>/evidence`, then verifies against that directory exactly as `--evidence` does. Exactly one of `--evidence` and `--fetch` is required. `gate verify --evidence <cache-dir>/evidence --at <time>` reruns a fetch-mode run offline, and on the microsoft/vscode run below it gave the same 1,659 decisions.
+
+- The cache holds `registry/`, `feed/` and `tuf/`. Each run rebuilds `evidence/` from them: packuments, attestations, OSV records with `osv/manifest.json`, `trusted_root.json`, and a `SOURCES.json` that lists each file's URL and fetch time plus every fetch that failed. Fetch times stay in `SOURCES.json`. The decision record is unchanged.
+- A packument is reused while the registry's `Cache-Control: max-age` holds (300 s on 2026-09-26), then revalidated with its ETag. If the refresh fails, the packument is left out and its evidence reads as unknown. A stale copy would hide a version npm removed. Attestation bundles are cached for good, and only 200s are kept. Only versions whose document advertises `dist.attestations.provenance` are requested, among the target and the 10 versions `npmPackumentFacts` reads.
+- 429 and 503 are retried up to three times after `Retry-After` (1 s by default). A wait over 60 s fails the fetch instead. Other statuses and network errors fail at once. Every failure is a gap, and a gap never reads as clean.
+- Packuments are trimmed to `name`, `time` and, per version, `name`, `version`, `scripts`, `gypfile`, `_npmUser.name` and `dist` integrity, shasum, tarball and attestations. Values of the wrong shape are kept as they are, so a trimmed packument decodes the same as the full one (tested on the full `ms` packument). All scripts stay, because dropping a malformed non-install script would make an unreadable version readable.
+- Requests go to registry.npmjs.org, codeload.github.com and tuf-repo-cdn.sigstore.dev. None of them carries the lockfile or the dependency list beyond the packages being fetched, which an install also fetches.
+- Measured 2026-09-26 on this machine, Node 22.23.2, cold then warm: camsong/You-Dont-Need-jQuery@d413b575 (99 nodes) 15.2 s and 5.6 s. npm/cli@0c3b82a9 (899 nodes) 19.3 s and 7.8 s. microsoft/vscode@fb6287cc (1,659 nodes) 32.9 s and 11.0 s. Of vscode's warm 11.0 s, 7.0 s is the offline verify, mostly checking 904 Sigstore bundles.
+
+### Malware feed snapshot
+
+Accepted 2026-09-26. Network mode downloads `https://codeload.github.com/ossf/malicious-packages/tar.gz/refs/heads/main` and reuses it for an hour.
+
+| Source (2026-09-26) | Download | npm records | `import_time` |
+|---|---|---|---|
+| ossf/malicious-packages tarball | 45.8 MB gzip, 458 MB unpacked, 9.9 s | 221,947 (malicious and withdrawn) | Kept |
+| OSV `npm/all.zip` | 216.7 MB, 7.6 s | 221,947 MAL plus 7,469 GHSA | Kept (MAL-2026-3465 matches the API) |
+
+- The tarball is a fifth of the size, it is the source OSV imports from, and its pax header names the commit. The manifest records the URL and commit, and `capturedAt` is the download time.
+- Parsing every npm record takes about 2 s on Node and Bun. gate matches records on `affected[].package.name`, not the directory. 103 records sit in a lowercased directory (`adultjs/` holds AdultJS).
+- `osv/` gets only the records for the lockfile's names, and the manifest lists those names as covered. A record that isn't JSON, names no affected package, or repeats an id makes the whole feed unavailable, like an unreadable record offline. A truncated archive is unavailable too, and the next run downloads it again.
+- 39,866 npm records (18%) had `"malicious-packages-origins": null`, which the offline schema rejected. One of them made the whole snapshot unavailable, so a lockfile holding AdultJS got `feeds_unavailable` (QUARANTINE) instead of `feed_match` (REJECT). The schema now reads null as no origins, and the hit counts from `published`, as for a record with no origins.
+- GitHub's [2025-05-08 changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/) tightened unauthenticated limits but doesn't say whether codeload archives are covered. If GitHub rate-limits the download, the feed is unavailable and every node quarantines on `feeds_unavailable`.
+
+### @sigstore/tuf
+
+Accepted 2026-09-26. Added `@sigstore/tuf@5.0.0` for network mode's trusted root, as §11 planned. It brings `tuf-js@6.0.0`, `@tufjs/models@5.0.0`, `@tufjs/canonical-json@2.0.0` and `@gar/promise-retry@1.0.3`, plus `debug`, `ms`, `minimatch` and its two dependencies. None has an install script or an OSV advisory (checked 2026-09-26). `@sigstore/tuf` 5.0.0 was published 2026-06-01 with provenance. A hand-written TUF client would re-implement root rotation, rollback and freeze checks, and getting those wrong would let an attacker pin gate to an old trusted root. `getTrustedRoot` ran on Node 22.23.2 and Bun 1.4.2, taking 0.4 to 0.8 s with a warm cache. If it fails, `trusted_root.json` is left out and provenance reads as unavailable.
