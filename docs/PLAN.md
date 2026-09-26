@@ -24,7 +24,7 @@ Who it's for, in order:
    - One command on a real repo, no config: `npx <name> verify`.
    - Every non-ACCEPT line names the rule, the evidence, and the next step: the waiver to write, or the time the version clears `release_age`.
    - Human output on a terminal, JSON lines with `--json`.
-   - A 1,000-node lockfile in under 10 s with a warm cache and under 60 s cold. Warm means a cache restored from an earlier run, as in CI, so packuments are revalidated and the feed may be downloaded again. These are targets. On 2026-09-26 npm/cli (883 nodes) took 18.4 s warm in that sense (REVIEW §12, Zero-config run).
+   - A 1,000-node lockfile in under 10 s with a warm cache and under 60 s cold. Warm means a cache restored from an earlier run, as in CI, so packuments are revalidated and the feed may be downloaded again. These are targets. On 2026-09-26 npm/cli (883 nodes) took 18.4 s warm in that sense, so the warm target isn't met yet. The feed download and packument revalidation make up most of the gap (REVIEW §12, Zero-config run).
 
 Non-goals: replacing npmjs.org, a public mirror, competing on threat intelligence, other ecosystems, and classifiers that block on their own.
 

@@ -467,10 +467,30 @@ describe('entries outside node_modules', () => {
     ).toEqual([['vendor/x', 'unreadable']]);
   });
 
-  test('a folder entry no link points at and no workspace declares is unreadable', () => {
-    expect(kinds({ '../evil': { name: 'evil', version: '1.0.0' } })).toEqual([
-      ['../evil', 'unreadable'],
-    ]);
+  test('a folder entry npm left behind after removing a file: dependency is not a node', () => {
+    expect(
+      kinds({
+        'libs/x': {
+          version: '1.0.0',
+          extraneous: true,
+          hasInstallScript: true,
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  test('a declared workspace no link points at is not a node', () => {
+    expect(
+      nodes(
+        JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            '': { name: 'app', workspaces: ['packages/*'] },
+            'packages/a': { name: 'a', version: '1.0.0' },
+          },
+        }),
+      ),
+    ).toEqual([]);
   });
 
   test('the target of a link is read through the link', () => {

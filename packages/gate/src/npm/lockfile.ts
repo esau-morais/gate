@@ -87,7 +87,7 @@ function sha512Of(integrity: string | undefined): Sha512Integrity | null {
 }
 
 function isOutsideNodeModules(path: string): boolean {
-  return path === '' || !path.split('/').includes('node_modules');
+  return !path.split('/').includes('node_modules');
 }
 
 function nameFromPath(path: string): string {
@@ -261,67 +261,36 @@ function isLinkAt(path: string, name: string): boolean {
   );
 }
 
-type Layout = {
-  readonly folders: ReadonlySet<string>;
-  readonly workspaceLinks: ReadonlySet<string>;
-};
-
-function layoutOf(entries: ReadonlyMap<string, Entry>): Layout {
+function workspaceLinks(
+  entries: ReadonlyMap<string, Entry>,
+): ReadonlySet<string> {
   const declared = workspaceMatcher(entries.get('')?.workspaces);
-  const folders = new Set<string>();
-  const workspaces = new Map<string, string | null>();
+  const folders = new Map<string, string | null>();
   for (const [path, entry] of entries) {
-    if (entry.link === true && entry.resolved !== undefined) {
-      folders.add(entry.resolved);
-    }
-
     if (
       entry.link === undefined &&
       entry.resolved === undefined &&
       declared(path)
     ) {
-      folders.add(path);
       const name = entry.name ?? nameFromFolder(path);
-      workspaces.set(name, workspaces.has(name) ? null : path);
+      folders.set(name, folders.has(name) ? null : path);
     }
   }
 
-  const workspaceLinks = new Set<string>();
+  const links = new Set<string>();
   for (const [path, entry] of entries) {
     const name = nameFromPath(path);
     if (
       entry.link === true &&
       entry.resolved !== undefined &&
       isLinkAt(path, name) &&
-      workspaces.get(name) === entry.resolved
+      folders.get(name) === entry.resolved
     ) {
-      workspaceLinks.add(path);
+      links.add(path);
     }
   }
 
-  return { folders, workspaceLinks };
-}
-
-function folderNode(
-  path: string,
-  entry: Entry,
-  layout: Layout,
-): LockfileNode | undefined {
-  if (path === '') {
-    return undefined;
-  }
-
-  if (entry.link === true) {
-    return { kind: 'unreadable', path, error: 'link outside node_modules' };
-  }
-
-  return layout.folders.has(path)
-    ? undefined
-    : {
-        kind: 'unreadable',
-        path,
-        error: 'entry outside node_modules that no link or workspace names',
-      };
+  return links;
 }
 
 export function readPackageLock(text: string): PackageLockRead {
@@ -337,7 +306,7 @@ export function readPackageLock(text: string): PackageLockRead {
   const decoded = Object.entries(packages).map(
     ([path, raw]) => [path, decodeEntry(raw)] as const,
   );
-  const layout = layoutOf(
+  const workspaces = workspaceLinks(
     new Map(
       decoded.flatMap(([path, entry]) =>
         Result.isSuccess(entry) ? [[path, entry.success] as const] : [],
@@ -354,12 +323,15 @@ export function readPackageLock(text: string): PackageLockRead {
     const entry = decodedEntry.success;
     const edges = undeclaredExoticNodes(packages, path, entry);
     if (isOutsideNodeModules(path)) {
-      const folder = folderNode(path, entry, layout);
-
-      return folder === undefined ? edges : [folder, ...edges];
+      return entry.link === true
+        ? [
+            { kind: 'unreadable', path, error: 'link outside node_modules' },
+            ...edges,
+          ]
+        : edges;
     }
 
-    if (layout.workspaceLinks.has(path) || entry.inBundle === true) {
+    if (workspaces.has(path) || entry.inBundle === true) {
       return edges;
     }
 
