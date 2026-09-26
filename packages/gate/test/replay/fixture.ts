@@ -31,7 +31,9 @@ export const ReplayFixture = Schema.Struct({
 });
 export type ReplayFixture = typeof ReplayFixture.Type;
 
-const decode = Schema.decodeUnknownSync(Schema.fromJsonString(ReplayFixture));
+export const decodeReplayFixture = Schema.decodeUnknownSync(
+  Schema.fromJsonString(ReplayFixture),
+);
 
 export function loadReplayFixtures(): {
   name: string;
@@ -44,6 +46,6 @@ export function loadReplayFixtures(): {
     .toSorted()
     .map((file) => ({
       name: file.replace(/\.json$/, ''),
-      fixture: decode(readFileSync(new URL(file, dir), 'utf8')),
+      fixture: decodeReplayFixture(readFileSync(new URL(file, dir), 'utf8')),
     }));
 }

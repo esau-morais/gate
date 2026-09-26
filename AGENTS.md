@@ -25,7 +25,7 @@ gate's own dependencies come from npm, the registry it protects.
 
 ## Checks
 
-Run `bun run check` before handoff: typecheck, lint, then tests under Bun and Node. Never claim an absent check passed.
+Run `bun run check` before handoff: typecheck, lint, the guard (`scripts/guard.ts`), then tests under Bun and Node. CI runs the same on every PR. Never claim an absent check passed.
 
 ## packages/cel
 
@@ -63,7 +63,15 @@ Before adding a test, name the failure it prevents. Skip tests the compiler alre
 
 ## Skills
 
-Apply [typescript-best-practices](.agents/skills/typescript-best-practices/SKILL.md) to every TypeScript change. Edit skills in `.agents/skills`, which `.claude/skills` points to.
+| Skill                                                                          | Use                                                                 |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| [gate-mode](.agents/skills/gate-mode/SKILL.md)                                 | Every implementation slice                                          |
+| [babysit-pr](.agents/skills/babysit-pr/SKILL.md)                               | Review, PR feedback, merge, cleanup                                 |
+| [verify-gate](.agents/skills/verify-gate/SKILL.md)                             | Before handoff                                                      |
+| [gate-supply-chain](.agents/skills/gate-supply-chain/SKILL.md)                 | Policies, fixtures, dependencies, package data, or a blocking check |
+| [typescript-best-practices](.agents/skills/typescript-best-practices/SKILL.md) | Every TypeScript change                                             |
+
+Edit skills in `.agents/skills`, which `.claude/skills` points to.
 
 ## Finish the task
 
