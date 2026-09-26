@@ -1,0 +1,167 @@
+{
+  "incident": "Shai-Hulud first wave, 2025-09-15: self-propagating worm republished packages with stolen maintainer tokens",
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://registry.npmjs.org/@ctrl%2ftinycolor",
+      "facts": "target.time; earlier[*]"
+    },
+    {
+      "url": "https://github.com/scttcper/tinycolor/issues/256",
+      "facts": "evaluations[0].at; takedownAt (comment 3294233097: versions still to be removed)"
+    },
+    {
+      "url": "https://api.osv.dev/v1/vulns/MAL-2025-47141",
+      "facts": "feedHits.availableAt (first malicious-packages-origins import_time)"
+    },
+    {
+      "url": "https://web.archive.org/web/20251006094422id_/https://socket.dev/npm/package/@ctrl/tinycolor/files/4.1.1/dist/conversion.d.ts",
+      "facts": "target.scripts: package.json (1677 bytes) sha256 equals 4.1.0's package.json after the worm's transform (patch bump, scripts.postinstall = \"node bundle.js\"); jsDelivr lists the first of two package.json tar entries"
+    },
+    {
+      "url": "https://web.archive.org/web/20250916152229id_/https://socket.dev/npm/package/@ctrl/tinycolor/overview/4.1.1",
+      "facts": "target.npmUser (publishedBy)"
+    },
+    {
+      "url": "https://sigh.dev/posts/ctrl-tinycolor-post-mortem/",
+      "facts": "target.npmUser (stolen token of the maintainer account)"
+    }
+  ],
+  "gaps": [
+    "target.integrity unrecoverable: the version is gone from the packument, npmmirror and deps.dev, and no write-up publishes the tarball hash",
+    "target.provenance unknown: absence is inferred from the attestation 404, not observed on the manifest",
+    "takedownAt is the lower bound 22:47:32Z (a comment saying versions still needed removal); the upper bound is 2025-09-16T00:24:55Z",
+    "target.npmUser comes from Socket's archived page and the maintainer's post-mortem, not the manifest"
+  ],
+  "package": "@ctrl/tinycolor",
+  "target": {
+    "version": "4.1.1",
+    "time": "2025-09-15T19:52:46.624Z",
+    "integrity": null,
+    "provenance": "unknown",
+    "npmUser": "scttcper",
+    "scripts": {
+      "postinstall": "node bundle.js"
+    }
+  },
+  "earlier": [
+    {
+      "version": "3.5.0",
+      "time": "2022-12-05T21:06:45.717Z",
+      "integrity": "sha512-tlJpwF40DEQcfR/QF+wNMVyGMaO9FQp6Z1Wahj4Gk3CJQYHwA2xVG7iKDFdW6zuxZY9XWOpGcfNCTsX4McOsOg==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "3.5.1",
+      "time": "2023-02-13T18:02:20.017Z",
+      "integrity": "sha512-Bp8VF1lm91/vxFSBdVrrSe+P4KpjRCSAJ6qPSeLFnVprT/ERXHDvV2OJSJbRwl1r/KcySshTUnVbAzrSbn93fg==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "3.6.0",
+      "time": "2023-02-14T17:39:50.610Z",
+      "integrity": "sha512-/Z3l6pXthq0JvMYdUFyX9j0MaCltlIn6mfh9jLyQwg5aPKxkyNa0PTHtU1AlFXLNk55ZuAeJRcpvq+tmLfKmaQ==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "3.6.1",
+      "time": "2023-08-23T21:26:34.052Z",
+      "integrity": "sha512-SITSV6aIXsuVNV3f3O0f2n/cgyEDWoSqtZMYiAmcsYHydcKrOz3gUxB/iXd/Qf08+IZX4KpgNbvUdMBmWz+kcA==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "4.0.0",
+      "time": "2023-08-23T22:16:43.990Z",
+      "integrity": "sha512-c0CEvs6FsBU1QI/nVBY5QQvTnkkTjAfL6t1YwNtI6sGGf2CI+C7znHLxS5EqBCnIDPuLFkgJNMTba7n2eyTz8w==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "4.0.1",
+      "time": "2023-08-24T20:45:59.468Z",
+      "integrity": "sha512-dfimuE1mfaqL8P8jyQzdk9yFeFUWCyhjK5VyydXgDtQO0fezr6aWaGauHnlI07BZBIF45gahb0oxJjkUcylDwQ==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "4.0.2",
+      "time": "2023-08-30T16:12:53.229Z",
+      "integrity": "sha512-fKQinXE9pJ83J1n+C3rDl2xNLJwfoYNvXLRy5cYZA9hBJJw2q+sbb/AOSNKmLxnTWyNTmy4994dueSwP4opi5g==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "4.0.3",
+      "time": "2024-01-17T18:10:42.168Z",
+      "integrity": "sha512-e9nEVehVJwkymQpkGhdSNzLT2Lr9UTTby+JePq4Z2SxBbOQjY7pLgSouAaXvfaGQVSAaY0U4eJdwfSDmCbItcw==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "4.0.4",
+      "time": "2024-04-08T17:42:24.450Z",
+      "integrity": "sha512-DIjWxEgyP+YGh7Znx9PjsunmpVsAySYRofMUjZCRWUZ1JVS8GHurry6OebnQD2dPviRUTH9VmiupFivS7Ik9ew==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    },
+    {
+      "version": "4.1.0",
+      "time": "2024-04-13T19:04:45.788Z",
+      "integrity": "sha512-WyOx8cJQ+FQus4Mm4uPIZA64gbk3Wxh0so5Lcii0aJifqwoVOlfFtorjLE0Hen4OYyHZMXDWqMmaQemBhgxFRQ==",
+      "provenance": "absent",
+      "npmUser": "scttcper",
+      "scripts": {}
+    }
+  ],
+  "feedHits": [
+    {
+      "feed": "osv",
+      "id": "MAL-2025-47141",
+      "availableAt": "2025-09-16T00:34:25Z"
+    }
+  ],
+  "takedownAt": "2025-09-15T22:47:32Z",
+  "evaluations": [
+    {
+      "at": "2025-09-15T22:41:53Z",
+      "moment": "first public report",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": [
+          "release_age",
+          "provenance_unavailable",
+          "publisher_unknown",
+          "new_install_script",
+          "integrity_unknown"
+        ]
+      }
+    },
+    {
+      "at": "2025-09-15T22:46:32Z",
+      "moment": "one minute before the earliest takedown bound",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": [
+          "release_age",
+          "provenance_unavailable",
+          "publisher_unknown",
+          "new_install_script",
+          "integrity_unknown"
+        ]
+      }
+    }
+  ]
+}

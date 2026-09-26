@@ -1,0 +1,734 @@
+import { describe, test } from 'bun:test';
+import assert from 'node:assert';
+import { TestEnvironment } from './helpers';
+import { createRegistry } from '../src/registry';
+
+// Define a custom Vector type
+class Vector {
+  x: number;
+  y: number;
+
+  constructor(x: number | bigint, y: number | bigint) {
+    this.x = Number(x);
+    this.y = Number(y);
+  }
+
+  add(other: Vector) {
+    return new Vector(this.x + other.x, this.y + other.y);
+  }
+
+  subtract(other: Vector) {
+    return new Vector(this.x - other.x, this.y - other.y);
+  }
+
+  magnitude() {
+    return Math.sqrt(this.x * this.x + this.y * this.y);
+  }
+
+  equals(other: Vector) {
+    return this.x === other.x && this.y === other.y;
+  }
+
+  toString() {
+    return `Vector(${this.x}, ${this.y})`;
+  }
+}
+
+// Define a custom Point type
+class Point {
+  x: number | bigint;
+  y: number | bigint;
+
+  constructor(x: number | bigint, y: number | bigint) {
+    this.x = x;
+    this.y = y;
+  }
+
+  distanceTo(other: Point) {
+    const dx = Number(this.x) - Number(other.x);
+    const dy = Number(this.y) - Number(other.y);
+
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  toString() {
+    return `Point(${this.x}, ${this.y})`;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+describe('Custom Type Registration', () => {
+  test('Vector type', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerVariable('v1', 'Vector')
+      .registerVariable('v2', 'Vector')
+      .registerOperator('Vector + Vector', (a: Vector, b: Vector) => {
+        return a.add(b);
+      })
+      .registerOperator('Vector - Vector', (a: Vector, b: Vector) => {
+        return a.subtract(b);
+      })
+      .registerOperator('Vector == Vector', (a: Vector, b: Vector) =>
+        a.equals(b),
+      )
+      .registerFunction('magnitude(Vector): double', (vec: Vector) =>
+        vec.magnitude(),
+      )
+      .registerFunction('Vector.magnitude(): double', (vec: Vector) =>
+        vec.magnitude(),
+      );
+
+    const context = {
+      v1: new Vector(3, 4),
+      v2: new Vector(1, 2),
+    };
+
+    // Test type recognition
+    const result1 = env.evaluate('v1 + v2', context);
+    assert.ok(result1 instanceof Vector);
+    assert.strictEqual(result1.x, 4);
+    assert.strictEqual(result1.y, 6);
+
+    // Test subtraction
+    const result2 = env.evaluate('v1 - v2', context);
+    assert.ok(result2 instanceof Vector);
+    assert.strictEqual(result2.x, 2);
+    assert.strictEqual(result2.y, 2);
+
+    // Test equality
+    env.expectEval('v1 == v2', false, context);
+    env.expectEval('v1 == v1', true, context);
+
+    // Test method calls
+    env.expectEval('v1.magnitude()', 5, context);
+  });
+
+  test('type checking', () => {
+    const env = new TestEnvironment()
+      .registerType('Point', { ctor: Point, fields: { x: 'int', y: 'int' } })
+      .registerType('Vector', Vector)
+      .registerVariable('p1', 'Point');
+
+    // Should work with correct type
+    env.expectEval('p1.x', 10n, { p1: new Point(10n, 20n) });
+
+    // Should fail with wrong field type and hint
+    env.expectEvalThrows(
+      'p1.x',
+      [
+        `Field 'x' is not of type 'int', got 'double'`,
+        '\n\n',
+        `>    1 | p1.x\n`,
+        `            ^`,
+      ].join(''),
+      {
+        p1: new Point(10, 20n),
+      },
+    );
+
+    // Should fail with wrong variable type
+    env.expectEvalThrows('p1', /Variable 'p1' is not of type 'Point'/, {
+      p1: new Vector(1, 2),
+    });
+  });
+
+  test('field restrictions', () => {
+    class User {
+      name: string;
+      age: bigint;
+      password: string;
+      secretField: string;
+
+      constructor(name: string, age: bigint, password: string) {
+        this.name = name;
+        this.age = age;
+        this.password = password;
+        this.secretField = 'secret';
+      }
+    }
+
+    const env = new TestEnvironment()
+      .registerType('User', {
+        ctor: User,
+        fields: { name: 'string', age: 'int' },
+      })
+      .registerVariable('user', 'User');
+
+    const context = { user: new User('Alice', 30n, 'secret123') };
+
+    env.expectEval('user.name', 'Alice', context);
+    env.expectEval('user.age', 30n, context);
+
+    env.expectEvalThrows('user.password', /No such key: password/, context);
+    env.expectEvalThrows(
+      'user.secretField',
+      /No such key: secretField/,
+      context,
+    );
+  });
+
+  test('no field restrictions when fields not specified', () => {
+    class Config {
+      option1: string;
+      option2: string;
+      option3: string;
+
+      constructor(data: { option1: string; option2: string; option3: string }) {
+        this.option1 = data.option1;
+        this.option2 = data.option2;
+        this.option3 = data.option3;
+      }
+    }
+
+    const env = new TestEnvironment()
+      .registerType('Config', Config)
+      .registerVariable('config', 'Config');
+
+    const context = {
+      config: new Config({ option1: 'a', option2: 'b', option3: 'c' }),
+    };
+
+    env.expectEval('config.option1', 'a', context);
+    env.expectEval('config.option2', 'b', context);
+    env.expectEval('config.option3', 'c', context);
+    env.expectEvalThrows('config.option4', /No such key: option4/, context);
+  });
+
+  test('empty fields object denies all access', () => {
+    class Private {
+      value: number;
+
+      constructor(value: number) {
+        this.value = value;
+      }
+    }
+
+    const env = new TestEnvironment()
+      .registerType('Private', { ctor: Private, fields: {} })
+      .registerVariable('priv', 'Private');
+
+    const context = { priv: new Private(42) };
+    env.expectEvalThrows('priv.value', /No such key: value/, context);
+  });
+
+  test('mixed with built-in types', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerVariable('vec', 'Vector')
+      .registerVariable('scale', 'double')
+      .registerOperator(
+        'Vector * double',
+        (vec: Vector, scalar: number) =>
+          new Vector(vec.x * scalar, vec.y * scalar),
+      )
+      .registerOperator(
+        'double * Vector',
+        (scalar: number, vec: Vector) =>
+          new Vector(vec.x * scalar, vec.y * scalar),
+      );
+
+    const context = {
+      vec: new Vector(2, 3),
+      scale: 2.5,
+    };
+
+    // Test vector * scalar
+    const result1 = env.evaluate('vec * scale', context);
+    assert.ok(result1 instanceof Vector);
+    assert.strictEqual(result1.x, 5);
+    assert.strictEqual(result1.y, 7.5);
+
+    // Test scalar * vector
+    const result2 = env.evaluate('scale * vec', context);
+    assert.ok(result2 instanceof Vector);
+    assert.strictEqual(result2.x, 5);
+    assert.strictEqual(result2.y, 7.5);
+  });
+
+  test('with functions', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerFunction(
+        'createVector(int, int): Vector',
+        (x: bigint, y: bigint) => new Vector(x, y),
+      )
+      .registerFunction('length(Vector): double', (vec: Vector) =>
+        vec.magnitude(),
+      );
+
+    // Test function that creates custom type
+    const result1 = env.evaluate('createVector(3, 4)');
+    assert.ok(result1 instanceof Vector);
+    assert.strictEqual(result1.x, 3);
+    assert.strictEqual(result1.y, 4);
+
+    // Test method on custom type
+    env.expectEval('length(createVector(3, 4))', 5);
+  });
+
+  test('inheritance from built-in overloads', () => {
+    const env = new TestEnvironment()
+      .registerVariable('str', 'string')
+      .registerType('Vector', Vector)
+      .registerVariable('vec', 'Vector');
+
+    const context = {
+      vec: new Vector(1, 2),
+      str: 'hello',
+    };
+
+    // Built-in string operations should still work
+    env.expectEval('str + " world"', 'hello world', context);
+
+    // Built-in numeric operations should still work
+    env.expectEval('1 + 2', 3n);
+  });
+
+  test('multiple custom types', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerType('Point', Point)
+      .registerVariable('vec', 'Vector')
+      .registerVariable('point', 'Point')
+      .registerOperator(
+        'Point + Vector',
+        (point: Point, vec: Vector) =>
+          new Point(Number(point.x) + vec.x, Number(point.y) + vec.y),
+      );
+
+    const context = {
+      vec: new Vector(2, 3),
+      point: new Point(10, 20),
+    };
+
+    const result = env.evaluate('point + vec', context);
+    assert.ok(result instanceof Point);
+    assert.strictEqual(result.x, 12);
+    assert.strictEqual(result.y, 23);
+  });
+
+  test('error handling', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerVariable('vec', 'Vector');
+    const context = { vec: new Vector(1, 2) };
+
+    env.expectEvalThrows(
+      'vec * "invalid"',
+      /no such overload: Vector \* string/,
+      context,
+    );
+  });
+
+  test('complex expressions', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerVariable('vectors', 'list')
+      .registerOperator('Vector + Vector', (a: Vector, b: Vector) => a.add(b))
+      .registerFunction('magnitude(Vector): double', (vec: Vector) =>
+        vec.magnitude(),
+      );
+
+    const context = {
+      vectors: [new Vector(1, 0), new Vector(0, 1), new Vector(1, 1)],
+    };
+
+    // Complex expression with custom types
+    // Only Vector(1,1) has magnitude > 1.0
+    env.expectEval('vectors.filter(v, magnitude(v) > 1.0).size()', 1n, context);
+  });
+
+  test('instance methods', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerVariable('vec', 'Vector')
+      .registerFunction(
+        'Vector.add(Vector): Vector',
+        (vec: Vector, other: Vector) => {
+          return vec.add(other);
+        },
+      )
+      .registerFunction(
+        'Vector.subtract(Vector): Vector',
+        (vec: Vector, other: Vector) => {
+          return vec.subtract(other);
+        },
+      );
+
+    const context = {
+      vec: new Vector(5, 7),
+    };
+
+    const result1 = env.evaluate('vec.add(vec)', context);
+    assert.ok(result1 instanceof Vector);
+    assert.strictEqual(result1.x, 10);
+    assert.strictEqual(result1.y, 14);
+
+    const result2 = env.evaluate('vec.subtract(vec)', context);
+    assert.ok(result2 instanceof Vector);
+    assert.strictEqual(result2.x, 0);
+    assert.strictEqual(result2.y, 0);
+  });
+
+  test('nested custom types', () => {
+    class Container {
+      items: Vector[];
+
+      constructor(items: Vector[]) {
+        this.items = items;
+      }
+    }
+
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerType('Container', {
+        ctor: Container,
+        fields: { items: 'list<Vector>' },
+      })
+      .registerVariable('container', 'Container')
+      .registerOperator('Vector + Vector', (a: Vector, b: Vector) => a.add(b));
+
+    const context = {
+      container: new Container([new Vector(1, 2), new Vector(3, 4)]),
+    };
+
+    const result = env.evaluate(
+      'container.items[0] + container.items[1]',
+      context,
+    );
+    assert.ok(result instanceof Vector);
+    assert.strictEqual(result.x, 4);
+    assert.strictEqual(result.y, 6);
+  });
+
+  test('type validation in function return', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerType('Point', Point)
+      .registerFunction(
+        'makePoint(int, int): Point',
+        (x: bigint, y: bigint) => new Point(Number(x), Number(y)),
+      )
+      .registerFunction(
+        'makeVector(int, int): Vector',
+        (x: bigint, y: bigint) => new Vector(Number(x), Number(y)),
+      );
+
+    const point = env.evaluate('makePoint(10, 20)');
+    assert.ok(point instanceof Point);
+    assert.strictEqual(point.x, 10);
+    assert.strictEqual(point.y, 20);
+
+    const vector = env.evaluate('makeVector(5, 15)');
+    assert.ok(vector instanceof Vector);
+    assert.strictEqual(vector.x, 5);
+    assert.strictEqual(vector.y, 15);
+  });
+
+  test('method chaining on custom types', () => {
+    class Builder {
+      value: number;
+
+      constructor(value = 0) {
+        this.value = value;
+      }
+      add(n: number) {
+        return new Builder(this.value + n);
+      }
+      multiply(n: number) {
+        return new Builder(this.value * n);
+      }
+      build() {
+        return this.value;
+      }
+    }
+
+    const env = new TestEnvironment()
+      .registerType('Builder', Builder)
+      .registerVariable('builder', 'Builder')
+      .registerFunction(
+        'Builder.add(int): Builder',
+        (builder: Builder, n: bigint) => {
+          return builder.add(Number(n));
+        },
+      )
+      .registerFunction(
+        'Builder.multiply(int): Builder',
+        (builder: Builder, n: bigint) => {
+          return builder.multiply(Number(n));
+        },
+      )
+      .registerFunction('Builder.build(): int', (builder: Builder) => {
+        return BigInt(builder.build());
+      });
+
+    const context = {
+      builder: new Builder(5),
+    };
+
+    // (5 + 3) * 2 = 16
+    env.expectEval('builder.add(3).multiply(2).build()', 16n, context);
+  });
+
+  test('type checking with wrong constructor', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', {
+        ctor: Vector,
+        fields: { x: 'double', y: 'double' },
+      })
+      .registerType('Point', Point)
+      .registerVariable('vec', 'Vector');
+
+    // Should accept Vector instances
+    env.expectEval('vec.x', 1, { vec: new Vector(1, 2) });
+
+    // Should reject Point instances for Vector variable
+    env.expectEvalThrows('vec.x', /Variable 'vec' is not of type 'Vector'/, {
+      vec: new Point(1, 2),
+    });
+  });
+
+  test('map operations with custom types', () => {
+    const env = new TestEnvironment()
+      .registerType('Vector', Vector)
+      .registerVariable('vectors', 'list')
+      .registerFunction('magnitude(Vector): double', (vec: Vector) =>
+        vec.magnitude(),
+      );
+
+    const context = {
+      vectors: [new Vector(3, 4), new Vector(5, 12), new Vector(8, 15)],
+    };
+
+    env.expectEvalDeep('vectors.map(v, magnitude(v))', [5, 13, 17], context);
+  });
+
+  test('custom type operator overload using equality (against spec)', () => {
+    class CustomType {
+      value: string;
+
+      constructor(value: string) {
+        this.value = value;
+      }
+    }
+
+    const env = new TestEnvironment({
+      unlistedVariablesAreDyn: true,
+      homogeneousAggregateLiterals: false,
+    });
+
+    env.registerType('CustomType', CustomType);
+    env.registerOperator(
+      'CustomType == string',
+      (a: CustomType, b: string) => a.value === b,
+    );
+    env.registerOperator(
+      'bool == list: bool',
+      (left: boolean, right: unknown[]) => right.includes(left),
+    );
+
+    env.expectEval('ct == "equal-test"', true, {
+      ct: new CustomType('equal-test'),
+    });
+    env.expectEval('ct != "equal-test"', false, {
+      ct: new CustomType('equal-test'),
+    });
+    env.expectEval('true == []', false, {});
+  });
+
+  describe('registerType with fields only (no constructor)', () => {
+    test('basic fields-only registration', () => {
+      const env = new TestEnvironment()
+        .registerType('User', { fields: { name: 'string', age: 'int' } })
+        .registerVariable('user', 'User');
+
+      // Type checking works
+      const check = env.check('user.name');
+      assert.strictEqual(check.valid, true);
+      assert.strictEqual(check.type, 'string');
+
+      // Runtime: plain object auto-converted
+      env.expectEval('user.name', 'Alice', {
+        user: { name: 'Alice', age: 30n },
+      });
+      env.expectEval('user.age', 30n, { user: { name: 'Alice', age: 30n } });
+    });
+
+    test('runtime field type validation', () => {
+      const env = new TestEnvironment()
+        .registerType('User', { fields: { name: 'string', age: 'int' } })
+        .registerVariable('user', 'User');
+
+      // Wrong field type at runtime should throw
+      env.expectEvalThrows(
+        'user.age',
+        /Field 'age' is not of type 'int', got 'double'/,
+        {
+          user: { name: 'Alice', age: 30 },
+        },
+      );
+    });
+
+    test('undeclared field rejected at runtime', () => {
+      const env = new TestEnvironment()
+        .registerType('User', { fields: { name: 'string' } })
+        .registerVariable('user', 'User');
+
+      env.expectEvalThrows('user.password', /No such key: password/, {
+        user: { name: 'Alice', password: 'secret' },
+      });
+    });
+
+    test('nested type conversion', () => {
+      const env = new TestEnvironment()
+        .registerType('Address', { fields: { city: 'string', zip: 'string' } })
+        .registerType('Person', {
+          fields: { name: 'string', address: 'Address' },
+        })
+        .registerVariable('person', 'Person');
+
+      env.expectEval('person.address.city', 'NYC', {
+        person: { name: 'Alice', address: { city: 'NYC', zip: '10001' } },
+      });
+    });
+
+    test('custom convert function', () => {
+      class User {
+        name: string;
+        age: bigint;
+
+        constructor(name: string, age: bigint) {
+          this.name = name;
+          this.age = age;
+        }
+      }
+
+      const env = new TestEnvironment()
+        .registerType('User', {
+          ctor: User,
+          fields: { name: 'string', age: 'int' },
+          convert: (v) => {
+            assert.ok(isRecord(v));
+            assert.ok(typeof v.name === 'string' && typeof v.age === 'bigint');
+
+            return new User(v.name, v.age);
+          },
+        })
+        .registerVariable('user', 'User');
+
+      // Plain object gets converted via custom convert
+      env.expectEval('user.name', 'Alice', {
+        user: { name: 'Alice', age: 30n },
+      });
+    });
+
+    test('already-converted instances pass through', () => {
+      class User {
+        name: string;
+
+        constructor(name: string) {
+          this.name = name;
+        }
+      }
+
+      const env = new TestEnvironment()
+        .registerType('User', {
+          ctor: User,
+          fields: { name: 'string' },
+          convert: (v) => {
+            if (v instanceof User) {
+              return v;
+            }
+
+            assert.ok(isRecord(v) && typeof v.name === 'string');
+
+            return new User(v.name);
+          },
+        })
+        .registerVariable('user', 'User');
+
+      // Passing a proper instance works without conversion
+      env.expectEval('user.name', 'Alice', { user: new User('Alice') });
+    });
+
+    test('multiple accesses use cached conversion', () => {
+      class User {}
+      let convertCount = 0;
+      const env = new TestEnvironment()
+        .registerType('User', {
+          ctor: User,
+          fields: { name: 'string', age: 'int' },
+          convert(v) {
+            convertCount++;
+
+            return Object.assign(new User(), v);
+          },
+        })
+        .registerVariable('user', 'User');
+
+      env.evaluate('user.name + " " + string(user.age)', {
+        user: { name: 'Alice', age: 30n },
+      });
+      assert.strictEqual(
+        convertCount,
+        1,
+        'convert should be called only once per evaluation',
+      );
+    });
+  });
+});
+
+describe('operator registration', () => {
+  test.each(['Money + Money', '-Money'])(
+    '%s registered with async: false is sync',
+    (signature) => {
+      class Money {}
+      const registry = createRegistry();
+      registry.registerType('Money', Money);
+      registry.registerOperatorOverload(signature, (a: Money) => a, {
+        async: false,
+      });
+      const op = signature.startsWith('-') ? '-_' : '+';
+      assert.strictEqual(registry.operatorCandidates(op).async, false);
+    },
+  );
+});
+
+describe('a field typed with an unregistered message type', () => {
+  test('fails with an error that names the missing type', () => {
+    assert.throws(
+      () =>
+        new TestEnvironment().registerType('Outer', {
+          fields: { inner: 'Inner' },
+        }),
+      (e: unknown) =>
+        e instanceof Error &&
+        !(e instanceof TypeError) &&
+        /Field 'inner' in type 'Outer'.*'Inner'/.test(e.message),
+    );
+  });
+
+  test('works when the field type is registered first', () => {
+    new TestEnvironment()
+      .registerType('Inner', { fields: { a: 'int' } })
+      .registerType('Outer', { fields: { inner: 'Inner' } })
+      .registerVariable('o', 'Outer')
+      .expectEval('o.inner.a', 1n, { o: { inner: { a: 1n } } });
+  });
+});
+
+describe('types named after Object.prototype members', () => {
+  test.each(['toString', 'valueOf', 'constructor', 'hasOwnProperty'])(
+    'a variable of type %s rejects an int',
+    (name) => {
+      new TestEnvironment()
+        .registerType(name, class Named {})
+        .registerVariable('x', name)
+        .expectEvalThrows('x', /is not of type/, { x: 1n });
+    },
+  );
+});

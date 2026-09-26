@@ -1,0 +1,265 @@
+import { describe, test } from 'bun:test';
+import assert from 'node:assert';
+import { Environment } from '../src/evaluator';
+
+describe('Operator return types', () => {
+  test('explicit return type declaration', () => {
+    class Vector {
+      x: number;
+      y: number;
+      constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+      }
+      add(other: Vector) {
+        return new Vector(this.x + other.x, this.y + other.y);
+      }
+      dot(other: Vector) {
+        return this.x * other.x + this.y * other.y;
+      }
+    }
+
+    const env = new Environment()
+      .registerType('Vector', Vector)
+      .registerVariable('v1', 'Vector')
+      .registerVariable('v2', 'Vector')
+      .registerOperator('Vector + Vector: Vector', (a: Vector, b: Vector) =>
+        a.add(b),
+      )
+      .registerOperator('Vector * Vector: double', (a: Vector, b: Vector) =>
+        a.dot(b),
+      );
+
+    // Vector + Vector should return Vector
+    const addResult = env.check('v1 + v2');
+    assert.strictEqual(addResult.valid, true);
+    assert.strictEqual(addResult.type, 'Vector');
+
+    // Vector * Vector (dot product) should return double
+    const dotResult = env.check('v1 * v2');
+    assert.strictEqual(dotResult.valid, true);
+    assert.strictEqual(dotResult.type, 'double');
+
+    // Verify it works at runtime
+    const v1 = new Vector(3, 4);
+    const v2 = new Vector(1, 2);
+    const sum = env.evaluate('v1 + v2', { v1, v2 });
+    assert(sum instanceof Vector);
+    assert.strictEqual(sum.x, 4);
+    assert.strictEqual(sum.y, 6);
+
+    const dot = env.evaluate('v1 * v2', { v1, v2 });
+    assert.strictEqual(dot, 11); // 3*1 + 4*2
+  });
+
+  test('default to left operand type', () => {
+    class Point {
+      x: number;
+      y: number;
+      constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+      }
+      scale(factor: number) {
+        return new Point(this.x * factor, this.y * factor);
+      }
+    }
+
+    const env = new Environment()
+      .registerType('Point', Point)
+      .registerVariable('p', 'Point')
+      .registerVariable('scale', 'double')
+      .registerOperator('Point * double', (p: Point, s: number) => p.scale(s));
+
+    // Point * double should default to Point (left operand type)
+    const result = env.check('p * scale');
+    assert.strictEqual(result.valid, true);
+    assert.strictEqual(result.type, 'Point');
+
+    // Verify at runtime
+    const p = new Point(2, 3);
+    const scaled = env.evaluate('p * scale', { p, scale: 2.5 });
+    assert(scaled instanceof Point);
+    assert.strictEqual(scaled.x, 5);
+    assert.strictEqual(scaled.y, 7.5);
+  });
+
+  test('unary operators', () => {
+    class Complex {
+      real: number;
+      imag: number;
+      constructor(real: number, imag: number) {
+        this.real = real;
+        this.imag = imag;
+      }
+      negate() {
+        return new Complex(-this.real, -this.imag);
+      }
+    }
+
+    const env = new Environment()
+      .registerType('Complex', Complex)
+      .registerVariable('c', 'Complex')
+      .registerOperator('-Complex: Complex', (c: Complex) => c.negate());
+
+    // -Complex should return Complex
+    const result = env.check('-c');
+    assert.strictEqual(result.valid, true);
+    assert.strictEqual(result.type, 'Complex');
+
+    // Verify at runtime
+    const negated = env.evaluate('-c', { c: new Complex(3, 4) });
+    assert(negated instanceof Complex);
+    assert.strictEqual(negated.real, -3);
+    assert.strictEqual(negated.imag, -4);
+  });
+
+  test('comparison operators always return bool', () => {
+    class Money {
+      amount: number;
+      constructor(amount: number) {
+        this.amount = amount;
+      }
+    }
+
+    const env = new Environment()
+      .registerType('Money', Money)
+      .registerVariable('m1', 'Money')
+      .registerVariable('m2', 'Money')
+      .registerOperator(
+        'Money == Money',
+        (a: Money, b: Money) => a.amount === b.amount,
+      )
+      .registerOperator(
+        'Money < Money',
+        (a: Money, b: Money) => a.amount < b.amount,
+      );
+
+    // Comparison operators should return bool
+    assert.strictEqual(env.check('m1 == m2').type, 'bool');
+    assert.strictEqual(env.check('m1 != m2').type, 'bool');
+    assert.strictEqual(env.check('m1 < m2').type, 'bool');
+
+    // Verify at runtime
+    const m1 = new Money(100);
+    const m2 = new Money(200);
+    assert.strictEqual(env.evaluate('m1 < m2', { m1, m2 }), true);
+    assert.strictEqual(env.evaluate('m1 == m2', { m1, m2 }), false);
+    assert.strictEqual(env.evaluate('m1 != m2', { m1, m2 }), true);
+  });
+
+  test('mixed with built-in operators', () => {
+    class Counter {
+      value: number;
+      constructor(value: number) {
+        this.value = value;
+      }
+      increment() {
+        return new Counter(this.value + 1);
+      }
+    }
+
+    const env = new Environment()
+      .registerType('Counter', Counter)
+      .registerVariable('c', 'Counter')
+      .registerVariable('n', 'int')
+      .registerOperator(
+        'Counter + Counter: Counter',
+        (a: Counter, b: Counter) => new Counter(a.value + b.value),
+      );
+
+    // Counter + Counter returns Counter
+    const result1 = env.check('c + c');
+    assert.strictEqual(result1.valid, true);
+    assert.strictEqual(result1.type, 'Counter');
+
+    // int + int still returns int (built-in)
+    const result2 = env.check('n + n');
+    assert.strictEqual(result2.valid, true);
+    assert.strictEqual(result2.type, 'int');
+
+    // Verify at runtime
+    const c = new Counter(5);
+    const sum = env.evaluate('c + c', { c });
+    assert(sum instanceof Counter);
+    assert.strictEqual(sum.value, 10);
+  });
+
+  test('invalid return type rejected', () => {
+    class Foo {}
+
+    const env = new Environment().registerType('Foo', Foo);
+
+    // Should throw when registering operator with invalid return type
+    assert.throws(() => {
+      env.registerOperator('Foo + Foo: InvalidType', () => {});
+    }, /Invalid return type 'InvalidType'/);
+
+    // Should throw when trying to specify non-bool return type for comparison operators
+    assert.throws(() => {
+      env.registerOperator('Foo < Foo: Foo', () => {});
+    }, /Comparison operator '<' must return 'bool', got 'Foo'/);
+
+    assert.throws(() => {
+      env.registerOperator('Foo == Foo: int', () => {});
+    }, /Comparison operator '==' must return 'bool', got 'int'/);
+
+    assert.throws(() => {
+      env.registerOperator('Foo in Foo: Foo', () => {});
+    }, /Comparison operator 'in' must return 'bool', got 'Foo'/);
+  });
+
+  test('complex chained operations', () => {
+    class Vec2 {
+      x: number;
+      y: number;
+      constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+      }
+      add(other: Vec2) {
+        return new Vec2(this.x + other.x, this.y + other.y);
+      }
+      scale(s: number) {
+        return new Vec2(this.x * s, this.y * s);
+      }
+      magnitude() {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+      }
+    }
+
+    const env = new Environment()
+      .registerType('Vec2', Vec2)
+      .registerVariable('v1', 'Vec2')
+      .registerVariable('v2', 'Vec2')
+      .registerVariable('scale', 'double')
+      .registerOperator('Vec2 + Vec2: Vec2', (a: Vec2, b: Vec2) => a.add(b))
+      .registerOperator('Vec2 * double: Vec2', (v: Vec2, s: number) =>
+        v.scale(s),
+      )
+      .registerFunction('Vec2.magnitude(): double', (vec: Vec2) =>
+        vec.magnitude(),
+      );
+
+    // (v1 + v2) * scale should return Vec2
+    const result1 = env.check('(v1 + v2) * scale');
+    assert.strictEqual(result1.valid, true);
+    assert.strictEqual(result1.type, 'Vec2');
+
+    // (v1 + v2).magnitude() should return double
+    const result2 = env.check('(v1 + v2).magnitude()');
+    assert.strictEqual(result2.valid, true);
+    assert.strictEqual(result2.type, 'double');
+
+    // Verify at runtime
+    const v1 = new Vec2(3, 4);
+    const v2 = new Vec2(1, 2);
+    const scaled = env.evaluate('(v1 + v2) * scale', { v1, v2, scale: 2 });
+    assert(scaled instanceof Vec2);
+    assert.strictEqual(scaled.x, 8);
+    assert.strictEqual(scaled.y, 12);
+
+    const mag = env.evaluate('(v1 + v2).magnitude()', { v1, v2 });
+    assert.strictEqual(mag, Math.sqrt(16 + 36));
+  });
+});

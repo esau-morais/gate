@@ -1,0 +1,13 @@
+{
+  "name": "@gate/gate",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@gate/cel": "workspace:*",
+    "effect": "4.0.0-rc.117"
+  }
+}

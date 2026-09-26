@@ -1,0 +1,165 @@
+{
+  "incident": "benign: vite 8.3.0, trusted-publisher release from the same repository and workflow as every earlier version",
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://registry.npmjs.org/vite",
+      "facts": "target; earlier[*]"
+    },
+    {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/vite@8.3.0",
+      "facts": "target.provenance; earlier[*].provenance (one request per version)"
+    },
+    {
+      "url": "https://api.osv.dev/v1/query",
+      "facts": "feedHits: no entry for vite@8.3.0 at capture"
+    }
+  ],
+  "gaps": [
+    "feeds are known empty only as of capturedAt; evaluations stay before it"
+  ],
+  "package": "vite",
+  "target": {
+    "version": "8.3.0",
+    "time": "2026-09-10T11:30:26.283Z",
+    "integrity": "sha512-lhZBVvEHefgE+HQZC9O7EBJgCU/nVzFNl7vkS4RE0APtWLP02/8QVIkQtzBxPquh7lq5/78NHipTj7ODQ6XuyQ==",
+    "provenance": {
+      "repository": "https://github.com/vitejs/vite",
+      "workflow": ".github/workflows/publish.yml"
+    },
+    "npmUser": "GitHub Actions",
+    "scripts": {}
+  },
+  "earlier": [
+    {
+      "version": "8.1.2",
+      "time": "2026-06-30T16:46:39.800Z",
+      "integrity": "sha512-6YYPbRXTxx6bRXmOn7XdnQAy5DQNHhDgtjhDHI13oe4pY93kkcdGJWxpGwOm++/Wh0QpQhDrpIoVMrmrsI5AGQ==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.1.3",
+      "time": "2026-07-02T04:45:03.337Z",
+      "integrity": "sha512-Ds+gBRbj0lwRO2Y5hwnUBdxSwlAve9LeRyU4sNnAr0ewW0gWF0n5bgXgUzbgZ49MV9BVUAQUFYVcDUcilUExMA==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.1.4",
+      "time": "2026-07-09T04:44:45.017Z",
+      "integrity": "sha512-bTT9PsdWO+MQMNG9ZXIP/qM9wGh37DFxTV/sPq9cFpHr3w4jkgef032PkAL9jAqhk3Nz8NQw3O8n6/xFkqO4QQ==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.1.5",
+      "time": "2026-07-16T06:51:13.015Z",
+      "integrity": "sha512-7ULLwsCdYx/nRyrpiEwvqb5TFHrMVZyBt+rg/OAXT7rgj/z+DtTDyKFeLAdDkubDVDKD8jOsndmy7m55XcfUsw==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.2.0-beta.0",
+      "time": "2026-07-22T06:44:14.234Z",
+      "integrity": "sha512-8gq4Rruk/QfYRijUq7UchLiN+UDCA8qSmNo19xJ0olnWn8/+DQ1cl4ee8wxnEQhHtgbpNaCCx9Byp5/VRf//8g==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.2.0",
+      "time": "2026-07-30T12:03:25.771Z",
+      "integrity": "sha512-pn+CFpM0lwDeKwmOq1ZaBK/9sjorZcgqxki6MbY/jPEVd9vichIlmlD4HmQ5wdP5EgqQCFRaACBxMC7uEGc6lQ==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.2.1",
+      "time": "2026-08-06T13:47:48.588Z",
+      "integrity": "sha512-EU/eS7BH3XROHh2YnBefjM6DBKA6ZeMZEYQbj7NLWg5wHYlhB8B/Mayd5XsgWq+NFYccDOTemRpdETWR6Ka/lw==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.2.2",
+      "time": "2026-08-20T04:14:39.107Z",
+      "integrity": "sha512-cFKLV/PRgAUlIRm5WjMjJ86jrftzpqcgH+Us+DS8mI3CDNiH30Whrz8uHL3+MOLPAgqbMBAqWdAHAphOAM+z/Q==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.3.0-beta.0",
+      "time": "2026-09-02T08:44:39.421Z",
+      "integrity": "sha512-QIdRN2wV7uG8HEBW9rvo0y39X5+7CaU8aEVCXM4BDrRhWtjY5Rtio+zxbr9pBlIgskJ8yfnuY/O2wCItcYtv7A==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "8.3.0-beta.1",
+      "time": "2026-09-07T11:40:50.018Z",
+      "integrity": "sha512-3VEvNhNKg9Ux3Xd8ZooYqWAoAZct/s25oLQ/H+OEkCk9njUWC7Xzu0uRMSM+H15lfnmVisHsaieEopwluFFHLA==",
+      "provenance": {
+        "repository": "https://github.com/vitejs/vite",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    }
+  ],
+  "feedHits": [],
+  "takedownAt": null,
+  "evaluations": [
+    {
+      "at": "2026-09-10T12:30:26Z",
+      "moment": "one hour after publish",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["release_age"]
+      }
+    },
+    {
+      "at": "2026-09-25T00:00:00Z",
+      "moment": "past the window, before capture",
+      "expected": {
+        "outcome": "ACCEPT",
+        "reasons": []
+      }
+    }
+  ]
+}

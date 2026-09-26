@@ -1,0 +1,156 @@
+{
+  "incident": "event-stream, 2018-09-09: a new maintainer shipped a benign release, then one adding flatmap-stream, whose 0.1.1 carried the payload",
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://registry.npmjs.org/event-stream",
+      "facts": "target.time; earlier[*]"
+    },
+    {
+      "url": "http://web.archive.org/web/20181028063802id_/http://registry.npmjs.org:80/event-stream",
+      "facts": "target.integrity, npmUser, scripts, provenance (no dist.attestations)"
+    },
+    {
+      "url": "https://github.com/dominictarr/event-stream/issues/115",
+      "facts": "evaluations[0].at"
+    },
+    {
+      "url": "https://github.com/dominictarr/event-stream/issues/116",
+      "facts": "takedownAt (flatmap-stream unpublished by npm-support 2018-11-26T17:18:17.658Z)"
+    },
+    {
+      "url": "https://api.osv.dev/v1/vulns/GHSA-mh6f-8j2x-4483",
+      "facts": "feedHits"
+    }
+  ],
+  "gaps": [
+    "target facts come from a 2018 Wayback capture of the packument; the live packument keeps only time[\"3.3.6\"]",
+    "takedownAt is the unpublish of the payload dependency; the removal of event-stream@3.3.6 was only observed by 2018-11-26T20:06:13Z",
+    "the dependency added in 3.3.6 is not modeled; flatmap-stream@0.1.1 itself is unrecoverable"
+  ],
+  "package": "event-stream",
+  "target": {
+    "version": "3.3.6",
+    "time": "2018-09-09T08:28:59.503Z",
+    "integrity": "sha512-dGXNg4F/FgVzlApjzItL+7naHutA3fDqbV/zAZqDDlXTjiMnQmZKu+prImWKszeBM5UQeGvAl3u1wBiKeDh61g==",
+    "provenance": "absent",
+    "npmUser": "right9ctrl",
+    "scripts": {}
+  },
+  "earlier": [
+    {
+      "version": "3.1.7",
+      "time": "2014-07-21T01:03:45.046Z",
+      "integrity": "sha512-ddACn1VEffD+nvbofs8gs/0qJZC9gtEGLG+WykE//rinSpYLSaTsnN96eVQV+gHdUhV/nVtxUNKC3OjrApuEMw==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.2.0",
+      "time": "2014-12-27T06:59:21.624Z",
+      "integrity": "sha512-JUVbEoOgDFaZjl5lm+wmoLdZ7vweN+b7OBN7Kr9Oxf/a/7dzThhNPaxAD46a1x9oiVRmnTGDviewZxI7W5rEkA==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.2.1",
+      "time": "2014-12-29T20:38:42.306Z",
+      "integrity": "sha512-b4tWlIV4IzVVytPVUIScJtlf7jgjyiaFtVQbHqHxxW730BkvucMl2KaV2TM99erwnMXEhRSGwlvL/IvgnOIerw==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.2.2",
+      "time": "2015-02-02T10:11:31.433Z",
+      "integrity": "sha512-E0zUzPQtDvplt8aVncJS5hhMgv7wLGjSOqrLiYZ8jNaZzQ8kafuVoj9hlVLbtDs1oFhZS4LpTKkRl3mUyygtfg==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.3.0",
+      "time": "2015-03-06T10:58:40.308Z",
+      "integrity": "sha512-qycX0F4y/eZxXiHHpvyZB7/HxIflYxANP4rAS3gZM+mwOmeeyOfEAJgfAWC7VtAh09etOVtPrk5IkP9SenJkXw==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.3.1",
+      "time": "2015-05-06T02:59:08.992Z",
+      "integrity": "sha512-emezUmnHTI7bBbhTr8AVdmI+/TZcOKwBIw8wt07JTNtXUjrDIJyPrdC+8PYx3hIHwO4qbYfCaNlgbYx6yC/QBw==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.3.2",
+      "time": "2015-10-16T04:25:40.139Z",
+      "integrity": "sha512-H9QRlVNQxvGj8UFGXs2/t48HGqPKxJHuovP/ymtpzbGIVVXKTM4x85NVDl2pERrtgMOBnkDpdxY0ATRHk4as6A==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.3.3",
+      "time": "2016-06-18T23:39:10.007Z",
+      "integrity": "sha512-AZ8CioTQrnT8Uyy/WVx5VW9uj4IbvSs5Bofe5KXcqEWRjlQvZVGRiThRjXEW5Zy2ZEUdgGfT+I5phDpFV4iL9w==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.3.4",
+      "time": "2016-07-17T07:24:09.767Z",
+      "integrity": "sha512-QHpkERcGsR0T7Qm3HNJSyXKEEj8AHNxkY3PK8TS2KJvQ7NiSHe3DDpwVKKtoYprL/AreyzFBeIkBIWChAqn60g==",
+      "provenance": "absent",
+      "npmUser": "dominictarr",
+      "scripts": {}
+    },
+    {
+      "version": "3.3.5",
+      "time": "2018-09-05T05:27:47.219Z",
+      "integrity": "sha512-vyibDcu5JL20Me1fP734QBH/kenBGLZap2n0+XXM7mvuUPzJ20Ydqj1aKcIeMdri1p+PU+4yAKugjN8KCVst+g==",
+      "provenance": "absent",
+      "npmUser": "right9ctrl",
+      "scripts": {}
+    }
+  ],
+  "feedHits": [
+    {
+      "feed": "osv",
+      "id": "GHSA-mh6f-8j2x-4483",
+      "availableAt": "2018-11-26T23:58:21Z"
+    }
+  ],
+  "takedownAt": "2018-11-26T17:18:17.658Z",
+  "evaluations": [
+    {
+      "at": "2018-09-09T09:28:59Z",
+      "moment": "one hour after publish",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["release_age", "publisher_recent"]
+      }
+    },
+    {
+      "at": "2018-11-19T13:34:56Z",
+      "moment": "first public report, 71 days after publish",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["publisher_recent"]
+      }
+    },
+    {
+      "at": "2018-11-26T17:17:17Z",
+      "moment": "one minute before takedown",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["publisher_recent"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,191 @@
+{
+  "incident": "TanStack, 2026-05-11: CI cache poisoning published versions with valid provenance from the usual release workflow",
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://registry.npmjs.org/@tanstack%2freact-router",
+      "facts": "target.time; earlier[*]"
+    },
+    {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tanstack%2freact-router@1.169.2",
+      "facts": "earlier[*].provenance (one request per earlier version)"
+    },
+    {
+      "url": "https://tanstack.com/blog/npm-supply-chain-compromise-postmortem",
+      "facts": "target.provenance (trusted-publisher binding TanStack/router release.yml@refs/heads/main); takedownAt"
+    },
+    {
+      "url": "https://www.stepsecurity.io/blog/mini-shai-hulud-is-back-a-self-spreading-supply-chain-attack-hits-the-npm-ecosystem",
+      "facts": "target.provenance (sibling predicate); target.scripts (\"two modifications ... compared to its clean predecessor\")"
+    },
+    {
+      "url": "https://unit42.paloaltonetworks.com/monitoring-npm-supply-chain-attacks/",
+      "facts": "target.scripts (payload \"not delivered via a preinstall hook\")"
+    },
+    {
+      "url": "https://api.github.com/repos/TanStack/router/issues/7383",
+      "facts": "evaluations[0].at"
+    },
+    {
+      "url": "https://api.osv.dev/v1/vulns/MAL-2026-3465",
+      "facts": "feedHits.availableAt (first import_time listing 1.169.5)"
+    }
+  ],
+  "gaps": [
+    "target.integrity unrecoverable: the version document and attestation are gone, and deps.dev, OSV, GHSA and the Wayback snapshot do not hold it",
+    "target.provenance comes from the postmortem and a sibling package's predicate, not the target's own attestation",
+    "target.npmUser unrecoverable; reports say GitHub Actions (OIDC), the same trusted publisher as before",
+    "takedownAt is the start of npm's removal window (22:13:38Z to 23:55:26Z); no removal time for this version was published",
+    "the payload ran from an injected optionalDependencies git source (github:tanstack/router#79ac49eedf774dd4b0cfa308722bc463cfe5885c); that node is a lockfile entry, not part of this per-version fixture"
+  ],
+  "package": "@tanstack/react-router",
+  "target": {
+    "version": "1.169.5",
+    "time": "2026-05-11T19:20:42.105Z",
+    "integrity": null,
+    "provenance": {
+      "repository": "https://github.com/TanStack/router",
+      "workflow": ".github/workflows/release.yml"
+    },
+    "npmUser": null,
+    "scripts": {}
+  },
+  "earlier": [
+    {
+      "version": "1.168.20",
+      "time": "2026-04-13T23:10:02.887Z",
+      "integrity": "sha512-rasIqBXpRN3a4A7l5yOg5eukRzhW8Ey9XnuRI3xSDxMlmU2su6R+iEbHTUtbmfyNPfVr2E1bq9ReAhhqdYx5EQ==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.168.21",
+      "time": "2026-04-13T23:31:11.089Z",
+      "integrity": "sha512-slnitYiHHmU52eMWtW8JbV9EMT5q6mRMbTA5yepBmJAnj5WZDrDRsLY/TuUrdD97A4W7/25tEQRoqc1G2X0oCw==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.168.22",
+      "time": "2026-04-15T00:22:54.343Z",
+      "integrity": "sha512-W2LyfkfJtDCf//jOjZeUBWwOVl8iDRVTECpGHa2M28MT3T5/VVnjgicYNHR/ax0Filk1iU67MRjcjHheTYvK1Q==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.168.23",
+      "time": "2026-04-18T20:08:24.208Z",
+      "integrity": "sha512-+GblieDnutG6oipJJPNtRJjrWF8QTZEG/l0532+BngFkVK48oHNOcvIkSoAFYftK1egAwM7KBxXsb0Ou+X6/MQ==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.168.24",
+      "time": "2026-04-24T23:24:05.277Z",
+      "integrity": "sha512-CQWd9ywDZU6icG65SrjJMzWcNg/ehBKFxfxYssKSuELk0eM9SzJxJ3JBI760kdLXIsXewOX9PHpJDknxC/R5Ag==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.168.25",
+      "time": "2026-04-27T07:58:07.277Z",
+      "integrity": "sha512-4U/E76dc+fYuLixjV1RLNfqrkQoexSL8MqGNpIHOodtvY3fMPGaALrvDVtBDQYBEU4z5r5fHaV6+kclWAVFP9A==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.168.26",
+      "time": "2026-04-29T20:18:51.204Z",
+      "integrity": "sha512-+MV+U5KfMUQGZIU/x8MU3FMRSujxLs678v2jhu1Y8P9ndQBKLVOBYKFY+vv/ypxBUYiyDiOsZkDxPJC8UPo/Ig==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.169.0",
+      "time": "2026-04-30T17:52:04.270Z",
+      "integrity": "sha512-HI4eIwxw9ccTIRMZTwFKcpsBPguUshhGmY5EhUZpW7hV/Ag7gqQ9v+T7S+lc1isAKiOXUf6PKh9x43v6PkSprw==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.169.1",
+      "time": "2026-05-01T00:07:33.123Z",
+      "integrity": "sha512-MBtQKSvac3OCcsSa6oBpDrrN90IV47I6Gtv05NxhbFVh+gVjtqvs6HSU4XM9+y5sHZPgS+35eArflX4vM8GEnQ==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    },
+    {
+      "version": "1.169.2",
+      "time": "2026-05-05T20:37:38.526Z",
+      "integrity": "sha512-OJM7Kguc7ERnweaNRWsyWgIKcl3z23rD1B4jaxjzd9RGdnzpt2HfrWa9rggbT0Hfzhfo4D2ZmsfoTme035tniQ==",
+      "provenance": {
+        "repository": "https://github.com/TanStack/router",
+        "workflow": ".github/workflows/release.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {}
+    }
+  ],
+  "feedHits": [
+    {
+      "feed": "osv",
+      "id": "MAL-2026-3465",
+      "availableAt": "2026-05-12T01:08:51Z"
+    }
+  ],
+  "takedownAt": "2026-05-11T22:13:38Z",
+  "evaluations": [
+    {
+      "at": "2026-05-11T19:46:46Z",
+      "moment": "first public report",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["release_age", "integrity_unknown"]
+      }
+    },
+    {
+      "at": "2026-05-11T22:12:38Z",
+      "moment": "one minute before npm started removing versions",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["release_age", "integrity_unknown"]
+      }
+    }
+  ]
+}

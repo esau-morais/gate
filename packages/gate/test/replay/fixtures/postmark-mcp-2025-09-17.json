@@ -1,0 +1,144 @@
+{
+  "incident": "postmark-mcp, 2025-09-17: the package's own publisher added one line BCC-ing every sent email after 15 benign versions",
+  "capturedAt": "2026-09-26",
+  "sources": [
+    {
+      "url": "https://registry.npmjs.org/postmark-mcp",
+      "facts": "target.time; earlier[*].time; takedownAt (time.unpublished)"
+    },
+    {
+      "url": "https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/postmark-mcp/versions/1.0.16",
+      "facts": "target.integrity, npmUser, scripts, provenance (mirrored dist has no attestations); same endpoint per earlier version"
+    },
+    {
+      "url": "https://www.koi.security/blog/postmark-mcp-npm-malicious-backdoor-email-theft",
+      "facts": "incident; first public report (2025-09-25, after takedown)"
+    },
+    {
+      "url": "https://api.osv.dev/v1/vulns/MAL-2025-47604",
+      "facts": "feedHits"
+    }
+  ],
+  "gaps": [
+    "version documents are gone from the registry; the facts come from the packages.ecosyste.ms mirror",
+    "the first public report came after the takedown, so no evaluation uses it"
+  ],
+  "package": "postmark-mcp",
+  "target": {
+    "version": "1.0.16",
+    "time": "2025-09-17T08:59:23.337Z",
+    "integrity": "sha512-FcL4KpkcfDqYvw1dd5X7d7AUKFSsx9fk9z2yaqysQ9SizBqO905Cl6RVOIq/4hzTahCxbnx3KoMgoqHI1QVl1g==",
+    "provenance": "absent",
+    "npmUser": "phanpak",
+    "scripts": {}
+  },
+  "earlier": [
+    {
+      "version": "1.0.3",
+      "time": "2025-09-15T13:05:21.577Z",
+      "integrity": "sha512-FJz9vCqmIXHmMTNfY8H4+L9dMT0aDH8RnVyYBZT5dFUSTkmZ4HfKF7dTFhh+OFoecNu24hLlz+ChAB4VpBznsg==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.7",
+      "time": "2025-09-15T19:28:48.015Z",
+      "integrity": "sha512-fk/9BbZWxu1y8ohw5vohL8t78LyqcH6JyK7t4o7P4ILvkETtQBUztzJKdL9C0kHK5tfNgl5f0YTIn2tOYetO0Q==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.8",
+      "time": "2025-09-15T19:42:23.132Z",
+      "integrity": "sha512-cTANFX7tO2lP0Jl7bqEYWOkaHkfxD51YYX4YYXdwRzx9PAgAMgmD7C0a1RqMxF46FxZN/cu+SGCM+G2GK/nQ6g==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.9",
+      "time": "2025-09-15T19:47:43.481Z",
+      "integrity": "sha512-L9uEq5sKescn6QGPDJv4jDx5/q90Ks4NLXyjPbzG6vJ1pYaGPdaqEyHYoznKeRzMnl4eQFRLzON9ksnBa6Su4Q==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.10",
+      "time": "2025-09-15T19:52:11.497Z",
+      "integrity": "sha512-8HmSJXfyhP2yLw4MYMra7SNko7lkOgszz4R2YaapiWLZYKvpU7e5gghw7fkqX8yXPCiFH+RUPRvbyfH/h3j5Zw==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.11",
+      "time": "2025-09-15T20:03:10.983Z",
+      "integrity": "sha512-VuujP84tuXHWQyEyGUA9iy4dwHUlYiyV59drO9b2JNatgDtOx87IGodEpqtQ7zpbMoFSVGTRDYY30/hp8PdEAw==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.12",
+      "time": "2025-09-15T20:11:54.890Z",
+      "integrity": "sha512-LR8z8ZIMBAlK4wmyVwfevnmxKBJZpXgJdJVEk1yC/rdCcfs9hpGSPPp7Z8jR32TQ2rKnAUBRB2bD8mhwXJqqaQ==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.13",
+      "time": "2025-09-16T12:19:14.361Z",
+      "integrity": "sha512-H2p64b2AmI2M7muVZMs5aR2xMImmx7EHEwnV84CuCQXo5If6n6gD1iSMWUkm33CP+Ue0CV3pvIAUtHt4eMdtSQ==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.14",
+      "time": "2025-09-16T12:24:38.718Z",
+      "integrity": "sha512-/thMrhXfVhQe7koPJ8TIcTeNTLzioofpNni0MgjOYbRMkGMRb9AG7JQN2q6128ZwCco2rhdaaNXEyGPh597Ujg==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    },
+    {
+      "version": "1.0.15",
+      "time": "2025-09-16T12:41:27.537Z",
+      "integrity": "sha512-l1GKbiE5eJGh8n5wJyMTHCIalm0kFqShMP5qqyzhxdgFcaV3mgtR/tfbz52JCBcgvNJj1Wy3xUO5vZF4bJeDew==",
+      "provenance": "absent",
+      "npmUser": "phanpak",
+      "scripts": {}
+    }
+  ],
+  "feedHits": [
+    {
+      "feed": "osv",
+      "id": "MAL-2025-47604",
+      "availableAt": "2025-09-26T04:14:45Z"
+    }
+  ],
+  "takedownAt": "2025-09-25T03:31:54.381Z",
+  "miss": "the only change is one line of code by the same publisher: no new publisher, script or provenance change, and the feed entry came a day after takedown. Only content analysis could catch it",
+  "evaluations": [
+    {
+      "at": "2025-09-17T09:59:23Z",
+      "moment": "one hour after publish",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["release_age"]
+      }
+    },
+    {
+      "at": "2025-09-25T03:30:54Z",
+      "moment": "one minute before takedown",
+      "expected": {
+        "outcome": "ACCEPT",
+        "reasons": []
+      }
+    }
+  ]
+}

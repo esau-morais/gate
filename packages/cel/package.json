@@ -1,0 +1,17 @@
+{
+  "name": "@gate/cel",
+  "version": "8.0.0-gate.0",
+  "private": true,
+  "description": "Internal fork of @marcbachmann/cel-js 8.0.0, migrated to TypeScript",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./evaluator": "./src/evaluator.ts",
+    "./serialize": "./src/serialize.ts"
+  },
+  "devDependencies": {
+    "@bufbuild/cel-spec": "0.6.1",
+    "@bufbuild/protobuf": "2.15.0"
+  }
+}
