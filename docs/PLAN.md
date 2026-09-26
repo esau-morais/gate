@@ -42,7 +42,7 @@ Non-goals: replacing npmjs.org, a public mirror, competing on threat intelligenc
 
 - **Packuments and attestations** from registry.npmjs.org, cached on disk with their fetch time. The fetch time goes into the evidence, so replay stays exact.
 - **Sigstore trusted root** through `@sigstore/tuf`, already researched in REVIEW §11. Offline mode keeps reading a recorded root.
-- **Malware feed** as a downloaded snapshot of ossf/malicious-packages, matched locally with the manifest rules gate already has. The replay corpus depends on its `import_time` fields, and per-package API queries would leak the dependency list. To check: download size, and whether OSV's npm export keeps `import_time`.
+- **Malware feed** as a downloaded snapshot of ossf/malicious-packages, matched locally with the manifest rules gate already has. The replay corpus depends on its `import_time` fields, and per-package API queries would leak the dependency list. Settled in REVIEW §12 (Malware feed snapshot): the GitHub tarball, 45.8 MB against 216.7 MB for OSV's npm export.
 - **No deps.dev by default.** Per-package queries go to a third party. Allowed as an opt-in cross-check.
 - **Request budget.** A single run fetches one packument per package. npm's terms treat 5M requests a month from one organization as unreasonable, so the cache matters most for the hosted service.
 
@@ -128,7 +128,6 @@ Decide before the milestone named.
 | Apply to NLnet, and the European dimension | 2026-11-03 |
 | npm package name for the CLI | M2 |
 | Workspace defaults: which link nodes pass without `--context` (today they reject, REVIEW §12) | M2 |
-| Where the malware snapshot comes from and how big it is | M2 |
 | Certificate output: in-toto VSA or keep JSON lines (REVIEW §6.7) | M2 |
 | Urgent-fix lane for `release_age` (REVIEW §6.4) | M2 |
 | Who signs policy v3 and how orgs upgrade (REVIEW §6.9) | Before v3 |

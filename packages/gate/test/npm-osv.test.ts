@@ -110,6 +110,23 @@ describe('OSV malicious-packages snapshot', () => {
     expect(feedsFor(bounded, { ...query, name: 'other' }).kind).toBe('checked');
   });
 
+  test('an entry whose malicious-packages-origins is null hits from published', () => {
+    const adult = snapshotOf([
+      entry(
+        { ranges: [{ type: 'SEMVER', events: [{ introduced: '0' }] }] },
+        { database_specific: { 'malicious-packages-origins': null } },
+      ),
+    ]);
+    const query = { name: 'lib', version: '1.0.0' };
+
+    expect(
+      hitIds(feedsFor(adult, { ...query, at: at('2025-12-31T23:59:59Z') })),
+    ).toEqual([]);
+    expect(
+      hitIds(feedsFor(adult, { ...query, at: at('2026-01-01T00:00:00Z') })),
+    ).toEqual(['MAL-2026-0001']);
+  });
+
   test('a withdrawn entry stops hitting when withdrawn', () => {
     const withdrawn = snapshotOf([
       entry({ versions: ['1.0.0'] }, { withdrawn: '2026-01-10T00:00:00Z' }),

@@ -458,3 +458,37 @@ Accepted 2026-09-26. gate is MIT, the maintainer's default, replacing the first 
 - `packages/gate/src/log/merkle.ts` and `packages/gate/src/log/note.ts` stay Apache-2.0, as ported from sigstore-js, which has no NOTICE file. The root LICENSE carries the Apache text and names both files. Apache §4 allows this inside an MIT project ([Apache FAQ](https://www.apache.org/foundation/license-faq.html)).
 - Apache-2.0 would add a patent grant and remove the mixed-license note. That wasn't worth changing the default for a CLI with no patents at stake.
 - No AGPL or FSL. Both protect a hosted business by restricting the code, and the relicensing fights at Redis, Elastic and HashiCorp came from changing license after adoption. The license is set before launch.
+
+### Network mode
+
+Accepted 2026-09-26. `gate verify --lockfile <file> --fetch <cache-dir>` fetches live evidence into `<cache-dir>/evidence`, then verifies against that directory exactly as `--evidence` does. Exactly one of the two flags is required. `gate verify --evidence <cache-dir>/evidence --at <time>` reruns a fetch-mode run offline, and on the microsoft/vscode run below it gave the same 1,659 decisions.
+
+- Each run rebuilds `evidence/` from the cache and writes `SOURCES.json` with each file's URL and fetch time and every failed fetch. Fetch times stay there. The decision record is unchanged.
+- A packument is reused while the registry's `max-age` holds (300 s on 2026-09-26), then revalidated by ETag. If the refresh fails, the packument is left out, because a stale copy would hide a version npm removed. A cache entry stamped later than now counts as stale, so a cache restored from a runner with a fast clock can't stay fresh.
+- Packuments cost one request per name. Attestations cost one request per version: the target and those of its 10 earlier versions that advertise provenance, because `publisher` compares against their verified identities. The vscode run fetched 1,169 packuments and 904 bundles. Bundles are cached for good.
+- Packuments keep only the fields gate reads. A value of the wrong shape is kept as is, and all scripts stay, so a trimmed packument decodes exactly as the full one (tested on `ms`). Dropping a malformed non-install script would make an unreadable version readable.
+- Every failed fetch is a gap and reads as unknown or unavailable, never clean. 429 and 503 are retried after `Retry-After`, read as delta-seconds or an HTTP date ([RFC 9110 §10.2.3](https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3)), and a wait over a minute fails instead. npm documents no registry rate limit.
+- `--at` still works with `--fetch`. The snapshot can then be newer than `at`, which the offline rules already allow, since the lockfile cases evaluate before their capture.
+- Requests go to registry.npmjs.org, codeload.github.com and tuf-repo-cdn.sigstore.dev. None carries the lockfile or a dependency list.
+- Measured 2026-09-26 on this machine, Node 22.23.2, cold then warm: camsong/You-Dont-Need-jQuery@d413b575 (99 nodes) 15.2 s and 5.6 s. npm/cli@0c3b82a9 (899 nodes) 19.3 s and 7.8 s. microsoft/vscode@fb6287cc (1,659 nodes) 32.9 s and 11.0 s. Of vscode's warm 11.0 s, 7.0 s is the offline verify, mostly checking Sigstore bundles.
+
+### Malware feed snapshot
+
+Accepted 2026-09-26. Network mode downloads `https://codeload.github.com/ossf/malicious-packages/tar.gz/refs/heads/main` and reuses it for an hour.
+
+| Source (2026-09-26) | Download | npm records | `import_time` |
+|---|---|---|---|
+| ossf/malicious-packages tarball | 45.8 MB gzip, 458 MB unpacked, 9.9 s | 221,947 (malicious and withdrawn) | Kept |
+| OSV `npm/all.zip` | 216.7 MB, 7.6 s | 221,947 MAL plus 7,469 GHSA | Kept (MAL-2026-3465 matches the API) |
+
+- The tarball is a fifth of the size and is the source OSV imports from ([OSV data docs](https://google.github.io/osv.dev/data/)). `git archive` stores the commit ID in the pax header and stamps every entry with the commit time ([git-archive](https://git-scm.com/docs/git-archive)). The manifest records the URL, the commit and `committedAt`. `capturedAt` is the download time.
+- GitHub says branch archives are "generated on request, cached for a while" and recommends a commit ID for stable contents ([docs](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives)). So the archive can be older than its download time, and `committedAt` shows by how much. Upstream went more than 24 h without a commit twice between 2026-08-13 and 2026-09-26 (30.9 h from 2026-09-12, 28.8 h from 2026-09-19).
+- Parsing every npm record takes about 2 s on Node and Bun. gate matches records on `affected[].package.name`, not the directory. 103 records sit in a lowercased directory (`adultjs/` holds AdultJS).
+- `osv/` gets only the records for the lockfile's names, and the manifest lists those names as covered. Any npm record that isn't JSON or names no affected package makes the whole feed unavailable, like an unreadable record offline. So does a repeated id among the kept records, an archive with no npm records (a moved directory would otherwise read as a clean feed), and a truncated archive, which the next run downloads again. The download may take up to 10 minutes.
+- 39,866 npm records (18%) had `"malicious-packages-origins": null`, which the offline schema rejected. One of them made the whole snapshot unavailable, so a lockfile holding AdultJS got `feeds_unavailable` (QUARANTINE) instead of `feed_match` (REJECT). The schema now reads null as no origins, and the hit counts from `published`, as for a record with no origins. Upstream documents the field only as an array for internal use ([schema_additions.md](https://github.com/ossf/malicious-packages/blob/main/docs/schema_additions.md)), and no issue explains null. `published` can predate the feed: AdultJS's record says 2025-08-14, but its only commit is 2025-08-19, so a replay between those dates counts a hit the feed didn't have yet.
+- The README moves partial false positives into a `database_specific` array, with handling "TBC". No npm record carried one on 2026-09-26, and gate doesn't read it.
+- No official limit for codeload archives exists: GitHub's [2025-05-08 changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/) and archive docs don't mention them, and OSV's data docs state no limits either. If the download is refused, the feed is unavailable and every node quarantines on `feeds_unavailable`. OSV's `modified_id.csv` is the documented way to update a copy incrementally.
+
+### @sigstore/tuf
+
+Accepted 2026-09-26. Added `@sigstore/tuf@5.0.0` for network mode's trusted root, as §11 planned. It brings `tuf-js@6.0.0`, `@tufjs/models@5.0.0`, `@tufjs/canonical-json@2.0.0` and `@gar/promise-retry@1.0.3`, plus `debug`, `ms`, `minimatch` and its two dependencies. None has an install script or an OSV advisory (checked 2026-09-26). `@sigstore/tuf` 5.0.0 was published 2026-06-01 with provenance. A hand-written TUF client would re-implement root rotation, rollback and freeze checks, and getting those wrong would let an attacker pin gate to an old trusted root. `getTrustedRoot` ran on Node 22.23.2 and Bun 1.4.2, taking 0.4 to 0.8 s with a warm cache. If it fails, `trusted_root.json` is left out and provenance reads as unavailable.

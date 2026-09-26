@@ -7,7 +7,7 @@ import type { EvidenceStore } from './verify';
 const npmName = /^(@[\w.~-]+\/)?[\w.~-]+$/;
 const osvManifest = 'manifest.json';
 
-function isEvidenceName(name: string): boolean {
+export function isEvidenceName(name: string): boolean {
   return (
     npmName.test(name) &&
     !name.split('/').some((segment) => segment === '.' || segment === '..')

@@ -21,6 +21,7 @@ try {
       'packages/cel/src/index.ts',
       'packages/gate/src/index.ts',
       'packages/gate/src/cli.ts',
+      'packages/gate/test/collect/node-check.ts',
     ],
     target: 'node',
     outdir,
@@ -94,6 +95,18 @@ try {
 
   if (process.exitCode !== 1) {
     console.log('gate verify bundle replays every lockfile case on Node');
+  }
+
+  const collect = Bun.spawnSync(
+    [
+      'node',
+      join(outdir, 'gate/test/collect/node-check.js'),
+      join(import.meta.dir, '../packages/gate/test'),
+    ],
+    { stdout: 'inherit', stderr: 'inherit' },
+  );
+  if (collect.exitCode !== 0) {
+    process.exitCode = 1;
   }
 
   const key = generateTestLogKey('gate.test/node-smoke');

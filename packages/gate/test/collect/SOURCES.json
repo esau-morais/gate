@@ -1,0 +1,40 @@
+{
+  "capturedAt": "2026-09-26",
+  "files": [
+    {
+      "path": "malicious-packages.tar.gz",
+      "url": "https://codeload.github.com/ossf/malicious-packages/tar.gz/refs/heads/main",
+      "sanitized": "fetched 2026-09-26T18:18Z (45,798,000 bytes, commit 673f2310ffc87df8cd80340bf43293eed5837dac); kept the pax global header and five entries byte for byte, with their pax path headers, and dropped the rest: MAL-2026-3465 (@tanstack/react-router), MAL-2025-14119 (stored under adultjs/, affects AdultJS), MAL-2024-1677 (path over 100 bytes), withdrawn MAL-2026-5587 (0x2ai-demo1) and pypi MAL-2025-2925; recompressed with gzip"
+    },
+    {
+      "path": "malicious-packages-no-npm.tar.gz",
+      "url": "https://codeload.github.com/ossf/malicious-packages/tar.gz/refs/heads/main",
+      "sanitized": "cut from malicious-packages.tar.gz the same way, keeping the pax global header and only the pypi MAL-2025-2925 entry"
+    },
+    {
+      "path": "ms.json",
+      "url": "https://registry.npmjs.org/ms",
+      "sanitized": "fetched 2026-09-26T18:28:42Z; removed readme and every email field, otherwise the full packument"
+    },
+    {
+      "path": "responses/packument-404.json",
+      "url": "https://registry.npmjs.org/this-package-does-not-exist-gate-probe",
+      "sanitized": "fetched 2026-09-26T18:42:59Z with curl -D; status, content-type, cache-control and body kept"
+    },
+    {
+      "path": "responses/attestations-404.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/whatwg-url@17.1.1",
+      "sanitized": "fetched 2026-09-26T18:42:59Z with curl -D; status, content-type, cache-control and body kept. whatwg-url 17.1.1 advertises dist.attestations but the endpoint returns 404; the tests serve this response for vite@8.3.0's attestations"
+    },
+    {
+      "path": "../verify/evidence/",
+      "url": "https://registry.npmjs.org/",
+      "sanitized": "the collector tests serve the recorded vite and @tanstack/react-router packuments, the vite attestation responses and trusted_root.json from the lockfile replay evidence as registry and TUF responses; see that directory's SOURCES.json"
+    }
+  ],
+  "gaps": [
+    "response headers were not recorded with the lockfile replay evidence; the tests serve cache-control: public, max-age=300 on packuments, which registry.npmjs.org sent for /jquery on 2026-09-26",
+    "attestation bundles for @tanstack/react-router versions before 1.169.8 were never recorded, so the tests answer those requests with a network error; 1.169.8 returned 404 at capture",
+    "the 429s, the 500, the 304, the truncated archive, network errors and the failing trusted root are built in the tests, not recorded; no real 429 was provoked"
+  ]
+}

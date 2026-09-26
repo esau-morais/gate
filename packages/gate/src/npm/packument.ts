@@ -139,9 +139,20 @@ function versionFacts(
   };
 }
 
-export function npmPackumentFacts(
-  input: ProvenanceSources & { packument: unknown; version: string },
-): PackumentFacts {
+type History =
+  | {
+      readonly kind: 'read';
+      readonly versions: Readonly<Record<string, unknown>>;
+      readonly target: Published;
+      readonly earlier: readonly Published[];
+    }
+  | { readonly kind: 'unreadable'; readonly reason: string };
+
+function historyOf(input: {
+  packument: unknown;
+  name: string;
+  version: string;
+}): History {
   const decoded = decodePackument(input.packument);
   if (Result.isFailure(decoded)) {
     return { kind: 'unreadable', reason: 'packument is unreadable' };
@@ -180,23 +191,63 @@ export function npmPackumentFacts(
     };
   }
 
-  const versions = packument.versions ?? {};
+  return {
+    kind: 'read',
+    versions: packument.versions ?? {},
+    target,
+    earlier: published
+      .filter(({ time }) => time < target.time)
+      .toSorted((a, b) => a.time.getTime() - b.time.getTime())
+      .slice(-historySize),
+  };
+}
+
+function versionDocument(
+  versions: Readonly<Record<string, unknown>>,
+  version: string,
+): unknown {
+  return Object.hasOwn(versions, version) ? versions[version] : undefined;
+}
+
+export function npmPackumentFacts(
+  input: ProvenanceSources & { packument: unknown; version: string },
+): PackumentFacts {
+  const history = historyOf(input);
+  if (history.kind === 'unreadable') {
+    return history;
+  }
+
   const facts = (entry: Published) =>
     versionFacts(
       entry,
-      Object.hasOwn(versions, entry.version)
-        ? versions[entry.version]
-        : undefined,
+      versionDocument(history.versions, entry.version),
       input,
     );
 
   return {
     kind: 'read',
-    target: facts(target),
-    earlier: published
-      .filter(({ time }) => time < target.time)
-      .toSorted((a, b) => a.time.getTime() - b.time.getTime())
-      .slice(-historySize)
-      .map(facts),
+    target: facts(history.target),
+    earlier: history.earlier.map(facts),
   };
+}
+
+export function attestedVersions(input: {
+  packument: unknown;
+  name: string;
+  version: string;
+}): string[] {
+  const history = historyOf(input);
+  if (history.kind === 'unreadable') {
+    return [];
+  }
+
+  return [history.target, ...history.earlier]
+    .map(({ version }) => version)
+    .filter((version) => {
+      const doc = Option.getOrUndefined(
+        decodeVersion(versionDocument(history.versions, version)),
+      );
+
+      return doc?.dist.attestations?.provenance !== undefined;
+    });
 }

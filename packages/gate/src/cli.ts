@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
@@ -15,7 +16,9 @@ import {
   isFileSystemError,
   readEvidenceDirectory,
 } from './npm/evidence-directory';
-import { readPackageLock } from './npm/lockfile';
+import { collectEvidence } from './npm/collect';
+import { readPackageLock, type PackageLockRead } from './npm/lockfile';
+import { sigstoreTrustedRoot } from './npm/trusted-root';
 import { decisionRecords, verifyExitCode, verifyNodes } from './npm/verify';
 import { canonicalPolicy, pinnedPolicies } from './pinned-policies';
 import { PolicyLoadError } from './policy';
@@ -83,7 +86,8 @@ function readKeyFile<A>(path: string, parse: (text: string) => A): A {
 
 type VerifyConfig = {
   readonly lockfile: string;
-  readonly evidence: string;
+  readonly evidence: Option.Option<string>;
+  readonly fetch: Option.Option<string>;
   readonly context: Option.Option<string>;
   readonly log: Option.Option<string>;
   readonly logKey: Option.Option<string>;
@@ -106,20 +110,55 @@ function logTarget(
   };
 }
 
+function evidenceSource(
+  config: VerifyConfig,
+): { kind: 'recorded'; dir: string } | { kind: 'fetch'; cacheDir: string } {
+  if (Option.isSome(config.evidence) === Option.isSome(config.fetch)) {
+    throw new InputError('pass exactly one of --evidence and --fetch');
+  }
+
+  return Option.isSome(config.evidence)
+    ? { kind: 'recorded', dir: config.evidence.value }
+    : { kind: 'fetch', cacheDir: Option.getOrThrow(config.fetch) };
+}
+
 const readInputs = (config: VerifyConfig) =>
   attempt(() => {
+    const source = evidenceSource(config);
     const bytes = readFileSync(config.lockfile);
 
     return {
+      source,
       lock: readPackageLock(new TextDecoder().decode(bytes)),
       lockfile: lockfileDigest(bytes),
-      store: readEvidenceDirectory(config.evidence),
       policy: canonicalPolicy(),
       context: Option.isSome(config.context)
         ? readContext(config.context.value)
         : noContext,
       log: logTarget(config),
     };
+  });
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const collect = (cacheDir: string, lock: PackageLockRead) =>
+  Effect.tryPromise({
+    try: () =>
+      collectEvidence({
+        nodes: lock.kind === 'read' ? lock.nodes : [],
+        cacheDir,
+        sources: {
+          http: { fetch, now: () => new Date(), sleep },
+          trustedRoot: () => sigstoreTrustedRoot(resolve(cacheDir, 'tuf')),
+        },
+      }),
+    catch: (error) =>
+      isInputError(error)
+        ? error.message
+        : `collecting evidence failed: ${String(error)}`,
   });
 
 const verify = Command.make(
@@ -132,6 +171,13 @@ const verify = Command.make(
       Flag.withDescription(
         'directory of recorded packuments, attestations, OSV records and trusted_root.json',
       ),
+      Flag.optional,
+    ),
+    fetch: Flag.String('fetch').pipe(
+      Flag.withDescription(
+        'cache directory; fetch live evidence into <dir>/evidence, then verify against it',
+      ),
+      Flag.optional,
     ),
     at: Flag.String('at').pipe(
       Flag.withDescription(
@@ -160,10 +206,8 @@ const verify = Command.make(
   },
   (config) =>
     Effect.gen(function* () {
-      const at = Option.isSome(config.at)
-        ? decodeAt(config.at.value)
-        : Option.some(new Date(yield* Clock.currentTimeMillis));
-      if (Option.isNone(at)) {
+      const requestedAt = Option.flatMap(config.at, decodeAt);
+      if (Option.isSome(config.at) && Option.isNone(requestedAt)) {
         return yield* fail('verify', '--at must be a UTC timestamp');
       }
 
@@ -172,13 +216,45 @@ const verify = Command.make(
         return yield* fail('verify', inputs.failure);
       }
 
-      const { lock, lockfile, store, policy, context, log } = inputs.success;
+      const { source, lock, lockfile, policy, context, log } = inputs.success;
+      let evidenceDir: string;
+      if (source.kind === 'fetch') {
+        const collected = yield* collect(source.cacheDir, lock).pipe(
+          Effect.result,
+        );
+        if (Result.isFailure(collected)) {
+          return yield* fail('verify', collected.failure);
+        }
+
+        const { dir, gaps } = collected.success;
+        if (gaps.length > 0) {
+          yield* Console.error(
+            `gate verify: ${gaps.length} evidence fetches failed; see ${join(dir, 'SOURCES.json')}`,
+          );
+        }
+
+        evidenceDir = dir;
+      } else {
+        evidenceDir = source.dir;
+      }
+
+      const store = yield* attempt(() =>
+        readEvidenceDirectory(evidenceDir),
+      ).pipe(Effect.result);
+      if (Result.isFailure(store)) {
+        return yield* fail('verify', store.failure);
+      }
+
+      const at = Option.isSome(requestedAt)
+        ? requestedAt.value
+        : new Date(yield* Clock.currentTimeMillis);
+
       const records =
         lock.kind === 'read'
           ? verifyNodes({
               nodes: lock.nodes,
-              store,
-              at: at.value,
+              store: store.success,
+              at,
               policy,
               context,
             })
@@ -203,7 +279,7 @@ const verify = Command.make(
     }),
 ).pipe(
   Command.withDescription(
-    'Decide every package-lock.json node against SupplyChainPolicy/v2 from recorded evidence',
+    'Decide every package-lock.json node against SupplyChainPolicy/v2 from recorded or freshly fetched evidence',
   ),
 );
 

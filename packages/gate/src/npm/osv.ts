@@ -31,11 +31,13 @@ const OsvRecord = Schema.Struct({
   database_specific: Schema.optionalKey(
     Schema.Struct({
       'malicious-packages-origins': Schema.optionalKey(
-        Schema.Array(
-          Schema.Struct({
-            import_time: Schema.optionalKey(OsvTimestamp),
-            versions: Schema.optionalKey(Schema.Array(Schema.String)),
-          }),
+        Schema.NullOr(
+          Schema.Array(
+            Schema.Struct({
+              import_time: Schema.optionalKey(OsvTimestamp),
+              versions: Schema.optionalKey(Schema.Array(Schema.String)),
+            }),
+          ),
         ),
       ),
     }),

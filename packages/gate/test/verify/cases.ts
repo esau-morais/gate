@@ -34,13 +34,11 @@ const decode = Schema.decodeUnknownSync(Schema.fromJsonString(VerifyCase));
 
 export const evidenceDir = new URL('./evidence/', import.meta.url);
 
-export function loadVerifyCases(): {
+export function loadVerifyCases(root = new URL('./cases/', import.meta.url)): {
   name: string;
   dir: URL;
   fixture: VerifyCase;
 }[] {
-  const root = new URL('./cases/', import.meta.url);
-
   return readdirSync(root)
     .toSorted()
     .map((name) => {
@@ -177,8 +175,8 @@ export function verifyArgs(
   ];
 }
 
-export function recordedEvidence(path: string): unknown {
-  return JSON.parse(readFileSync(new URL(path, evidenceDir), 'utf8'));
+export function recordedEvidence(path: string, dir = evidenceDir): unknown {
+  return JSON.parse(readFileSync(new URL(path, dir), 'utf8'));
 }
 
 export const viteVersions = [
