@@ -1,5 +1,10 @@
 import { expect, test } from 'bun:test';
-import { defaultCacheDir, evidenceSource } from '../src/verify-defaults';
+import {
+  defaultCacheDir,
+  defaultLockfile,
+  evidenceSource,
+  lockfileFormat,
+} from '../src/verify-defaults';
 
 const home = '/home/u';
 
@@ -56,4 +61,36 @@ test('--evidence and --fetch together conflict', () => {
   expect(evidenceSource({ evidence: '/e', fetch: '/c' }, cache)).toEqual({
     kind: 'conflict',
   });
+});
+
+test('without --lockfile, the one lockfile in the directory is chosen', () => {
+  const inDir =
+    (...names: string[]) =>
+    (name: string) =>
+      names.includes(name);
+
+  expect(defaultLockfile(inDir('package-lock.json'))).toEqual({
+    kind: 'found',
+    path: 'package-lock.json',
+  });
+  expect(defaultLockfile(inDir('pnpm-lock.yaml'))).toEqual({
+    kind: 'found',
+    path: 'pnpm-lock.yaml',
+  });
+  expect(defaultLockfile(inDir('package-lock.json', 'pnpm-lock.yaml'))).toEqual(
+    { kind: 'ambiguous' },
+  );
+  expect(defaultLockfile(inDir())).toEqual({ kind: 'none' });
+});
+
+test('the format comes from the file name, then the content', () => {
+  expect(lockfileFormat('a/package-lock.json', '')).toBe('package-lock');
+  expect(lockfileFormat('npm-shrinkwrap.json', '')).toBe('package-lock');
+  expect(lockfileFormat('pnpm-lock.yaml', '{}')).toBe('pnpm-lock');
+  expect(lockfileFormat('x.pnpm-lock.yml', '{}')).toBe('pnpm-lock');
+  expect(lockfileFormat('lock', ' \n{"lockfileVersion": 3}')).toBe(
+    'package-lock',
+  );
+  expect(lockfileFormat('lock', "lockfileVersion: '9.0'")).toBe('pnpm-lock');
+  expect(lockfileFormat('lock', '---\nlockfileVersion: 9.0')).toBe('pnpm-lock');
 });

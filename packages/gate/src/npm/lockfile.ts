@@ -31,7 +31,7 @@ export type LockfileNode =
     })
   | (Location & { readonly kind: 'unreadable'; readonly error: string });
 
-export type PackageLockRead =
+export type LockfileRead =
   | { readonly kind: 'read'; readonly nodes: readonly LockfileNode[] }
   | { readonly kind: 'unreadable'; readonly error: string };
 
@@ -75,7 +75,9 @@ const gitShorthand = /^[\w.-]+\/[\w.-]+(#.*)?$/;
 const urlSpec = /^https?:\/\//;
 const fileSpec = /^(file:|link:|workspace:|\.{1,2}\/|\/|~\/)/;
 
-function sha512Of(integrity: string | undefined): Sha512Integrity | null {
+export function sha512Of(
+  integrity: string | undefined,
+): Sha512Integrity | null {
   const digests = new Set(
     (integrity?.split(/\s+/) ?? []).flatMap((token) =>
       Option.toArray(decodeSha512(token)),
@@ -96,7 +98,7 @@ function nameFromPath(path: string): string {
   return path.slice(path.lastIndexOf(marker) + marker.length);
 }
 
-function registryTarball(name: string, version: string): string {
+export function registryTarball(name: string, version: string): string {
   return `${npmRegistry}/${name}/-/${name.slice(name.indexOf('/') + 1)}-${version}.tgz`;
 }
 
@@ -293,7 +295,7 @@ function workspaceLinks(
   return links;
 }
 
-export function readPackageLock(text: string): PackageLockRead {
+export function readPackageLock(text: string): LockfileRead {
   const lock = decodeLock(text);
   if (Result.isFailure(lock)) {
     return {

@@ -5,7 +5,13 @@ import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
 import { DecisionContext, noContext } from './context';
-import { defaultCacheDir, evidenceSource } from './verify-defaults';
+import {
+  defaultCacheDir,
+  defaultLockfile,
+  evidenceSource,
+  lockfileFormat,
+  lockfileNames,
+} from './verify-defaults';
 import { appendToLog, LogError, readLog } from './log/log';
 import {
   NoteError,
@@ -20,7 +26,8 @@ import {
   readFetchGaps,
 } from './npm/evidence-directory';
 import { collectEvidence } from './npm/collect';
-import { readPackageLock, type PackageLockRead } from './npm/lockfile';
+import { readPackageLock, type LockfileRead } from './npm/lockfile';
+import { readPnpmLock } from './npm/pnpm-lock';
 import { humanReport } from './npm/report';
 import { sigstoreTrustedRoot } from './npm/trusted-root';
 import { decisionRecords, verifyExitCode, verifyNodes } from './npm/verify';
@@ -32,7 +39,6 @@ import { ansi, colorEnabled, inert, plain } from './terminal';
 import { UtcTimestamp } from './time';
 
 const decodeAt = Schema.decodeUnknownOption(UtcTimestamp);
-const defaultLockfile = 'package-lock.json';
 const decodeContext = Schema.decodeUnknownSync(
   Schema.fromJsonString(DecisionContext),
 );
@@ -123,13 +129,27 @@ function lockfilePath(config: VerifyConfig): string {
     return config.lockfile.value;
   }
 
-  if (!existsSync(defaultLockfile)) {
-    throw new InputError(
-      `no ${defaultLockfile} in ${process.cwd()}; pass --lockfile`,
-    );
+  const choice = defaultLockfile(existsSync);
+  if (choice.kind === 'found') {
+    return choice.path;
   }
 
-  return defaultLockfile;
+  const [npm, pnpm] = lockfileNames;
+
+  throw new InputError(
+    choice.kind === 'none'
+      ? `no ${npm} or ${pnpm} in ${process.cwd()}; pass --lockfile`
+      : `both ${npm} and ${pnpm} in ${process.cwd()}; pass --lockfile`,
+  );
+}
+
+function readLockfile(path: string, text: string) {
+  const format = lockfileFormat(path, text);
+
+  return {
+    format,
+    lock: format === 'pnpm-lock' ? readPnpmLock(text) : readPackageLock(text),
+  };
 }
 
 const readInputs = (config: VerifyConfig) =>
@@ -150,11 +170,12 @@ const readInputs = (config: VerifyConfig) =>
       throw new InputError('pass --evidence or --fetch, not both');
     }
 
-    const bytes = readFileSync(lockfilePath(config));
+    const path = lockfilePath(config);
+    const bytes = readFileSync(path);
 
     return {
       source,
-      lock: readPackageLock(new TextDecoder().decode(bytes)),
+      ...readLockfile(path, new TextDecoder().decode(bytes)),
       lockfile: lockfileDigest(bytes),
       policy: canonicalPolicy(),
       context: Option.isSome(config.context)
@@ -169,7 +190,7 @@ const sleep = (ms: number) =>
     setTimeout(resolve, ms);
   });
 
-const collect = (cacheDir: string, lock: PackageLockRead) =>
+const collect = (cacheDir: string, lock: LockfileRead) =>
   Effect.tryPromise({
     try: () =>
       collectEvidence({
@@ -191,7 +212,7 @@ const verify = Command.make(
   {
     lockfile: Flag.String('lockfile').pipe(
       Flag.withDescription(
-        'package-lock.json (v2 or v3) to verify; defaults to ./package-lock.json',
+        'package-lock.json (v2 or v3) or pnpm-lock.yaml (9.0) to verify; defaults to whichever of the two is in the current directory',
       ),
       Flag.optional,
     ),
@@ -250,7 +271,8 @@ const verify = Command.make(
         return yield* fail('verify', inputs.failure);
       }
 
-      const { source, lock, lockfile, policy, context, log } = inputs.success;
+      const { source, format, lock, lockfile, policy, context, log } =
+        inputs.success;
       let evidenceDir: string;
       if (source.kind === 'fetch') {
         const collected = yield* collect(source.cacheDir, lock).pipe(
@@ -311,6 +333,7 @@ const verify = Command.make(
         }
       } else {
         const report = humanReport({
+          format,
           records,
           nodes: lock.kind === 'read' ? lock.nodes : [],
           policy,
@@ -330,7 +353,7 @@ const verify = Command.make(
     }),
 ).pipe(
   Command.withDescription(
-    'Decide every package-lock.json node against SupplyChainPolicy/v2 from recorded or freshly fetched evidence',
+    'Decide every package-lock.json or pnpm-lock.yaml node against SupplyChainPolicy/v2 from recorded or freshly fetched evidence',
   ),
 );
 

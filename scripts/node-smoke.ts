@@ -13,6 +13,7 @@ import {
   verifyArgs,
 } from '../packages/gate/test/verify/cases';
 import { generateTestLogKey } from '../packages/gate/test/support/log';
+import { recordedPnpmLockPath } from '../packages/gate/test/pnpm/locks';
 import { recordedLockPath } from '../packages/gate/test/workspaces/locks';
 
 const outdir = await mkdtemp(join(tmpdir(), 'gate-node-smoke-'));
@@ -169,6 +170,52 @@ try {
   } else {
     console.log(
       "gate verify reads ./package-lock.json and passes npm/cli's workspace links on Node",
+    );
+  }
+
+  const pnpmRepo = join(outdir, 'vuejs-core');
+  mkdirSync(pnpmRepo);
+  copyFileSync(
+    recordedPnpmLockPath('vuejs-core'),
+    join(pnpmRepo, 'pnpm-lock.yaml'),
+  );
+  const pnpmArgs = [
+    'verify',
+    '--evidence',
+    fileURLToPath(evidenceDir),
+    '--at',
+    '2026-09-23T12:17:15Z',
+    '--json',
+  ];
+  const runPnpm = (runtime: readonly string[]) =>
+    Bun.spawnSync([...runtime, ...pnpmArgs], {
+      cwd: pnpmRepo,
+      stdout: 'pipe',
+      stderr: 'inherit',
+    });
+  const pnpmNode = runPnpm(['node', cli]);
+  const pnpmBun = runPnpm([
+    'bun',
+    join(import.meta.dir, '../packages/gate/src/cli.ts'),
+  ]);
+  const vite = summarizeOutput(pnpmNode.stdout.toString()).find((node) =>
+    node.path.startsWith('vite@8.3.0('),
+  );
+  if (
+    pnpmNode.stdout.toString() !== pnpmBun.stdout.toString() ||
+    pnpmNode.exitCode !== pnpmBun.exitCode ||
+    vite === undefined ||
+    !('outcome' in vite) ||
+    vite.outcome !== 'ACCEPT'
+  ) {
+    console.error(
+      `gate verify of ./pnpm-lock.yaml from vuejs/core differs on Node: exit ${pnpmNode.exitCode}`,
+      pnpmNode.stdout.toString(),
+    );
+    process.exitCode = 1;
+  } else {
+    console.log(
+      "gate verify reads vuejs/core's ./pnpm-lock.yaml on Node as on Bun and accepts vite",
     );
   }
 

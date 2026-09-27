@@ -502,6 +502,7 @@ Accepted 2026-09-26. `gate verify` with no flags reads `./package-lock.json` and
 - A CI job restores its cache from an earlier run, so its warm run revalidates every packument (max-age 300 s) and downloads the feed again once the hour is up. Measured 2026-09-26 on Node 22.23.2, npm/cli@0c3b82a9 (883 nodes) took 7.8 s with a fresh cache, 12.4 s with stale packuments and 18.4 s with the feed stale too. The offline verify was 4.4 s of each.
 - Verify time grows with attested versions, not nodes, because each node checks its own bundle and up to 10 earlier ones. In a CPU profile of opentelemetry-js@547bff40 (1,685 nodes, 2,867 checks), certificate-chain verification in `@sigstore/verify` took 14.7 of 17.0 s. Only 10 to 15% of the checks repeated a version, so caching within a run wouldn't help much. The PLAN target stays per node because nodes are what a user sees. There's no separate target for larger repositories. The M2 study records nodes, provenance checks and wall time for all 10.
 - Two runs sharing the cache can replace `evidence/` under each other. From reading `collect.ts`, the losing run's packages then read as unknown or unavailable, never clean. Not tested.
+- Updated 2026-09-26 for pnpm. It reads whichever of `./package-lock.json` and `./pnpm-lock.yaml` exists. With both, it fails before fetching and asks for `--lockfile`. No official source says which file a repository installs from, and preferring one would let the other hide a dependency. With neither, it fails before fetching. `--lockfile` takes the format from the file name, then from the content.
 
 ### Workspace links
 
@@ -547,3 +548,40 @@ Accepted 2026-09-26. `gate verify` prints a report for people, with or without a
 - Package data is escaped before gate adds color, so it can't forge gate's lines. `--json` isn't escaped further. `JSON.stringify` passes C1 and bidi controls through, but escaping them would change its bytes.
 - Next steps don't change decisions, records or the log. `release_age`'s clear time comes from rerunning `decide()` at later times on the same evidence, so the window stays in the CEL rule. Printed waivers have TODO text for `reason` and `author`, which still decodes, so a waiver pasted unedited works.
 - A lockfile entry with no sha512 stays that way. With npm 10.9.8, `npm install --package-lock-only` kept a missing integrity and a sha1-only one, and recorded the sha512 once the entry was removed and relocked (probed 2026-09-26 on `ms@2.1.3`). No npm doc says what npm does here. npm/cli@0c3b82a9 and sigstore-js@769a53d8 have 584 and 811 such entries.
+
+### pnpm-lock parser
+
+Accepted 2026-09-26. gate reads `pnpm-lock.yaml` with `lockfileVersion: '9.0'`, and any other version is unreadable. The latest release of each line on npm writes `9.0`: pnpm 9.15.9 and 10.34.5 (`packages/constants/src/index.ts`), 11.27.1 (`pnpm11/core/constants`) and 12.6.0, the Rust rewrite (`pnpm/crates/package-manager/src/dependencies_graph_to_lockfile.rs`). pnpm 12 also reads `12.x` (`pnpm/crates/lockfile/src/lockfile_version.rs`), but no release writes it, and named-registry keys came without a bump (`.changeset/named-registries-lockfile-format.md`). All read from the tags' source archives on 2026-09-26.
+
+- Each `snapshots` key is a node and its `path`. Peer variants are separate nodes, like separate install locations in package-lock.
+- pnpm 11 merges a packages entry into its snapshot with `Object.assign` (`pnpm11/lockfile/fs/src/lockfileFormatConverters.ts`), and pnpm 12 ignores snapshot fields under `packages`. An entry with fields in the wrong section is unreadable, so the two can't disagree.
+- A git source's spec is `github:<owner>/<repo>#<commit>` for a codeload archive, and `<repo>#<commit>` for `type: git`, so a context can allow it. pnpm keys a tarball package by its URL with any `user:token@` kept (`pnpm11/resolving/tarball-resolver/src/index.ts`), so a key, tarball or git URL with credentials is unreadable, and its path and error drop them.
+- pnpm 9 dropped `requiresBuild` from the lockfile (the v9 `PackageInfo` type), so a pnpm node's install scripts come from the packument alone, without the lockfile cross-check package-lock gets.
+- pnpm 9 dropped the dev flag: the v9 snapshot type has only `optional` (`lockfile/types/src/index.ts`, 9.15.9). gate computes dev and optional from the importer groups, as npm does. On the five recorded lockfiles, optional equals the flag pnpm writes on every production snapshot.
+- The env document pnpm 11 and 12 write first (`pnpm11/lockfile/fs/src/yamlDocuments.ts`) holds `configDependencies` and `packageManagerDependencies`, and its nodes are decided with paths starting `env:`. pnpm 10 keeps config dependencies in `pnpm-workspace.yaml` (`config/deps-installer/src/resolveConfigDeps.ts`), which gate doesn't read.
+- With `excludeLinksFromLockfile: true`, pnpm leaves non-workspace links out and reads them from package.json at install (`pnpm11/installing/deps-restorer/src/index.ts`), so gate adds an unreadable node.
+- pnpm's own Node.js runtime (`variations`, `binary`) and `custom:` resolutions are unreadable, because gate has no evidence source for them.
+- Measured 2026-09-26 on 29 public lockfiles at their HEAD (vite, vue, nuxt, astro, pnpm and others): all read, and the only unreadable entry is pnpm/pnpm's Node.js runtime.
+- Measured 2026-09-26 on Node 22.23.2 from clean clones, cold and then warm from a cache restored 2 h old: vuejs/core@4ab865a8 (643 nodes) 36.8 s and 20.5 s, honojs/hono@ee0622e1 (1,107) 68.4 s and 39.8 s, vitest-dev/vitest@428e2e50 (2,007) 108.3 s and 62.1 s.
+
+### Patched packages
+
+Accepted 2026-09-26. A patched snapshot stays a registry node. Its packages entry keeps the published tarball's integrity, and pnpm applies the patch in its build step after fetching that tarball (`pnpm11/building/during-install/src/index.ts`), so every registry check still describes the bytes the patch applies to. The patch is a file in the repository, reviewed with its code like a workspace. The path keeps `(patch_hash=…)`, so the log shows the node was patched.
+
+- The cost: a patch can add code or an install script, and gate neither reads the patch nor checks its hash.
+- npm 12.1.0 records its own patches in package-lock.json and then writes `lockfileVersion: 4` so older clients abort (`workspaces/arborist/lib/shrinkwrap.js`, [npm-patch](https://github.com/npm/cli/blob/v12.1.0/docs/lib/content/commands/npm-patch.md), checked 2026-09-26). gate reads version 4 as unreadable, so a patched npm repository doesn't get a verdict yet.
+
+### pnpm workspace links
+
+Accepted 2026-09-26, mirroring [Workspace links](#workspace-links). A `link:` to an importer isn't a node, and neither is an injected workspace package (a `directory` resolution naming an importer). Importers are the packages `pnpm-workspace.yaml` selects ([pnpm-workspace.yaml](https://pnpm.io/pnpm-workspace_yaml), checked 2026-09-26), and only those whose path passes the npm rule's folder check count. Every other link is a file source and rejects. Importer links resolve from the importer's folder and snapshot links from the lockfile's (pnpm 11.27.1 `installing/deps-restorer/src/index.ts` and `installing/deps-installer/src/install/link.ts`).
+
+- gate takes the lockfile's folder as the repository. The rules_js lockfiles keep their importers in `../projects`, so all their workspace links reject.
+- In the 29 lockfiles, links to folders no importer names reject: nitro 1, rolldown 2, trpc 1, drizzle-orm 13, vitest 10. vite's 110 injected packages all name importers.
+
+### yaml
+
+Accepted 2026-09-26. Added `yaml@2.9.1` for pnpm-lock.yaml. It was published 2026-09-11 by its only maintainer, eemeli, with no dependencies, no install script and no provenance, and OSV and GitHub list no advisory for it. [GHSA-48c2-rrv3-qjmp](https://github.com/advisories/GHSA-48c2-rrv3-qjmp) was fixed in 2.8.3 and [GHSA-f9xv-q969-pqx4](https://github.com/advisories/GHSA-f9xv-q969-pqx4) in 2.2.2. Checked 2026-09-26.
+
+- A hand-written reader came first. It matched Bun.YAML on all 29 lockfiles in 279 lines, but none of them has a double-quoted or literal block scalar, which pnpm's emitter writes (`pnpm/crates/lockfile/src/yaml_emit/scalars.rs`). Escapes and block indentation are where a hand parser drifts from js-yaml and serde-saphyr, and a drift lets a lockfile say one thing to pnpm and another to gate.
+- pnpm 9 to 11 read with `@zkochan/js-yaml` (0.0.7 and 0.0.11), whose default schema resolves merge keys (`lib/schema/default.js`, 0.0.11). Its int and timestamp types also read plain `0b1`, `1_0` and `2001-12-14` as a number or a date where `yaml`'s core schema keeps a string (`lib/type/int.js`, `timestamp.js`). So gate refuses anything that can change a node's meaning. Line breaks inside a flow collection only separate entries, so they're allowed, and a prettier-formatted lockfile reads the same.
+- The Node bundle grows from 1.17 to 1.42 MB unminified.
