@@ -585,3 +585,34 @@ Accepted 2026-09-26. Added `yaml@2.9.1` for pnpm-lock.yaml. It was published 202
 - A hand-written reader came first. It matched Bun.YAML on all 29 lockfiles in 279 lines, but none of them has a double-quoted or literal block scalar, which pnpm's emitter writes (`pnpm/crates/lockfile/src/yaml_emit/scalars.rs`). Escapes and block indentation are where a hand parser drifts from js-yaml and serde-saphyr, and a drift lets a lockfile say one thing to pnpm and another to gate.
 - pnpm 9 to 11 read with `@zkochan/js-yaml` (0.0.7 and 0.0.11), whose default schema resolves merge keys (`lib/schema/default.js`, 0.0.11). Its int and timestamp types also read plain `0b1`, `1_0` and `2001-12-14` as a number or a date where `yaml`'s core schema keeps a string (`lib/type/int.js`, `timestamp.js`). So gate refuses anything that can change a node's meaning. Line breaks inside a flow collection only separate entries, so they're allowed, and a prettier-formatted lockfile reads the same.
 - The Node bundle grows from 1.17 to 1.42 MB unminified.
+
+### SupplyChainPolicy/v3 (proposed)
+
+Proposed 2026-09-26, not accepted. No v3 file exists, and publishing one waits for the decision on who signs it (§6.9). PLAN's False-positive budget has the numbers.
+
+Under v2, 2,642 of 9,863 nodes in 10 repositories were quarantined for something other than `release_age`. Verdicts, with sources checked 2026-09-26:
+
+- A move from an account to a workflow is mixed. The deciding fact is whether the workflow's repository equals the `repository.url` of every earlier settled version, and 204 of 208 moves pass. The registry refuses provenance whose repository differs from the version's own `repository.url` ([422](https://github.com/oapicf/swaggy-c/issues/1), [trusted publishers](https://docs.npmjs.com/trusted-publishers)), and `npm trust` needs 2FA ([npm-trust](https://docs.npmjs.com/cli/v11/commands/npm-trust)). So a stolen token alone can't publish provenance from a repository the history names.
+- A change from one account to another is a signal, because nothing in the packument separates rotation from takeover. xrpl 4.2.1 came from `mukulljangid`, a listed maintainer who had published 2.1.1 in 2021 (packument, [Aikido](https://www.aikido.dev/blog/xrp-supplychain-attack-official-npm-package-infected-with-crypto-stealing-backdoor)), so an exemption for earlier maintainers would pass it. event-stream never reaches this rule. right9ctrl published 3.3.5 99 hours before 3.3.6, so only `publisher_recent` fires.
+- `integrity_unknown` is a signal. All 1,646 entries lack both `resolved` and `integrity`. Arborist writes such entries over a `node_modules` that has no lockfile ([npm/cli#6301](https://github.com/npm/cli/issues/6301#issuecomment-1587372426)) and never refills them ([#4460](https://github.com/npm/cli/issues/4460)). For such an entry `npm ci` checks the `dist.integrity` of the packument it fetches itself ([pacote 22.0.0 `registry.js`](https://github.com/npm/pacote/blob/e4e44c5428c840d853b5ef8641e169b5b79328ab/lib/registry.js#L144-L175)), and with `resolved` but no integrity it checks nothing ([`remote.js`](https://github.com/npm/pacote/blob/e4e44c5428c840d853b5ef8641e169b5b79328ab/lib/remote.js#L34-L43)). A hash only gate holds is never enforced, so substituting the packument's would not fail closed.
+- `provenance_history_unknown` is noise. In 73 of 74 versions the unreadable earlier version is one npm removed, kept in `time` and missing from `versions`. semver 5.7.2 is the exception, caused by SLSA v0.2 bundles.
+- `publisher_unknown` and `provenance_unavailable` are mixed, and the cause decides. 11 involve SLSA v0.2 bundles, which gate rejects because it reads only the v1 predicate, and 7 involve removed versions. Those are noise. 6 early documents without `_npmUser`, own-keys 1.0.1 and whatwg-url 17.1.1, whose attestation URL returned 404 on 2026-09-26, stay unknown.
+- `trust_downgrade`, `publisher_recent` and `new_install_script` are signals.
+
+v3 is v2 with three changes. The first two add evidence fields.
+
+1. A changed publisher gets `repositoryCheck`: `matched` when its identity is a workflow and every settled earlier version that declares a repository names that one, `mismatched` when one names another, and `unchecked` otherwise. An account-to-workflow move with `matched` isn't a publisher change.
+2. `publisherExcludingRemoved` and `earlierProvenanceExcludingRemoved` repeat the v2 fields without removed versions, meaning versions whose document npm deleted. They are `unknown` when every settled earlier version was removed. For v3 this replaces the Policy invariants rule that unknown earlier provenance counts. A removed version no longer makes history unknown.
+3. `publisher_changed`, `publisher_recent` and `trust_downgrade` stop firing 90 days after publish. event-stream's last recorded moment is 78 days after publish.
+
+```cel
+publisher_changed: evidence.source.kind == 'registry' && evidence.publisherExcludingRemoved.kind == 'changed' && !(evidence.publisherExcludingRemoved.identity.kind == 'workflow' && evidence.publisherExcludingRemoved.earlier.all(e, e.kind == 'account') && evidence.publisherExcludingRemoved.repositoryCheck == 'matched') && (evidence.publishTime.kind != 'packument' || now - evidence.publishTime.at < duration('2160h'))
+publisher_recent: evidence.source.kind == 'registry' && evidence.publisherExcludingRemoved.kind == 'continuous' && evidence.publisherExcludingRemoved.identity.kind == 'account' && has(evidence.publisherExcludingRemoved.joinedAt) && evidence.publishTime.kind == 'packument' && evidence.publishTime.at - evidence.publisherExcludingRemoved.joinedAt < duration('720h') && now - evidence.publishTime.at < duration('2160h')
+publisher_unknown: evidence.source.kind == 'registry' && evidence.publisherExcludingRemoved.kind == 'unknown'
+trust_downgrade: evidence.provenance.kind == 'absent' && evidence.earlierProvenance == 'some' && (evidence.publishTime.kind != 'packument' || now - evidence.publishTime.at < duration('2160h'))
+provenance_history_unknown: evidence.provenance.kind == 'absent' && evidence.earlierProvenanceExcludingRemoved == 'unknown'
+```
+
+- Every replay-corpus moment and both lockfile cases keep their outcome and reason codes, evaluated in a scratch copy of gate with these fields. The fixtures record no repository and no removed versions, so the new fields change nothing there.
+- v3 gives up three cases. A version from a new identity that stays unreported past 90 days. A token holder who can run workflows in the package's repository and publishes its first provenance-bearing version, which v2 quarantines. A trust downgrade hidden by removing the only earlier version with provenance.
+- Separately, gate should accept SLSA v0.2 provenance and read the identity from the certificate's SAN URI when it lacks the `.12` and `.18` extensions, as @tufjs/canonical-json 1.0.0's does. That fixes evidence for every policy.
