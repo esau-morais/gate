@@ -222,14 +222,14 @@ try {
     );
   }
 
-  const configRepo = join(outdir, 'rules-js-v101');
+  const configRepo = join(outdir, 'config-dependencies');
   mkdirSync(configRepo);
   copyFileSync(
-    recordedPnpmLockPath('rules-js-v101'),
+    recordedPnpmLockPath('rules-js-multi-document-v11'),
     join(configRepo, 'pnpm-lock.yaml'),
   );
   copyFileSync(
-    recordedPnpmWorkspacePath('rules-js'),
+    recordedPnpmWorkspacePath('seek-oss-wingman'),
     join(configRepo, 'pnpm-workspace.yaml'),
   );
   const runConfig = (runtime: readonly string[]) =>
@@ -243,24 +243,24 @@ try {
     'bun',
     join(import.meta.dir, '../packages/gate/src/cli.ts'),
   ]);
-  const semver = summarizeOutput(configNode.stdout.toString()).filter(
+  const plugin = summarizeOutput(configNode.stdout.toString()).filter(
     (node) => node.path === 'pnpm-workspace.yaml',
   );
   if (
     configNode.stdout.toString() !== configBun.stdout.toString() ||
     configNode.exitCode !== configBun.exitCode ||
-    semver.length !== 1 ||
-    semver[0]?.dependency !== 'semver' ||
-    !('outcome' in semver[0])
+    plugin.length !== 1 ||
+    plugin[0]?.dependency !== 'pnpm-plugin-sku' ||
+    !('outcome' in plugin[0])
   ) {
     console.error(
-      `gate verify of rules_js's pnpm 10 config dependencies differs on Node: exit ${configNode.exitCode}`,
-      semver,
+      `gate verify of seek-oss/wingman's pnpm 10 config dependency differs on Node: exit ${configNode.exitCode}`,
+      plugin,
     );
     process.exitCode = 1;
   } else {
     console.log(
-      "gate verify decides rules_js's pnpm-workspace.yaml config dependency on Node as on Bun",
+      "gate verify decides seek-oss/wingman's pnpm-workspace.yaml config dependency on Node as on Bun",
     );
   }
 
