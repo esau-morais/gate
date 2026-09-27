@@ -399,6 +399,28 @@ describe('pnpm-lock.yaml', () => {
     expect(run.exitCode).toBe(1);
   });
 
+  test('the default report tells a pnpm user how to fix a missing integrity with pnpm', () => {
+    const text = recordedPnpmLock('vuejs-core').replace(
+      /resolution: \{integrity: sha512-lhZBV[^}]*\}/,
+      'resolution: {}',
+    );
+    const run = withTempLock(text, (file) =>
+      raw([
+        'verify',
+        '--lockfile',
+        file,
+        '--evidence',
+        evidence,
+        '--at',
+        viteAt,
+      ]),
+    );
+
+    expect(run.stdout).toContain('pnpm install --lockfile-only');
+    expect(run.stdout).not.toContain('package-lock');
+    expect(run.exitCode).toBe(1);
+  });
+
   const addLink = (target: string) =>
     recordedPnpmLock('vuejs-core').replace(
       '  packages/vue:\n    dependencies:\n',

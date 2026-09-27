@@ -59,6 +59,14 @@ describe('what the pnpm lockfile emitter writes', () => {
     });
   });
 
+  test('quoted scalars that look like numbers or dates stay strings', () => {
+    expect(value("a: '0b1'\nb: '2001-12-14'\nc: 1.0.0\n")).toEqual({
+      a: '0b1',
+      b: '2001-12-14',
+      c: '1.0.0',
+    });
+  });
+
   test('comments change nothing', () => {
     expect(value('# lockfile\na: 1 # one\n')).toEqual({ a: 1 });
   });
@@ -82,6 +90,10 @@ describe('YAML that can change what a node means, or is broken, is unreadable', 
     'a boolean key': 'true: a\n',
     'a null key': '~: a\n',
     'a collection key': '? [a]\n: b\n',
+    'a binary number js-yaml reads': 'a: 0b1\n',
+    'an underscored number js-yaml reads': 'a: 1_0\n',
+    'a date js-yaml reads': 'a: 2001-12-14\n',
+    'a key js-yaml reads as a number': '1_0: a\n',
     'tab indentation': 'a:\n\tb: 1\n',
     'an unterminated flow collection': 'a: {b: 1\n',
     'an empty document': '',

@@ -143,10 +143,13 @@ function lockfilePath(config: VerifyConfig): string {
   );
 }
 
-function readLockfile(path: string, text: string): LockfileRead {
-  return lockfileFormat(path, text) === 'pnpm-lock'
-    ? readPnpmLock(text)
-    : readPackageLock(text);
+function readLockfile(path: string, text: string) {
+  const format = lockfileFormat(path, text);
+
+  return {
+    format,
+    lock: format === 'pnpm-lock' ? readPnpmLock(text) : readPackageLock(text),
+  };
 }
 
 const readInputs = (config: VerifyConfig) =>
@@ -172,7 +175,7 @@ const readInputs = (config: VerifyConfig) =>
 
     return {
       source,
-      lock: readLockfile(path, new TextDecoder().decode(bytes)),
+      ...readLockfile(path, new TextDecoder().decode(bytes)),
       lockfile: lockfileDigest(bytes),
       policy: canonicalPolicy(),
       context: Option.isSome(config.context)
@@ -268,7 +271,8 @@ const verify = Command.make(
         return yield* fail('verify', inputs.failure);
       }
 
-      const { source, lock, lockfile, policy, context, log } = inputs.success;
+      const { source, format, lock, lockfile, policy, context, log } =
+        inputs.success;
       let evidenceDir: string;
       if (source.kind === 'fetch') {
         const collected = yield* collect(source.cacheDir, lock).pipe(
@@ -329,6 +333,7 @@ const verify = Command.make(
         }
       } else {
         const report = humanReport({
+          format,
           records,
           nodes: lock.kind === 'read' ? lock.nodes : [],
           policy,

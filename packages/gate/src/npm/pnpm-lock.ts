@@ -84,8 +84,14 @@ const decodeTarball = Schema.decodeUnknownResult(TarballResolution);
 const decodeGit = Schema.decodeUnknownResult(GitResolution);
 const decodeDirectory = Schema.decodeUnknownResult(DirectoryResolution);
 
-const snapshotFields = ['dependencies', 'optionalDependencies', 'optional'];
-const packageFields = ['resolution', 'name', 'version'];
+const refusedInPackages = [
+  'dependencies',
+  'optionalDependencies',
+  'optional',
+  'id',
+];
+const refusedInSnapshots = ['resolution', 'name', 'version', 'id'];
+const userinfo = /\/\/([^/@\s]*)@/g;
 
 const byteOrderMark = String.fromCodePoint(0xfeff);
 const documentStart = '---\n';
@@ -241,18 +247,23 @@ function gitArchive(url: URL): GitArchive | undefined {
   }
 
   const [api, v4, projects, project = '', repository, file] = segments;
+  if (
+    api !== 'api' ||
+    v4 !== 'v4' ||
+    projects !== 'projects' ||
+    repository !== 'repository' ||
+    file !== 'archive.tar.gz'
+  ) {
+    return undefined;
+  }
 
-  return api === 'api' &&
-    v4 === 'v4' &&
-    projects === 'projects' &&
-    repository === 'repository' &&
-    file === 'archive.tar.gz'
+  return [...url.searchParams.keys()].join() === 'ref'
     ? {
         kind: 'archive',
         repository: `gitlab:${decodeURIComponent(project)}`,
         ref: url.searchParams.get('ref') ?? '',
       }
-    : undefined;
+    : { kind: 'malformed' };
 }
 
 function classifyTarball(
@@ -404,12 +415,19 @@ function classify(
   };
 }
 
-function hasAny(value: unknown, fields: readonly string[]): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    fields.some((field) => Object.hasOwn(value, field))
+function withoutCredentials(text: string): string {
+  return text.replaceAll(userinfo, (match, user: string) =>
+    user === 'git' ? match : '//***@',
   );
+}
+
+function refusedField(
+  value: unknown,
+  fields: readonly string[],
+): string | undefined {
+  return typeof value === 'object' && value !== null
+    ? fields.find((field) => Object.hasOwn(value, field))
+    : undefined;
 }
 
 function classifySnapshot(
@@ -429,8 +447,9 @@ function classifySnapshot(
     return { kind: 'error', error: `no packages entry ${id}` };
   }
 
-  if (hasAny(raw, snapshotFields)) {
-    return { kind: 'error', error: `snapshot fields in packages entry ${id}` };
+  const refused = refusedField(raw, refusedInPackages);
+  if (refused !== undefined) {
+    return { kind: 'error', error: `${refused} in packages entry ${id}` };
   }
 
   const info = decodePackageInfo(raw);
@@ -519,8 +538,14 @@ function parseSnapshots(
 ): Map<string, ParsedSnapshot> {
   const parsed = new Map<string, ParsedSnapshot>();
   for (const [key, raw] of Object.entries(snapshots)) {
-    if (hasAny(raw, packageFields)) {
-      parsed.set(key, { kind: 'error', error: 'package fields in a snapshot' });
+    if (withoutCredentials(key) !== key) {
+      parsed.set(key, { kind: 'error', error: 'a key with credentials' });
+      continue;
+    }
+
+    const refused = refusedField(raw, refusedInSnapshots);
+    if (refused !== undefined) {
+      parsed.set(key, { kind: 'error', error: `${refused} in a snapshot` });
       continue;
     }
 
@@ -649,13 +674,13 @@ function readDocument(prefix: string, document: Document): LockfileNode[] {
       nodes.push({
         kind: 'unreadable',
         ...edge.from,
-        error: `no snapshot ${key}`,
+        error: `no snapshot ${withoutCredentials(key)}`,
       });
     }
   }
 
   for (const [key, snapshot] of snapshots) {
-    const path = `${prefix}${key}`;
+    const path = `${prefix}${withoutCredentials(key)}`;
     const classified =
       snapshot.kind === 'error'
         ? snapshot

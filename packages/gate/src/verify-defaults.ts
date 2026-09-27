@@ -73,10 +73,9 @@ export function defaultLockfile(
     : { kind: 'ambiguous' };
 }
 
-export function lockfileFormat(
-  path: string,
-  text: string,
-): 'package-lock' | 'pnpm-lock' {
+export type LockfileFormat = 'package-lock' | 'pnpm-lock';
+
+export function lockfileFormat(path: string, text: string): LockfileFormat {
   if (path.endsWith('.json')) {
     return 'package-lock';
   }

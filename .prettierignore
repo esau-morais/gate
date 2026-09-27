@@ -2,5 +2,4 @@ bun.lock
 .claude/
 packages/cel/test/conformance-known-failures.json
 docs/
-# recorded upstream bytes, kept verbatim
 packages/gate/test/pnpm/*.pnpm-lock.yaml

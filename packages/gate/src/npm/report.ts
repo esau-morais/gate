@@ -14,6 +14,7 @@ import {
   type FetchGap,
   type FetchGaps,
 } from './evidence-directory';
+import type { LockfileFormat } from '../verify-defaults';
 import type { LockfileNode, LockfileSource } from './lockfile';
 import type { VerifyRecord } from './verify';
 
@@ -89,6 +90,7 @@ type Input = {
   readonly context: DecisionContext;
   readonly gaps: FetchGaps;
   readonly style: Style;
+  readonly format: LockfileFormat;
 };
 
 type Line =
@@ -367,6 +369,18 @@ function allowLines(input: Input, record: Decided): Line[] {
   ];
 }
 
+const relockStep: Readonly<Record<LockfileFormat, string>> = {
+  'package-lock':
+    'npm keeps a missing or sha1 integrity when it rewrites the lockfile. Remove these entries from package-lock.json and run npm install --package-lock-only to record their sha512.',
+  'pnpm-lock':
+    "pnpm records the integrity the registry lists, and a sha1 when it lists no sha512. Remove these entries from pnpm-lock.yaml and run pnpm install --lockfile-only to record the registry's sha512, if it has one.",
+};
+
+const client: Readonly<Record<LockfileFormat, string>> = {
+  'package-lock': 'npm',
+  'pnpm-lock': 'pnpm',
+};
+
 function integrityDetail(
   input: Input,
   record: Decided,
@@ -375,7 +389,7 @@ function integrityDetail(
   if (lockSource?.kind === 'registry' && lockSource.integrity === null) {
     return {
       evidence: 'the lockfile entry has no sha512 integrity',
-      step: 'npm keeps a missing or sha1 integrity when it rewrites the lockfile. Remove these entries from package-lock.json and run npm install --package-lock-only to record their sha512.',
+      step: relockStep[input.format],
       own: [],
     };
   }
@@ -660,16 +674,17 @@ function renderGroup(
 }
 
 function renderUnreadable(
-  style: Style,
+  input: Input,
   records: readonly Unreadable[],
 ): string[] {
+  const { style } = input;
   if (records.length === 0) {
     return [];
   }
 
   return [
     `${style.outcome('UNREADABLE', 'UNREADABLE')}  ${plural(records.length, 'lockfile entry', 'lockfile entries')}`,
-    "  gate can't decide these entries, so the run fails. Fix or regenerate them with npm.",
+    `  gate can't decide these entries, so the run fails. Fix or regenerate them with ${client[input.format]}.`,
     '',
     ...records.map(
       (record) =>
@@ -772,7 +787,7 @@ export function humanReport(input: Input): string {
   const lines = [
     ...header(input, decided),
     ...renderUnreadable(
-      style,
+      input,
       records.filter((record) => record.kind === 'unreadable'),
     ),
     ...groups.flatMap((group) => [...renderGroup(input, group), '']),

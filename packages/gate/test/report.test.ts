@@ -42,6 +42,7 @@ function report(
     gaps?: FetchGaps;
     context?: DecisionContext;
     nodes?: readonly LockfileNode[];
+    format?: 'package-lock' | 'pnpm-lock';
   } = {},
 ): string {
   const context = options.context ?? noContext;
@@ -63,6 +64,7 @@ function report(
     context,
     gaps: options.gaps ?? listed(),
     style: plain,
+    format: options.format ?? 'package-lock',
   });
 }
 
@@ -268,6 +270,53 @@ test('an expired waiver in --context is named next to the new one', () => {
   expect(text).toContain(
     `the waiver in --context expired at ${expiresAt.toISOString()}`,
   );
+});
+
+test('a pnpm-lock.yaml entry without integrity gets the pnpm relock step', () => {
+  const text = report(
+    {
+      source: {
+        kind: 'registry',
+        registry: 'https://registry.npmjs.org',
+        integrity: null,
+      },
+      integrityCheck: 'unchecked',
+    },
+    {
+      format: 'pnpm-lock',
+      nodes: [
+        {
+          kind: 'package',
+          path: 'node_modules/lib',
+          name: 'lib',
+          version: '1.2.0',
+          source: { kind: 'registry', integrity: null },
+          dev: false,
+          optional: false,
+          hasInstallScript: null,
+        },
+      ],
+    },
+  );
+
+  expect(text).toContain('pnpm install --lockfile-only');
+  expect(text).not.toContain('package-lock');
+});
+
+test('unreadable entries point at the client that wrote the lockfile', () => {
+  const unreadable = (format: 'package-lock' | 'pnpm-lock') =>
+    humanReport({
+      records: [{ kind: 'unreadable', path: 'x@1.0.0', error: 'broken' }],
+      nodes: [],
+      policy,
+      context: noContext,
+      gaps: listed(),
+      style: plain,
+      format,
+    });
+
+  expect(unreadable('package-lock')).toContain('regenerate them with npm');
+  expect(unreadable('pnpm-lock')).toContain('regenerate them with pnpm');
 });
 
 test('a lockfile entry without integrity gets the relock step, not a waiver', () => {

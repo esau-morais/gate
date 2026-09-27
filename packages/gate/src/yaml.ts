@@ -11,6 +11,12 @@ export type YamlRead =
   | { readonly kind: 'unreadable'; readonly error: string };
 
 const oneLineStyles = new Set(['PLAIN', 'QUOTE_SINGLE', 'QUOTE_DOUBLE']);
+const jsYamlNotString = [
+  /^[-+]?(?:0b[01_]+|0x[0-9a-fA-F_]+|0o[0-7_]+|[0-9][0-9_]*)$/,
+  /^(?:[-+]?[0-9][0-9_]*(?:\.[0-9_]*)?(?:[eE][-+]?[0-9]+)?|\.[0-9_]+(?:[eE][-+]?[0-9]+)?|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$/,
+  /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/,
+  /^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:[Tt]|[ \t]+)[0-9]{1,2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]*)?(?:[ \t]*(?:Z|[-+][0-9]{1,2}(?::[0-9]{2})?))?$/,
+];
 
 function spansLines(text: string, range: Range | null | undefined): boolean {
   return range !== null && range !== undefined
@@ -33,6 +39,15 @@ function refusal(text: string, node: YamlNode): string | undefined {
 
   if (node.type === 'BLOCK_FOLDED') {
     return 'a folded scalar';
+  }
+
+  const { value } = node;
+  if (
+    node.type === 'PLAIN' &&
+    typeof value === 'string' &&
+    jsYamlNotString.some((pattern) => pattern.test(value))
+  ) {
+    return 'a plain scalar js-yaml reads as a number or date';
   }
 
   return node.type !== undefined &&

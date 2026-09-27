@@ -357,6 +357,49 @@ describe('registry packages', () => {
     expect(JSON.stringify(node)).not.toContain('s3cret');
   });
 
+  test('a key with credentials is unreadable and no path or error carries them', () => {
+    const key = 'lib@https://user:s3cret@mirror.example/lib.tgz';
+    const list = nodes(
+      pnpmLock({
+        importers: {
+          '.': {
+            dependencies: {
+              lib: { specifier: 'x', version: key.slice(4) },
+              ghost: {
+                specifier: 'x',
+                version: 'https://user:s3cret@mirror.example/ghost.tgz',
+              },
+            },
+          },
+        },
+        packages: {
+          [key]: `    resolution: {integrity: ${sha512}, tarball: 'https://mirror.example/lib.tgz'}\n    version: 1.0.0`,
+        },
+        snapshots: { [key]: '' },
+      }),
+    );
+
+    expect(list.map((node) => [node.kind, node.dependency])).toEqual([
+      ['unreadable', 'ghost'],
+      ['unreadable', undefined],
+    ]);
+    expect(JSON.stringify(list)).not.toContain('s3cret');
+  });
+
+  test('a packages entry with an id is unreadable', () => {
+    expect(
+      byPath(
+        nodes(
+          withLib().replace(
+            registryPackage,
+            `${registryPackage}\n    id: other@2.0.0`,
+          ),
+        ),
+        'lib@1.0.0',
+      ).kind,
+    ).toBe('unreadable');
+  });
+
   test('a registry revision is unreadable', () => {
     expect(
       byPath(
@@ -506,6 +549,14 @@ describe('git and tarball sources', () => {
       [
         'g@https://gitlab.com/o/r/-/archive/main/r-main.tar.gz',
         `{integrity: ${sha512}, tarball: https://gitlab.com/o/r/-/archive/main/r-main.tar.gz}`,
+      ],
+      [
+        `g@https://gitlab.com/api/v4/projects/o%2Fr/repository/archive.tar.gz?ref=${commit}&sha=main`,
+        `{integrity: ${sha512}, tarball: 'https://gitlab.com/api/v4/projects/o%2Fr/repository/archive.tar.gz?ref=${commit}&sha=main'}`,
+      ],
+      [
+        `g@https://gitlab.com/api/v4/projects/o%2Fr/repository/archive.tar.gz?ref=${commit}&ref=main`,
+        `{integrity: ${sha512}, tarball: 'https://gitlab.com/api/v4/projects/o%2Fr/repository/archive.tar.gz?ref=${commit}&ref=main'}`,
       ],
       [
         'g@https://example.com/o/r.tgz',
