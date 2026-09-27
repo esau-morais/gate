@@ -1,0 +1,25 @@
+{
+  "capturedAt": "2026-09-27",
+  "files": [
+    {
+      "path": "semver@<version>.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/semver@<version>",
+      "sanitized": "fetched 2026-09-27T15:54Z for 7.5.1, 7.5.2 and 7.5.3, the SLSA v0.2 versions published before semver 5.7.2; pretty-printed, otherwise unchanged. Their certificates carry the 1.3.6.1.4.1.57264.1.12 and .18 extensions"
+    },
+    {
+      "path": "tufjs-canonical-json@<version>.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@tufjs%2fcanonical-json@<version>",
+      "sanitized": "fetched 2026-09-27T15:53:59Z for 1.0.0 and 2.0.0; pretty-printed, otherwise unchanged. 1.0.0 is SLSA v0.2 with a certificate from 2023-03-06 that has only the 1.3.6.1.4.1.57264.1.1 to .6 extensions. 2.0.0 is SLSA v1 with the .8 to .22 extensions"
+    },
+    {
+      "path": "appsemble@0.23.0.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/appsemble@0.23.0",
+      "sanitized": "fetched 2026-09-27T15:58:07Z; pretty-printed, otherwise unchanged. SLSA v0.2 from GitLab CI, issuer https://gitlab.com, SAN URI https://gitlab.com/appsemble/appsemble//.gitlab-ci.yml@refs/tags/0.23.0"
+    }
+  ],
+  "integrity": "dist.integrity of each version, copied into npm-provenance.test.ts from https://registry.npmjs.org/semver, https://registry.npmjs.org/@tufjs%2fcanonical-json and https://registry.npmjs.org/appsemble, fetched 2026-09-27",
+  "gaps": [
+    "semver 5.7.2 itself has no attestations. Its provenance_history_unknown came from 7.5.1 to 7.5.3, so those are the recorded bundles",
+    "No recorded certificate lacks .12 and .18 while naming a reusable workflow from another repository, so that case is a hand-built certificate identity in the test"
+  ]
+}

@@ -22,10 +22,17 @@ export type ProvenanceResult =
     }
   | { readonly kind: 'unavailable'; readonly reason: string };
 
-const slsaProvenance = 'https://slsa.dev/provenance/v1';
 const githubIssuer = 'https://token.actions.githubusercontent.com';
+const githubUrl = 'https://github.com/';
+const legacyRepositoryOid = '1.3.6.1.4.1.57264.1.5';
 const sourceRepositoryOid = '1.3.6.1.4.1.57264.1.12';
 const buildConfigOid = '1.3.6.1.4.1.57264.1.18';
+
+const SlsaPredicateType = Schema.Literals([
+  'https://slsa.dev/provenance/v1',
+  'https://slsa.dev/provenance/v0.2',
+]);
+const isSlsaPredicateType = Schema.is(SlsaPredicateType);
 
 const TrustedRootDocument = Schema.Struct({
   mediaType: Schema.String.check(
@@ -41,8 +48,11 @@ const AttestationsResponse = Schema.Struct({
 
 const Statement = Schema.fromJsonString(
   Schema.Struct({
-    _type: Schema.Literal('https://in-toto.io/Statement/v1'),
-    predicateType: Schema.Literal(slsaProvenance),
+    _type: Schema.Literals([
+      'https://in-toto.io/Statement/v1',
+      'https://in-toto.io/Statement/v0.1',
+    ]),
+    predicateType: SlsaPredicateType,
     subject: Schema.NonEmptyArray(
       Schema.Struct({
         name: Schema.String,
@@ -98,17 +108,41 @@ function derUtf8String(value: Uint8Array): string | undefined {
     : undefined;
 }
 
-function certificateValue(signer: Signer, oid: string): string | undefined {
-  const found = signer.identity?.oids?.find(
-    (pair) => pair.oid?.id.join('.') === oid,
-  );
+type CertificateIdentity = Signer['identity'];
 
-  return found === undefined ? undefined : derUtf8String(found.value);
+function extensionBytes(
+  identity: CertificateIdentity,
+  oid: string,
+): Uint8Array | undefined {
+  return identity?.oids?.find((pair) => pair.oid?.id.join('.') === oid)?.value;
 }
 
-function workflowIdentity(signer: Signer): ProvenanceResult {
-  const repository = certificateValue(signer, sourceRepositoryOid);
-  const buildConfig = certificateValue(signer, buildConfigOid);
+function certificateValue(
+  identity: CertificateIdentity,
+  oid: string,
+): string | undefined {
+  const value = extensionBytes(identity, oid);
+
+  return value === undefined ? undefined : derUtf8String(value);
+}
+
+function legacyRepository(identity: CertificateIdentity): string | undefined {
+  const value = extensionBytes(identity, legacyRepositoryOid);
+  const name = value === undefined ? '' : new TextDecoder().decode(value);
+
+  return /^[\w.-]+\/[\w.-]+$/.test(name) ? `${githubUrl}${name}` : undefined;
+}
+
+export function certificateWorkflow(
+  identity: CertificateIdentity,
+): ProvenanceResult {
+  let repository = certificateValue(identity, sourceRepositoryOid);
+  let buildConfig = certificateValue(identity, buildConfigOid);
+  if (repository === undefined && buildConfig === undefined) {
+    repository = legacyRepository(identity);
+    buildConfig = identity?.subjectAlternativeName;
+  }
+
   const prefix = `${repository}/`;
   if (repository === undefined || buildConfig?.startsWith(prefix) !== true) {
     return {
@@ -141,8 +175,8 @@ export function verifyNpmProvenance(input: {
     return unavailable('attestations response is unreadable');
   }
 
-  const bundles = response.success.attestations.filter(
-    (entry) => entry.predicateType === slsaProvenance,
+  const bundles = response.success.attestations.filter((entry) =>
+    isSlsaPredicateType(entry.predicateType),
   );
   const [entry, ...extra] = bundles;
   if (entry === undefined || extra.length > 0) {
@@ -185,6 +219,6 @@ export function verifyNpmProvenance(input: {
   );
 
   return matches
-    ? workflowIdentity(signer)
+    ? certificateWorkflow(signer.identity)
     : unavailable(`signed subject is not ${purl} with this integrity`);
 }
