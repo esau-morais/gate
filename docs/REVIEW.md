@@ -104,11 +104,11 @@ Status on 2026-09-26. Open items are scheduled in [PLAN.md](PLAN.md).
 |---|---|
 | 1. Tarball endpoint | Deferred with the proxy. `gate verify` in CI is the enforcement point |
 | 2. Upstream publish time | Done: `release_age` reads `time[version]` |
-| 3. Keys and signatures | Open. Offline mode reads a recorded trusted root. Network mode must fetch it through TUF |
+| 3. Keys and signatures | Trusted root done: network mode fetches it through TUF. npm registry signatures are open, scheduled for M3 (PLAN, After M2) |
 | 4. Urgent-fix lane | Open. `release_age` is not waivable |
-| 5. Provenance is not safety | Done: v1 has no trust tiers. Publisher continuity does the work. zizmor is not built |
+| 5. Provenance is not safety | Done: v1 has no trust tiers. Publisher continuity does the work. zizmor is scheduled after the capability diff (PLAN, After M2) |
 | 6. Exotic sources and scripts | Done for sources (`exotic_source`) and scripts (`new_install_script`). Client config checks are not scheduled |
-| 7. Certificate format | Open. `gate verify` prints JSON lines and logs records, no in-toto output |
+| 7. Certificate format | Open. Format in M2, certificate in M3 (PLAN, After M2) |
 | 8. npm terms | Open, see PLAN.md |
 | 9. Compromise of gate | Open. Policies are pinned by digest in the source. Release hardening is in M2, key roles are an open decision |
 | 10. Cooldown critiques | Open. The M2 README covers it |
@@ -513,3 +513,27 @@ Accepted 2026-09-26. A link to a declared npm workspace isn't a node, like the w
 - A link entry outside `node_modules` is unreadable. None of the four repositories below has one, and `npm ci` 12.1.0 fails on one that the root declares. Other entries there that nothing points at are skipped, as before. npm before arborist commit 4c7f6baf7 (first tagged v12.0.0-pre.0 on npm/cli's main branch) leaves them behind with `extraneous: true` after a `file:` dependency or workspace is removed. In probes on 2026-09-26, `npm ci` 10.9.8 and 12.1.0 (with `--dangerously-allow-all-scripts`) installed nothing and ran no script for either kind of entry, while a declared `node_modules` link to the same folder ran its postinstall.
 - The cost: the npm adapter makes this call, not the policy. A policy can't reject a workspace link, and a change to the matcher changes outcomes under the same policy version. Skipped links aren't logged. Their dependencies still are.
 - Measured 2026-09-26: every link in npm/cli@0c3b82a9 (16), sigstore/sigstore-js@769a53d8 (14), open-telemetry/opentelemetry-js@547bff40 (49) and lerna/lerna@752bdbba (3) matched. Their REJECTs went to zero and every other decision stayed byte for byte the same.
+
+### Policy invariants
+
+Accepted 2026-09-26. The decision rules from AGENTS.md and policy v2 get an exhaustive test over every combination of evidence kinds, run against v2 and each later version:
+
+- a feed hit or an integrity mismatch rejects;
+- unknown evidence never accepts: an unavailable feed, unknown install scripts, and for registry sources unavailable provenance, an unknown publisher or publish time, or no integrity. Unknown earlier provenance counts only when this version has no provenance, as v2 intends;
+- a registry version younger than the window never accepts;
+- a claim only moves ACCEPT to QUARANTINE;
+- a waiver clears only a waivable QUARANTINE rule;
+- a non-registry source never accepts without an allowlist entry.
+
+A scratch probe, not committed, ran 174,960 v2 decisions in 1.2 s on Bun 1.4.2 and found no violations. It caught two weakened copies of v2: one without `feeds_unavailable`, and one with `release_age` waivable. It missed a 24 h window until the probe also tested ages just under and at 72 h, so every duration rule needs cases on both sides of its threshold. The claims rule also holds by construction, because a REJECT rule that reads `claims` fails to load.
+
+### Bend, revisited
+
+Accepted 2026-09-26. Still no Bend (D5). Bend 2.0.29 ([bendlang/bend](https://github.com/bendlang/bend), archive checked against the sha256 in bend-lang.com's install script) checked a model of the decision with four laws in 0.11 s. It rejected a variant where a claim turns ACCEPT into REJECT. Against using it now:
+
+- It proves a model, not the CEL policy gate runs. Using it needs a translation kept in sync with each policy.
+- The guide shipped in the release says `bend2/bend.lean` lags `bend.ts`. Checker soundness bugs and checker-backend mismatches were fixed during September 2026 ([#1001](https://github.com/bendlang/bend/issues/1001), [#808](https://github.com/bendlang/bend/issues/808), [#954](https://github.com/bendlang/bend/issues/954), [#793](https://github.com/bendlang/bend/issues/793), [#878](https://github.com/bendlang/bend/issues/878)). [bend-lang.com](https://bend-lang.com/) says "Expect bugs".
+- A law resting on an `@unsafe` or foreign def prints a note and exits 0. `cli_report` in `bend2/main.ts` treats those defs as promises by design, so CI would have to read the output.
+- A law that calls implementation code can pass a bug. The first version of the claim law did.
+
+Replay answers a different question: did this logged decision follow from its logged evidence. It stays. The exhaustive test in [Policy invariants](#policy-invariants) covers the laws against the real policy. Revisit Bend when the Lean model matches the checker, an unsafe-backed law fails the exit code, and a CEL-to-Bend translation exists.
