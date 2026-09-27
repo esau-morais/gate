@@ -3,7 +3,6 @@ import { Schema } from 'effect';
 import { Sha512Integrity } from '../src/evidence';
 import {
   certificateWorkflow,
-  type ProvenanceResult,
   trustMaterialFrom,
   verifyNpmProvenance,
 } from '../src/npm/provenance';
@@ -12,15 +11,15 @@ import { recordedEvidence } from './verify/cases';
 const trustedRoot = recordedEvidence('trusted_root.json');
 const trust = trustMaterialFrom(trustedRoot);
 const attestations = recordedEvidence('attestations/vite@8.3.0.json');
-const integrity = Schema.decodeUnknownSync(Sha512Integrity)(
+const decodeIntegrity = Schema.decodeUnknownSync(Sha512Integrity);
+const integrity = decodeIntegrity(
   'sha512-lhZBVvEHefgE+HQZC9O7EBJgCU/nVzFNl7vkS4RE0APtWLP02/8QVIkQtzBxPquh7lq5/78NHipTj7ODQ6XuyQ==',
 );
-const otherIntegrity = Schema.decodeUnknownSync(Sha512Integrity)(
+const otherIntegrity = decodeIntegrity(
   'sha512-cFKLV/PRgAUlIRm5WjMjJ86jrftzpqcgH+Us+DS8mI3CDNiH30Whrz8uHL3+MOLPAgqbMBAqWdAHAphOAM+z/Q==',
 );
 const vite = { name: 'vite', version: '8.3.0', integrity };
 
-const decodeIntegrity = Schema.decodeUnknownSync(Sha512Integrity);
 const provenanceDir = new URL('./provenance/', import.meta.url);
 const recorded = (file: string) => recordedEvidence(file, provenanceDir);
 const semver = [
@@ -72,7 +71,28 @@ const appsemble = {
   },
   attestations: recorded('appsemble@0.23.0.json'),
 };
-const workflowRepositoryOid = [1, 3, 6, 1, 4, 1, 57264, 1, 5];
+const fulcioOid = (arc: number) => ({ id: [1, 3, 6, 1, 4, 1, 57264, 1, arc] });
+
+function derUtf8(text: string): Buffer {
+  const bytes = Buffer.from(text);
+
+  return Buffer.concat([Buffer.from([0x0c, bytes.length]), bytes]);
+}
+
+const acmeLib = {
+  legacyRepository: { oid: fulcioOid(5), value: Buffer.from('acme/lib') },
+  sourceRepository: {
+    oid: fulcioOid(12),
+    value: derUtf8('https://github.com/acme/lib'),
+  },
+  buildConfig: {
+    oid: fulcioOid(18),
+    value: derUtf8(
+      'https://github.com/acme/lib/.github/workflows/publish.yml@refs/heads/main',
+    ),
+  },
+  san: 'https://github.com/acme/lib/.github/workflows/publish.yml@refs/heads/main',
+};
 
 const slsa = 'https://slsa.dev/provenance/v1';
 
@@ -188,18 +208,17 @@ describe('npm provenance', () => {
     }
   });
 
-  test('a certificate without source repository and build config extensions names the workflow from its SAN URI', () => {
-    const tufJs: ProvenanceResult = {
+  test('a certificate without source repository and build config extensions names the same workflow from its SAN URI as a later full certificate', () => {
+    const [legacy, full] = canonicalJson.map(({ subject, attestations }) =>
+      verifyNpmProvenance({ trust, attestations, ...subject }),
+    );
+
+    expect(legacy).toEqual({
       kind: 'verified',
       repository: 'https://github.com/theupdateframework/tuf-js',
       workflow: '.github/workflows/release.yml',
-    };
-
-    for (const { subject, attestations } of canonicalJson) {
-      expect(verifyNpmProvenance({ trust, attestations, ...subject })).toEqual(
-        tufJs,
-      );
-    }
+    });
+    expect(full).toEqual(legacy);
   });
 
   test('a valid v0.2 bundle for another package, version or tarball is not this version’s provenance', () => {
@@ -231,8 +250,8 @@ describe('npm provenance', () => {
       ...appsemble.subject,
     });
 
-    expect(result.kind === 'unavailable' && result.reason).toStartWith(
-      'verification failed',
+    expect(result.kind === 'unavailable' && result.reason).toContain(
+      'got issuer=https://gitlab.com',
     );
   });
 
@@ -245,12 +264,30 @@ describe('npm provenance', () => {
       expect(
         certificateWorkflow({
           subjectAlternativeName,
-          oids: [
-            {
-              oid: { id: workflowRepositoryOid },
-              value: Buffer.from('acme/lib'),
-            },
-          ],
+          oids: [acmeLib.legacyRepository],
+        }).kind,
+      ).toBe('unavailable');
+    }
+  });
+
+  test('a certificate with only one of source repository and build config names no workflow', () => {
+    const { legacyRepository, sourceRepository, buildConfig, san } = acmeLib;
+
+    expect(
+      certificateWorkflow({
+        subjectAlternativeName: san,
+        oids: [legacyRepository],
+      }),
+    ).toEqual({
+      kind: 'verified',
+      repository: 'https://github.com/acme/lib',
+      workflow: '.github/workflows/publish.yml',
+    });
+    for (const partial of [sourceRepository, buildConfig]) {
+      expect(
+        certificateWorkflow({
+          subjectAlternativeName: san,
+          oids: [legacyRepository, partial],
         }).kind,
       ).toBe('unavailable');
     }

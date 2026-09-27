@@ -110,7 +110,7 @@ function derUtf8String(value: Uint8Array): string | undefined {
 
 type CertificateIdentity = Signer['identity'];
 
-function extension(
+function extensionBytes(
   identity: CertificateIdentity,
   oid: string,
 ): Uint8Array | undefined {
@@ -121,13 +121,13 @@ function certificateValue(
   identity: CertificateIdentity,
   oid: string,
 ): string | undefined {
-  const value = extension(identity, oid);
+  const value = extensionBytes(identity, oid);
 
   return value === undefined ? undefined : derUtf8String(value);
 }
 
 function legacyRepository(identity: CertificateIdentity): string | undefined {
-  const value = extension(identity, legacyRepositoryOid);
+  const value = extensionBytes(identity, legacyRepositoryOid);
   const name = value === undefined ? '' : new TextDecoder().decode(value);
 
   return /^[\w.-]+\/[\w.-]+$/.test(name) ? `${githubUrl}${name}` : undefined;
