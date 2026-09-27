@@ -6,9 +6,12 @@ import { parseGap, type FetchGaps } from '../src/npm/evidence-directory';
 import { humanReport, ruleMeanings } from '../src/npm/report';
 import type { LockfileNode } from '../src/npm/lockfile';
 import type { VerifyRecord } from '../src/npm/verify';
-import { decide } from '../src/policy';
+import { decide, type Policy } from '../src/policy';
 import { colorEnabled, inert, inertJson, plain } from '../src/terminal';
-import { loadSupplyChainPolicyV2 } from './support/policies';
+import {
+  loadSupplyChainPolicyV2,
+  loadSupplyChainPolicyV3,
+} from './support/policies';
 import { unsafe } from './support/unsafe';
 
 const policy = loadSupplyChainPolicyV2();
@@ -43,9 +46,11 @@ function report(
     context?: DecisionContext;
     nodes?: readonly LockfileNode[];
     format?: 'package-lock' | 'pnpm-lock';
+    policy?: Policy;
   } = {},
 ): string {
   const context = options.context ?? noContext;
+  const canonical = options.policy ?? policy;
   const full = { ...clean, ...evidence };
   const record: VerifyRecord = {
     kind: 'decision',
@@ -53,14 +58,19 @@ function report(
     dev: false,
     optional: false,
     at,
-    ...decide({ evidence: full, now: at, context, canonical: policy }),
+    ...decide({
+      evidence: full,
+      now: at,
+      context,
+      canonical,
+    }),
     evidence: full,
   };
 
   return humanReport({
     records: [record],
     nodes: options.nodes ?? [],
-    policy,
+    policy: canonical,
     context,
     gaps: options.gaps ?? listed(),
     style: plain,
@@ -158,6 +168,29 @@ test('a waivable rule on a version without a known integrity prints no waiver', 
   expect(text).toContain('publisher_changed');
   expect(text).toContain('no waiver can be written');
   expect(text).not.toMatch(/waiver[^:\n]*: \{/);
+});
+
+test('a v3 identity rule describes the publisher v3 read, without removed versions', () => {
+  const mallory = { kind: 'account', name: 'mallory' } as const;
+  const text = report(
+    {
+      publishTime: { kind: 'packument', at: new Date('2026-05-01T00:00:00Z') },
+      earlierProvenanceExcludingRemoved: 'none',
+      publisher: { kind: 'unknown', reason: 'version document missing' },
+      publisherExcludingRemoved: {
+        kind: 'changed',
+        identity: mallory,
+        earlier: [{ kind: 'account', name: 'amy' }],
+        repositoryCheck: 'unchecked',
+      },
+    },
+    { policy: loadSupplyChainPolicyV3() },
+  );
+
+  expect(text).toContain(
+    'published by account mallory; earlier versions by account amy',
+  );
+  expect(text).not.toContain('publisher_unknown');
 });
 
 describe('rerun', () => {

@@ -4,10 +4,15 @@ import { decide } from '../src/policy';
 import {
   loadSupplyChainPolicyV1,
   loadSupplyChainPolicyV2,
+  loadSupplyChainPolicyV3,
 } from './support/policies';
 import { loadReplayFixtures } from './replay/fixture';
 
-const policies = [loadSupplyChainPolicyV1(), loadSupplyChainPolicyV2()];
+const policies = [
+  loadSupplyChainPolicyV1(),
+  loadSupplyChainPolicyV2(),
+  loadSupplyChainPolicyV3(),
+];
 
 for (const { name, fixture } of loadReplayFixtures()) {
   const { target, takedownAt } = fixture;

@@ -92,6 +92,7 @@ describe('recorded packuments', () => {
         provenance: { kind: 'unavailable', reason: 'version document missing' },
         npmUser: null,
         scripts: 'unknown',
+        removed: true,
       },
     });
     expect(
@@ -174,6 +175,60 @@ describe('install scripts', () => {
         '1.1.0': { gypfile: true, scripts: { preinstall: 'node x.js' } },
       }),
     ).toMatchObject({ target: { scripts: { preinstall: 'node x.js' } } });
+  });
+});
+
+describe('removed versions', () => {
+  test('a listed document is not removed, even when it is unreadable', () => {
+    const read = lib({ '1.0.0': { dist: 42 }, '1.1.0': {} });
+
+    expect(read).toMatchObject({
+      earlier: [
+        {
+          provenance: {
+            kind: 'unavailable',
+            reason: 'version document unreadable',
+          },
+        },
+      ],
+    });
+    expect(
+      read.kind === 'read' &&
+        [read.target, ...read.earlier].map((facts) => 'removed' in facts),
+    ).toEqual([false, false]);
+  });
+});
+
+describe('declared repository', () => {
+  test('is read from a string or from the url of an object', () => {
+    expect(
+      lib({
+        '1.0.0': { repository: 'acme/lib' },
+        '1.1.0': {
+          repository: {
+            type: 'git',
+            url: 'git+https://github.com/acme/lib.git',
+            directory: 'packages/lib',
+          },
+        },
+      }),
+    ).toMatchObject({
+      target: { repository: 'git+https://github.com/acme/lib.git' },
+      earlier: [{ repository: 'acme/lib' }],
+    });
+  });
+
+  test('a repository gate cannot read is unknown, not absent', () => {
+    for (const repository of [{ type: 'git' }, { url: '' }, '', 42]) {
+      expect(lib({ '1.1.0': { repository } })).toMatchObject({
+        target: { repository: 'unknown' },
+      });
+    }
+
+    const undeclared = lib({ '1.1.0': {} });
+    expect(
+      undeclared.kind === 'read' && 'repository' in undeclared.target,
+    ).toBe(false);
   });
 });
 

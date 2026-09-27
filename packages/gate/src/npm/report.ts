@@ -475,7 +475,8 @@ function detailFor(
     };
   }
 
-  const { feeds, source, publisher, installScripts } = evidence;
+  const { feeds, source, installScripts } = evidence;
+  const publisher = evidence.publisherExcludingRemoved ?? evidence.publisher;
   switch (reason.code) {
     case 'feed_match':
       return {

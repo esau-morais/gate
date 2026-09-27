@@ -7,3 +7,7 @@ export const supplyChainPolicyV1Digest = PolicyDigest.make(
 export const supplyChainPolicyV2Digest = PolicyDigest.make(
   'sha256:e864b25d5966d00fc634081b138203ac130d1fd6eddafa1f1374b4e5145aa2c1',
 );
+
+export const supplyChainPolicyV3Digest = PolicyDigest.make(
+  'sha256:9c76a6238a17f2a6e2dfa4b5054bca9423d96bce14a29c24c3693df9e4ca5d70',
+);

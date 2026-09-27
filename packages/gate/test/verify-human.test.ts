@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -73,33 +73,31 @@ function printedWaivers(stdout: string) {
 }
 
 describe('printed waivers', () => {
-  const args = [
+  const args = (at: string) => [
     'verify',
     '--lockfile',
     waiverLock,
     '--evidence',
     waiverEvidence,
     '--at',
-    waiverAt,
+    at,
   ];
-  let human = { exitCode: 0, stdout: '', stderr: '' };
-  beforeAll(() => {
-    human = gate(args);
-  });
 
-  for (const [rule, name] of [
-    ['publisher_changed', 'encodeurl'],
-    ['publisher_recent', 'cookie'],
-    ['trust_downgrade', 'rxjs'],
-    ['new_install_script', 'unrs-resolver'],
+  // Identity rules stop 90 days after publish, so these run 30 days after each version.
+  for (const [rule, name, at] of [
+    ['publisher_changed', 'encodeurl', '2024-04-28T00:00:00Z'],
+    ['publisher_recent', 'cookie', '2024-11-06T00:00:00Z'],
+    ['trust_downgrade', 'rxjs', '2025-03-24T00:00:00Z'],
+    ['new_install_script', 'unrs-resolver', waiverAt],
   ] as const) {
     test(`the ${rule} waiver decodes and clears ${rule} on the same evidence`, () => {
       const path = `node_modules/${name}`;
-      const before = decisions(gate([...args, '--json']).stdout).find(
+      const before = decisions(gate([...args(at), '--json']).stdout).find(
         (line) => line.path === path,
       );
       expect(before?.reasons).toEqual([{ kind: 'fired', code: rule }]);
 
+      const human = gate(args(at));
       expect(human.stderr).toBe('');
       const printed = printedWaivers(human.stdout).find(
         ({ waiver }) => waiver.rule === rule && waiver.package === name,
@@ -116,7 +114,7 @@ describe('printed waivers', () => {
           `{"allowedSources": [], "waivers": [${printed.text}]}`,
         );
         const after = decisions(
-          gate([...args, '--json', '--context', context]).stdout,
+          gate([...args(at), '--json', '--context', context]).stdout,
         ).find((line) => line.path === path);
 
         expect(after?.outcome).toBe('ACCEPT');

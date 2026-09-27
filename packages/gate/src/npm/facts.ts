@@ -12,5 +12,9 @@ export const NpmVersionFacts = Schema.Struct({
     Schema.Literal('unknown'),
     Schema.Record(Schema.String, Schema.String),
   ]),
+  repository: Schema.optionalKey(
+    Schema.Union([Schema.Literal('unknown'), Schema.NonEmptyString]),
+  ),
+  removed: Schema.optionalKey(Schema.Literal(true)),
 });
 export type NpmVersionFacts = typeof NpmVersionFacts.Type;

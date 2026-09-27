@@ -1,16 +1,22 @@
 import { describe, expect, test } from 'bun:test';
 import { Schema } from 'effect';
 import { AllowedSource, Waiver } from '../src/context';
-import { Sha512Integrity, type PackageVersionEvidence } from '../src/evidence';
+import {
+  Sha512Integrity,
+  type Identity,
+  type PackageVersionEvidence,
+} from '../src/evidence';
 import { decide, loadPolicy, policyDigest, type Policy } from '../src/policy';
 import {
   loadSupplyChainPolicyV1,
   loadSupplyChainPolicyV2,
+  loadSupplyChainPolicyV3,
   supplyChainPolicyV1,
 } from './support/policies';
 
 const policy = loadSupplyChainPolicyV1();
 const policyV2 = loadSupplyChainPolicyV2();
+const policyV3 = loadSupplyChainPolicyV3();
 const now = new Date('2026-06-01T00:00:00Z');
 const hours = (n: number) => new Date(now.getTime() - n * 3_600_000);
 const identity = {
@@ -191,6 +197,196 @@ describe('SupplyChainPolicy/v2', () => {
         ),
       ),
     ).toEqual(['integrity_unknown']);
+  });
+});
+
+describe('SupplyChainPolicy/v3', () => {
+  const account = { kind: 'account', name: 'someone' } as const;
+  const excludingRemoved = (
+    evidence: Partial<PackageVersionEvidence>,
+  ): Partial<PackageVersionEvidence> => {
+    const publisher = evidence.publisher ?? clean.publisher;
+
+    return {
+      ...evidence,
+      earlierProvenanceExcludingRemoved:
+        evidence.earlierProvenance ?? clean.earlierProvenance,
+      publisherExcludingRemoved:
+        publisher.kind === 'changed'
+          ? { ...publisher, repositoryCheck: 'unchecked' }
+          : publisher,
+    };
+  };
+
+  const v3 = (evidence: Partial<PackageVersionEvidence>) =>
+    run(excludingRemoved(evidence), { canonical: policyV3 });
+  const aged = (days: number) =>
+    ({ publishTime: { kind: 'packument', at: hours(24 * days) } }) as const;
+  const changed = (
+    repositoryCheck: 'matched' | 'mismatched' | 'unchecked',
+    earlier: readonly [Identity, ...Identity[]] = [account],
+    publisherIdentity: Identity = identity,
+  ): Partial<PackageVersionEvidence> => ({
+    publisher: { kind: 'unknown', reason: 'an earlier version was removed' },
+    publisherExcludingRemoved: {
+      kind: 'changed',
+      identity: publisherIdentity,
+      earlier,
+      repositoryCheck,
+    },
+  });
+  const decideV3 = (evidence: Partial<PackageVersionEvidence>) =>
+    run(
+      {
+        earlierProvenanceExcludingRemoved: clean.earlierProvenance,
+        publisherExcludingRemoved: { kind: 'continuous', identity },
+        ...evidence,
+      },
+      { canonical: policyV3 },
+    );
+
+  test('keeps every v2 rule, outcome and waiver', () => {
+    const shape = (rules: typeof policyV3.rules) =>
+      rules.map(({ code, outcome, waivable }) => [code, outcome, waivable]);
+
+    expect(shape(policyV3.rules)).toEqual(shape(policyV2.rules));
+  });
+
+  test('decides like v2 when no version was removed, within 90 days', () => {
+    for (const evidence of [{}, ...Object.values(firesEachRule)]) {
+      const v2 = run(evidence, { canonical: policyV2 });
+
+      expect([v3(evidence).outcome, codes(v3(evidence))]).toEqual([
+        v2.outcome,
+        codes(v2),
+      ]);
+    }
+  });
+
+  test('a removed version makes neither the publisher nor earlier provenance unknown', () => {
+    expect(
+      decideV3({
+        provenance: { kind: 'absent' },
+        earlierProvenance: 'unknown',
+        earlierProvenanceExcludingRemoved: 'none',
+        publisher: {
+          kind: 'unknown',
+          reason: 'an earlier version was removed',
+        },
+      }),
+    ).toMatchObject({ outcome: 'ACCEPT', reasons: [] });
+  });
+
+  test('unknown history without removed versions still quarantines', () => {
+    expect(
+      codes(
+        decideV3({
+          provenance: { kind: 'absent' },
+          earlierProvenance: 'none',
+          earlierProvenanceExcludingRemoved: 'unknown',
+          publisherExcludingRemoved: { kind: 'unknown', reason: 'unreadable' },
+        }),
+      ),
+    ).toEqual(['provenance_history_unknown', 'publisher_unknown']);
+  });
+
+  test('a move from accounts to a workflow in the declared repository is not a publisher change', () => {
+    expect(decideV3(changed('matched')).outcome).toBe('ACCEPT');
+    expect(codes(decideV3(changed('mismatched')))).toEqual([
+      'publisher_changed',
+    ]);
+    expect(codes(decideV3(changed('unchecked')))).toEqual([
+      'publisher_changed',
+    ]);
+  });
+
+  test('the repository check excuses only a first move from accounts to a workflow', () => {
+    expect(codes(decideV3(changed('matched', [account, identity])))).toEqual([
+      'publisher_changed',
+    ]);
+    expect(codes(decideV3(changed('matched', [identity])))).toEqual([
+      'publisher_changed',
+    ]);
+    expect(
+      codes(
+        decideV3(
+          changed('matched', [account], { kind: 'account', name: 'other' }),
+        ),
+      ),
+    ).toEqual(['publisher_changed']);
+  });
+
+  test('identity rules stop firing 90 days after publish', () => {
+    const recent = {
+      publisherExcludingRemoved: {
+        kind: 'continuous',
+        identity: account,
+        joinedAt: hours(24 * 90 + 24),
+      },
+    } as const;
+    const downgrade = { provenance: { kind: 'absent' } } as const;
+
+    for (const [code, evidence] of [
+      ['publisher_changed', changed('unchecked')],
+      ['publisher_recent', recent],
+      ['trust_downgrade', downgrade],
+    ] as const) {
+      const at = (days: number) =>
+        codes(
+          decideV3({
+            ...evidence,
+            ...aged(days),
+            ...(code === 'publisher_recent'
+              ? {
+                  publisherExcludingRemoved: {
+                    ...recent.publisherExcludingRemoved,
+                    joinedAt: hours(24 * days + 24),
+                  },
+                }
+              : {}),
+          }),
+        );
+
+      expect({ code, before: at(89.999), after: at(90) }).toEqual({
+        code,
+        before: [code],
+        after: [],
+      });
+    }
+  });
+
+  test('without a publish time the identity rules keep firing', () => {
+    const unknownTime = {
+      publishTime: { kind: 'unknown', reason: 'missing' },
+    } as const;
+
+    expect(
+      codes(decideV3({ ...changed('unchecked'), ...unknownTime })),
+    ).toEqual(['publish_time_unknown', 'publisher_changed']);
+    expect(
+      codes(decideV3({ provenance: { kind: 'absent' }, ...unknownTime })),
+    ).toEqual(['publish_time_unknown', 'trust_downgrade']);
+  });
+
+  test('a trust downgrade still counts versions npm removed', () => {
+    expect(
+      codes(
+        decideV3({
+          provenance: { kind: 'absent' },
+          earlierProvenance: 'some',
+          earlierProvenanceExcludingRemoved: 'none',
+        }),
+      ),
+    ).toEqual(['trust_downgrade']);
+  });
+
+  test('evidence recorded before v3 fields existed never accepts', () => {
+    const decision = run({}, { canonical: policyV3 });
+
+    expect(decision.outcome).toBe('QUARANTINE');
+    expect(decision.reasons.every((reason) => reason.kind === 'failed')).toBe(
+      true,
+    );
   });
 });
 

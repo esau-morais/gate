@@ -86,6 +86,15 @@ const evidenceEnvironment = new Environment()
     name: 'FeedHit',
     schema: { feed: 'string', id: 'string' },
   })
+  .registerType({
+    name: 'Identity',
+    schema: {
+      kind: 'string',
+      name: 'string',
+      repository: 'string',
+      workflow: 'string',
+    },
+  })
   .registerVariable('evidence', {
     schema: {
       subject: { ecosystem: 'string', name: 'string', version: 'string' },
@@ -93,10 +102,19 @@ const evidenceEnvironment = new Environment()
       publishTime: { kind: 'string', at: 'google.protobuf.Timestamp' },
       provenance: { kind: 'string' },
       earlierProvenance: 'string',
+      earlierProvenanceExcludingRemoved: 'string',
       publisher: {
         kind: 'string',
         identity: { kind: 'string' },
         joinedAt: 'google.protobuf.Timestamp',
+        earlier: 'list<Identity>',
+      },
+      publisherExcludingRemoved: {
+        kind: 'string',
+        identity: { kind: 'string' },
+        joinedAt: 'google.protobuf.Timestamp',
+        earlier: 'list<Identity>',
+        repositoryCheck: 'string',
       },
       installScripts: { kind: 'string' },
       integrityCheck: 'string',

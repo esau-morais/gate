@@ -273,6 +273,167 @@ describe('provenance', () => {
   });
 });
 
+describe('removed versions', () => {
+  const removed = (version: string, time: string) =>
+    facts(version, time, {
+      provenance: { kind: 'unavailable', reason: 'version document missing' },
+      npmUser: null,
+      scripts: 'unknown',
+      removed: true,
+    });
+
+  test('a version npm removed does not make the history unknown', () => {
+    const evidence = evidenceFor(
+      facts('1.2.0', '2026-01-22T00:00:00Z', { npmUser: 'stranger' }),
+      [
+        facts('1.0.0', '2026-01-01T00:00:00Z'),
+        removed('1.1.0', '2026-01-08T00:00:00Z'),
+      ],
+    );
+
+    expect(evidence).toMatchObject({
+      earlierProvenance: 'unknown',
+      earlierProvenanceExcludingRemoved: 'none',
+      publisher: { kind: 'unknown' },
+      publisherExcludingRemoved: {
+        kind: 'changed',
+        identity: { kind: 'account', name: 'stranger' },
+        earlier: [{ kind: 'account', name: 'maintainer' }],
+      },
+    });
+  });
+
+  test('a listed version whose document is unreadable still makes the history unknown', () => {
+    const evidence = evidenceFor(
+      facts('1.2.0', '2026-01-22T00:00:00Z', { npmUser: 'stranger' }),
+      [
+        facts('1.0.0', '2026-01-01T00:00:00Z'),
+        facts('1.1.0', '2026-01-08T00:00:00Z', {
+          provenance: {
+            kind: 'unavailable',
+            reason: 'version document unreadable',
+          },
+          npmUser: null,
+          scripts: 'unknown',
+        }),
+      ],
+    );
+
+    expect([
+      evidence.earlierProvenanceExcludingRemoved,
+      evidence.publisherExcludingRemoved?.kind,
+    ]).toEqual(['unknown', 'unknown']);
+  });
+
+  test('the history is unknown when every settled earlier version was removed', () => {
+    const evidence = evidenceFor(
+      facts('1.2.0', '2026-01-22T00:00:00Z', {
+        provenance: { kind: 'absent' },
+      }),
+      [
+        removed('1.0.0', '2026-01-01T00:00:00Z'),
+        removed('1.1.0', '2026-01-08T00:00:00Z'),
+      ],
+    );
+
+    expect([
+      evidence.earlierProvenanceExcludingRemoved,
+      evidence.publisherExcludingRemoved?.kind,
+    ]).toEqual(['unknown', 'unknown']);
+  });
+
+  test('a first publish has no history to be unknown', () => {
+    const evidence = evidenceFor(facts('1.0.0', '2026-01-22T00:00:00Z'), [
+      removed('0.9.0', '2026-01-21T00:00:00Z'),
+    ]);
+
+    expect([
+      evidence.earlierProvenanceExcludingRemoved,
+      evidence.publisherExcludingRemoved?.kind,
+    ]).toEqual(['none', 'first']);
+  });
+});
+
+describe('repository check', () => {
+  const workflow = {
+    repository: 'https://github.com/acme/lib',
+    workflow: '.github/workflows/release.yml',
+  };
+  const fromWorkflow = facts('1.2.0', '2026-01-22T00:00:00Z', {
+    provenance: verified(workflow),
+    npmUser: 'GitHub Actions',
+  });
+  const declaring = (...repositories: (string | undefined)[]) =>
+    repositories.map((repository, i) =>
+      facts(
+        `1.${i}.0`,
+        `2026-01-0${i + 1}T00:00:00Z`,
+        repository === undefined ? {} : { repository },
+      ),
+    );
+  const check = (
+    earlier: readonly NpmVersionFacts[],
+    target = fromWorkflow,
+  ) => {
+    const publisher = evidenceFor(target, earlier).publisherExcludingRemoved;
+
+    return publisher?.kind === 'changed'
+      ? publisher.repositoryCheck
+      : publisher?.kind;
+  };
+
+  test('a move to a workflow in the repository every earlier version declares is matched', () => {
+    expect(
+      check(
+        declaring(
+          'git+https://github.com/acme/lib.git',
+          undefined,
+          'https://github.com/Acme/lib',
+        ),
+      ),
+    ).toBe('matched');
+  });
+
+  test('npm shorthand, ssh and monorepo URLs name the same repository', () => {
+    for (const repository of [
+      'acme/lib',
+      'github:acme/lib',
+      'git@github.com:acme/lib.git',
+      'git+ssh://git@github.com/acme/lib.git',
+      'git://github.com/acme/lib.git',
+      'https://github.com/acme/lib/tree/main/packages/lib',
+      'https://github.com/acme/lib#readme',
+    ]) {
+      expect({ repository, check: check(declaring(repository)) }).toEqual({
+        repository,
+        check: 'matched',
+      });
+    }
+  });
+
+  test('one earlier version naming another repository is a mismatch', () => {
+    expect(
+      check(declaring('acme/lib', 'https://github.com/acme/lib-fork')),
+    ).toBe('mismatched');
+    expect(check(declaring('https://gitlab.com/acme/lib'))).toBe('mismatched');
+  });
+
+  test('without a readable declared repository for every earlier version that has one, it is unchecked', () => {
+    expect(check(declaring(undefined, undefined))).toBe('unchecked');
+    expect(check(declaring('acme/lib', 'unknown'))).toBe('unchecked');
+    expect(check(declaring('acme/lib', 'not a repository'))).toBe('unchecked');
+  });
+
+  test('an account publisher is never checked', () => {
+    expect(
+      check(
+        declaring('acme/lib'),
+        facts('1.2.0', '2026-01-22T00:00:00Z', { npmUser: 'stranger' }),
+      ),
+    ).toBe('unchecked');
+  });
+});
+
 describe('lockfile integrity', () => {
   const published = Sha512Integrity.make(`sha512-${'A'.repeat(86)}==`);
   const other = Sha512Integrity.make(`sha512-${'B'.repeat(86)}==`);
