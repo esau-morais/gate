@@ -356,7 +356,7 @@ describe('removed versions', () => {
 
 describe('repository check', () => {
   const workflow = {
-    repository: 'https://github.com/acme/lib',
+    repository: 'https://github.com/Acme/lib',
     workflow: '.github/workflows/release.yml',
   };
   const fromWorkflow = facts('1.2.0', '2026-01-22T00:00:00Z', {
@@ -384,50 +384,28 @@ describe('repository check', () => {
 
   test('a move to a workflow in the repository every earlier version declares is matched', () => {
     expect(
-      check(
-        declaring(
-          'git+https://github.com/acme/lib.git',
-          undefined,
-          'https://github.com/Acme/lib',
-        ),
-      ),
+      check(declaring('github.com/acme/lib', undefined, 'github.com/acme/lib')),
     ).toBe('matched');
-  });
-
-  test('npm shorthand, ssh and monorepo URLs name the same repository', () => {
-    for (const repository of [
-      'acme/lib',
-      'github:acme/lib',
-      'git@github.com:acme/lib.git',
-      'git+ssh://git@github.com/acme/lib.git',
-      'git://github.com/acme/lib.git',
-      'https://github.com/acme/lib/tree/main/packages/lib',
-      'https://github.com/acme/lib#readme',
-    ]) {
-      expect({ repository, check: check(declaring(repository)) }).toEqual({
-        repository,
-        check: 'matched',
-      });
-    }
   });
 
   test('one earlier version naming another repository is a mismatch', () => {
     expect(
-      check(declaring('acme/lib', 'https://github.com/acme/lib-fork')),
+      check(declaring('github.com/acme/lib', 'github.com/acme/lib-fork')),
     ).toBe('mismatched');
-    expect(check(declaring('https://gitlab.com/acme/lib'))).toBe('mismatched');
+    expect(check(declaring('gitlab.com/acme/lib'))).toBe('mismatched');
   });
 
   test('without a readable declared repository for every earlier version that has one, it is unchecked', () => {
     expect(check(declaring(undefined, undefined))).toBe('unchecked');
-    expect(check(declaring('acme/lib', 'unknown'))).toBe('unchecked');
-    expect(check(declaring('acme/lib', 'not a repository'))).toBe('unchecked');
+    expect(check(declaring('github.com/acme/lib', 'unknown'))).toBe(
+      'unchecked',
+    );
   });
 
   test('an account publisher is never checked', () => {
     expect(
       check(
-        declaring('acme/lib'),
+        declaring('github.com/acme/lib'),
         facts('1.2.0', '2026-01-22T00:00:00Z', { npmUser: 'stranger' }),
       ),
     ).toBe('unchecked');

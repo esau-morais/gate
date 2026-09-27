@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { Provenance, Sha512Integrity } from '../evidence';
 import { UtcTimestamp } from '../time';
+import { RepositoryName } from './repository';
 
 export const NpmVersionFacts = Schema.Struct({
   version: Schema.NonEmptyString,
@@ -13,7 +14,7 @@ export const NpmVersionFacts = Schema.Struct({
     Schema.Record(Schema.String, Schema.String),
   ]),
   repository: Schema.optionalKey(
-    Schema.Union([Schema.Literal('unknown'), Schema.NonEmptyString]),
+    Schema.Union([Schema.Literal('unknown'), RepositoryName]),
   ),
   removed: Schema.optionalKey(Schema.Literal(true)),
 });

@@ -3,6 +3,7 @@ import { Sha512Integrity, type Provenance } from '../evidence';
 import { UtcTimestamp } from '../time';
 import type { NpmVersionFacts } from './facts';
 import { verifyNpmProvenance, type TrustRoot } from './provenance';
+import { repositoryName } from './repository';
 
 export type PackumentFacts =
   | {
@@ -58,13 +59,10 @@ function declaredRepository(
   }
 
   const declared = Option.getOrUndefined(decodeRepositoryUrl(doc.repository));
-  if (declared === undefined) {
-    return { repository: 'unknown' };
-  }
+  const url = typeof declared === 'string' ? declared : declared?.url;
+  const name = url === undefined ? undefined : repositoryName(url);
 
-  return {
-    repository: typeof declared === 'string' ? declared : declared.url,
-  };
+  return { repository: name ?? 'unknown' };
 }
 
 function installScripts(doc: VersionDocument): Record<string, string> {

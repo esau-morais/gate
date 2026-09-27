@@ -213,15 +213,54 @@ describe('declared repository', () => {
         },
       }),
     ).toMatchObject({
-      target: { repository: 'git+https://github.com/acme/lib.git' },
-      earlier: [{ repository: 'acme/lib' }],
+      target: { repository: 'github.com/acme/lib' },
+      earlier: [{ repository: 'github.com/acme/lib' }],
     });
   });
 
+  test('npm shorthand, ssh and monorepo URLs name the same GitHub repository', () => {
+    for (const repository of [
+      'github:acme/lib',
+      'git@github.com:acme/lib.git',
+      'git+ssh://git@github.com/acme/lib.git',
+      'git://github.com/acme/lib.git',
+      'https://www.github.com/Acme/Lib',
+      'https://github.com/acme/lib/tree/main/packages/lib',
+      'https://github.com/acme/lib#readme',
+    ]) {
+      expect({
+        repository,
+        read: lib({ '1.1.0': { repository } }),
+      }).toMatchObject({
+        repository,
+        read: { target: { repository: 'github.com/acme/lib' } },
+      });
+    }
+  });
+
+  test('another host keeps its whole path', () => {
+    expect(
+      lib({ '1.1.0': { repository: 'https://gitlab.com/acme/group/lib.git' } }),
+    ).toMatchObject({ target: { repository: 'gitlab.com/acme/group/lib' } });
+  });
+
   test('a repository gate cannot read is unknown, not absent', () => {
-    for (const repository of [{ type: 'git' }, { url: '' }, '', 42]) {
-      expect(lib({ '1.1.0': { repository } })).toMatchObject({
-        target: { repository: 'unknown' },
+    for (const repository of [
+      { type: 'git' },
+      { url: '' },
+      '',
+      42,
+      'not a repository',
+      'gitlab:acme/lib',
+      'https://github.com/acme/lib/issues',
+      'https://github.com/acme',
+    ]) {
+      expect({
+        repository,
+        read: lib({ '1.1.0': { repository } }),
+      }).toMatchObject({
+        repository,
+        read: { target: { repository: 'unknown' } },
       });
     }
 

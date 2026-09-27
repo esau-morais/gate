@@ -53,6 +53,13 @@ const Unknown = Schema.Struct({
 
 const EarlierProvenance = Schema.Literals(['some', 'none', 'unknown']);
 
+export const RepositoryCheck = Schema.Literals([
+  'matched',
+  'mismatched',
+  'unchecked',
+]);
+export type RepositoryCheck = typeof RepositoryCheck.Type;
+
 const Continuous = Schema.Struct({
   kind: Schema.Literal('continuous'),
   identity: Identity,
@@ -100,11 +107,7 @@ export const PackageVersionEvidence = Schema.Struct({
       First,
       Schema.Struct({
         ...Changed.fields,
-        repositoryCheck: Schema.Literals([
-          'matched',
-          'mismatched',
-          'unchecked',
-        ]),
+        repositoryCheck: RepositoryCheck,
       }),
       Unknown,
     ]),

@@ -3,9 +3,11 @@ import type {
   Identity,
   InstallScript,
   PackageVersionEvidence,
+  RepositoryCheck,
   Sha512Integrity,
 } from '../evidence';
 import type { NpmVersionFacts } from './facts';
+import { repositoryName } from './repository';
 
 const installHooks = ['preinstall', 'install', 'postinstall'] as const;
 const settledAfterMs = 72 * 3_600_000;
@@ -96,67 +98,10 @@ function publisherContinuity(
     : { kind: 'changed', identity, earlier: [first, ...rest] };
 }
 
-function repositoryName(url: string): string | undefined {
-  const bare = url.trim().replace(/#.*$/, '');
-  const shorthand =
-    /^(?:(github|gitlab|bitbucket):)?([\w.-]+)\/([\w.-]+)$/.exec(bare);
-  const hosts: Record<string, string> = {
-    github: 'github.com',
-    gitlab: 'gitlab.com',
-    bitbucket: 'bitbucket.org',
-  };
-  const scp = /^[\w.-]+@([\w.-]+):(?!\/)(.+)$/.exec(bare);
-  let host: string;
-  let path: string;
-  if (shorthand !== null) {
-    host = hosts[shorthand[1] ?? 'github'] ?? '';
-    path = `${shorthand[2]}/${shorthand[3]}`;
-  } else if (scp?.[1] !== undefined && scp[2] !== undefined) {
-    host = scp[1];
-    path = scp[2];
-  } else {
-    let parsed: URL;
-    try {
-      parsed = new URL(bare.replace(/^git\+/, ''));
-    } catch {
-      return undefined;
-    }
-
-    if (!['https:', 'http:', 'git:', 'ssh:'].includes(parsed.protocol)) {
-      return undefined;
-    }
-
-    host = parsed.hostname.replace(/^www\./, '');
-    path = parsed.pathname;
-  }
-
-  const segments = path
-    .replace(/^\/+|\/+$/g, '')
-    .replace(/\.git$/, '')
-    .split('/');
-  const [owner, repo, view] = segments;
-  if (
-    owner === undefined ||
-    owner === '' ||
-    repo === undefined ||
-    repo === ''
-  ) {
-    return undefined;
-  }
-
-  if (host === 'github.com') {
-    return segments.length === 2 || view === 'tree' || view === 'blob'
-      ? `${host}/${owner}/${repo}`.toLowerCase()
-      : undefined;
-  }
-
-  return `${host}/${segments.join('/')}`.toLowerCase();
-}
-
 function repositoryCheck(
   identity: Identity,
   earlier: readonly NpmVersionFacts[],
-): 'matched' | 'mismatched' | 'unchecked' {
+): RepositoryCheck {
   const source =
     identity.kind === 'workflow'
       ? repositoryName(identity.repository)
@@ -172,11 +117,9 @@ function repositoryCheck(
       continue;
     }
 
-    const named =
-      repository === 'unknown' ? undefined : repositoryName(repository);
-    if (named === undefined) {
+    if (repository === 'unknown') {
       unreadable = true;
-    } else if (named !== source) {
+    } else if (repository !== source) {
       return 'mismatched';
     } else {
       declared += 1;
@@ -186,12 +129,20 @@ function repositoryCheck(
   return declared > 0 && !unreadable ? 'matched' : 'unchecked';
 }
 
+function listedHistory(
+  earlier: readonly NpmVersionFacts[],
+): readonly NpmVersionFacts[] | undefined {
+  const listed = earlier.filter((facts) => facts.removed !== true);
+
+  return listed.length === 0 && earlier.length > 0 ? undefined : listed;
+}
+
 function publisherExcludingRemoved(
   target: NpmVersionFacts,
   earlier: readonly NpmVersionFacts[],
 ): NonNullable<PackageVersionEvidence['publisherExcludingRemoved']> {
-  const kept = earlier.filter((facts) => facts.removed !== true);
-  if (kept.length === 0 && earlier.length > 0) {
+  const kept = listedHistory(earlier);
+  if (kept === undefined) {
     return { kind: 'unknown', reason: 'every earlier version was removed' };
   }
 
@@ -219,11 +170,9 @@ function earlierProvenance(
 function earlierProvenanceExcludingRemoved(
   earlier: readonly NpmVersionFacts[],
 ): PackageVersionEvidence['earlierProvenance'] {
-  const kept = earlier.filter((facts) => facts.removed !== true);
+  const kept = listedHistory(earlier);
 
-  return kept.length === 0 && earlier.length > 0
-    ? 'unknown'
-    : earlierProvenance(kept);
+  return kept === undefined ? 'unknown' : earlierProvenance(kept);
 }
 
 function installScriptsOf(facts: NpmVersionFacts): Unknowable<InstallScript[]> {

@@ -170,6 +170,6 @@ Decide before the milestone named.
 | npm package name for the CLI | M2 |
 | Certificate output: in-toto VSA, gate's own signed statement, or keep JSON lines. A VSA has no field for per-node decisions (After M2) | M2 |
 | Urgent-fix lane for `release_age` (REVIEW §6.4) | M2 |
-| Who signs policy versions and how orgs upgrade. v3 shipped unsigned (REVIEW §6.9) | Before the first npm release |
+| Who signs policy versions and how orgs upgrade. v3 shipped unsigned (REVIEW §6.9) | Open |
 | Send the CEL fixes upstream or keep the fork alone | M2 |
 | Which M4 option | End of M3 |

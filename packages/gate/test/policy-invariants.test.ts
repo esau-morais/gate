@@ -5,6 +5,7 @@ import {
   Sha512Integrity,
   type Identity,
   type PackageVersionEvidence,
+  type RepositoryCheck,
 } from '../src/evidence';
 import { decide, type Decision, type Policy } from '../src/policy';
 import {
@@ -55,7 +56,7 @@ function publishers(publishTime: Evidence['publishTime']): Publisher[] {
   const changed = (
     identity: Identity,
     earlier: readonly [Identity, ...Identity[]],
-    repositoryCheck: 'matched' | 'mismatched' | 'unchecked',
+    repositoryCheck: RepositoryCheck,
   ): Publisher => ({ kind: 'changed', identity, earlier, repositoryCheck });
 
   return [
@@ -149,10 +150,11 @@ const v2History: History = {
   earlierProvenance: (evidence) => evidence.earlierProvenance,
 };
 
-// v3 reads history without the versions npm removed (REVIEW §12, SupplyChainPolicy/v3).
 const v3History: History = {
-  publisher: (evidence) => evidence.publisherExcludingRemoved?.kind,
-  earlierProvenance: (evidence) => evidence.earlierProvenanceExcludingRemoved,
+  publisher: (evidence) =>
+    evidence.publisherExcludingRemoved?.kind ?? 'unknown',
+  earlierProvenance: (evidence) =>
+    evidence.earlierProvenanceExcludingRemoved ?? 'unknown',
 };
 
 function violations(

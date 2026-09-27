@@ -5,6 +5,7 @@ import {
   Sha512Integrity,
   type Identity,
   type PackageVersionEvidence,
+  type RepositoryCheck,
 } from '../src/evidence';
 import { decide, loadPolicy, policyDigest, type Policy } from '../src/policy';
 import {
@@ -223,7 +224,7 @@ describe('SupplyChainPolicy/v3', () => {
   const aged = (days: number) =>
     ({ publishTime: { kind: 'packument', at: hours(24 * days) } }) as const;
   const changed = (
-    repositoryCheck: 'matched' | 'mismatched' | 'unchecked',
+    repositoryCheck: RepositoryCheck,
     earlier: readonly [Identity, ...Identity[]] = [account],
     publisherIdentity: Identity = identity,
   ): Partial<PackageVersionEvidence> => ({

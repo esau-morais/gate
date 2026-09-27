@@ -107,7 +107,6 @@ const evidenceEnvironment = new Environment()
         kind: 'string',
         identity: { kind: 'string' },
         joinedAt: 'google.protobuf.Timestamp',
-        earlier: 'list<Identity>',
       },
       publisherExcludingRemoved: {
         kind: 'string',
