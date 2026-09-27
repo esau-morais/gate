@@ -3,11 +3,7 @@ import { Sha512Integrity } from '../src/evidence';
 import type { LockfileNode } from '../src/npm/lockfile';
 import { readPnpmConfigDependencies } from '../src/npm/pnpm-config';
 import { readPnpmLockfile } from '../src/npm/pnpm-lock';
-import {
-  recordedPnpmLock,
-  recordedPnpmWorkspace,
-  type RecordedPnpmLock,
-} from './pnpm/locks';
+import { recordedPnpmLock, recordedPnpmWorkspace } from './pnpm/locks';
 
 const semverIntegrity = Sha512Integrity.make(
   'sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==',
@@ -22,19 +18,20 @@ function config(
 ): readonly LockfileNode[] {
   const { env } = readPnpmLockfile(options.lock ?? emptyLock);
 
-  return readPnpmConfigDependencies({
-    env,
-    ...(workspace === undefined
-      ? {}
-      : { workspace: { path: 'pnpm-workspace.yaml', text: workspace } }),
-    ...(options.manifest === undefined
-      ? {}
-      : { manifest: { path: 'package.json', text: options.manifest } }),
-  });
+  return (
+    readPnpmConfigDependencies({
+      env,
+      ...(workspace === undefined
+        ? {}
+        : { workspace: { path: 'pnpm-workspace.yaml', text: workspace } }),
+      ...(options.manifest === undefined
+        ? {}
+        : { manifest: { path: 'package.json', text: options.manifest } }),
+    })?.nodes ?? []
+  );
 }
 
 const withConfig = (entries: string) => `configDependencies:\n${entries}\n`;
-const lockOf = (name: RecordedPnpmLock) => recordedPnpmLock(name);
 
 function registryNode(
   name: string,
@@ -54,14 +51,14 @@ function registryNode(
   };
 }
 
-const kinds = (list: readonly LockfileNode[]) =>
+const locations = (list: readonly LockfileNode[]) =>
   list.map((node) => [node.kind, node.path, node.dependency]);
 
 describe('recorded pnpm 10 workspaces', () => {
   test('a version+integrity pin is a registry node with its sha512', () => {
     expect(
       config(recordedPnpmWorkspace('rules-js'), {
-        lock: lockOf('rules-js-v101'),
+        lock: recordedPnpmLock('rules-js-v101'),
       }),
     ).toEqual([registryNode('semver', '7.7.4', semverIntegrity)]);
     expect(
@@ -95,14 +92,16 @@ describe('recorded pnpm 10 workspaces', () => {
       'rules-js-multi-document-v11',
     ] as const) {
       expect(
-        config(recordedPnpmWorkspace('rules-js'), { lock: lockOf(lock) }),
+        config(recordedPnpmWorkspace('rules-js'), {
+          lock: recordedPnpmLock(lock),
+        }),
       ).toEqual([]);
     }
   });
 });
 
 describe('pins', () => {
-  test('a sha1 or unparseable-as-sha512 pin has no integrity', () => {
+  test('a sha1 pin has no integrity, and a sha512 beside a sha1 is kept', () => {
     expect(config(withConfig(`  lib: 1.0.0+${sha1}`))).toEqual([
       registryNode('lib', '1.0.0', null),
     ]);
@@ -118,19 +117,21 @@ describe('pins', () => {
   });
 
   test('a range pnpm resolves at install is unreadable', () => {
-    expect(kinds(config(withConfig("  lib: '^1.0.0'")))).toEqual([
+    expect(locations(config(withConfig("  lib: '^1.0.0'")))).toEqual([
       ['unreadable', 'pnpm-workspace.yaml', 'lib'],
     ]);
   });
 
   test('a specifier the env document resolved is left to the env node', () => {
     expect(
-      config(withConfig('  semver: 7.7.4'), { lock: lockOf('rules-js-v110') }),
+      config(withConfig('  semver: 7.7.4'), {
+        lock: recordedPnpmLock('rules-js-v110'),
+      }),
     ).toEqual([]);
     expect(
-      kinds(
+      locations(
         config(withConfig("  semver: '^7.0.0'"), {
-          lock: lockOf('rules-js-v110'),
+          lock: recordedPnpmLock('rules-js-v110'),
         }),
       ),
     ).toEqual([['unreadable', 'pnpm-workspace.yaml', 'semver']]);
@@ -148,17 +149,16 @@ describe('pins', () => {
       '{integrity: 1.0.0}',
       `{integrity: '1.0.0+${sha512}', extra: x}`,
     ]) {
-      expect([value, kinds(config(withConfig(`  lib: ${value}`)))]).toEqual([
-        value,
-        [['unreadable', 'pnpm-workspace.yaml', 'lib']],
-      ]);
+      expect([value, locations(config(withConfig(`  lib: ${value}`)))]).toEqual(
+        [value, [['unreadable', 'pnpm-workspace.yaml', 'lib']]],
+      );
     }
   });
 
   test('a name that is not an npm package name is unreadable', () => {
-    expect(kinds(config(withConfig(`  '../lib': '1.0.0+${sha512}'`)))).toEqual([
-      ['unreadable', 'pnpm-workspace.yaml', '../lib'],
-    ]);
+    expect(
+      locations(config(withConfig(`  '../lib': '1.0.0+${sha512}'`))),
+    ).toEqual([['unreadable', 'pnpm-workspace.yaml', '../lib']]);
   });
 });
 
@@ -174,6 +174,9 @@ describe('tarball pins', () => {
     expect(pin('https://registry.npmjs.org/lib/-/lib-1.0.0.tgz')).toEqual([
       registryNode('lib', '1.0.0', sha512),
     ]);
+    expect(
+      config(withConfig(`  lib: {tarball: '', integrity: '1.0.0+${sha512}'}`)),
+    ).toEqual([registryNode('lib', '1.0.0', sha512)]);
     expect(config(withConfig(`  lib: {integrity: '1.0.0+${sha512}'}`))).toEqual(
       [registryNode('lib', '1.0.0', sha512)],
     );
@@ -199,12 +202,13 @@ describe('tarball pins', () => {
     ]);
   });
 
-  test('a registry tarball of another version, or a URL with credentials, is unreadable', () => {
+  test('a registry tarball of another version, a URL with credentials, or a file tarball is unreadable', () => {
     for (const tarball of [
       'https://registry.npmjs.org/lib/-/lib-2.0.0.tgz',
       'https://user:token@npm.example.com/lib-1.0.0.tgz',
+      'file:lib-1.0.0.tgz',
     ]) {
-      expect(kinds(pin(tarball))).toEqual([
+      expect(locations(pin(tarball))).toEqual([
         ['unreadable', 'pnpm-workspace.yaml', 'lib'],
       ]);
     }
@@ -212,7 +216,7 @@ describe('tarball pins', () => {
 });
 
 describe('pnpm-workspace.yaml and the env document', () => {
-  const v110 = { lock: lockOf('rules-js-v110') };
+  const v110 = { lock: recordedPnpmLock('rules-js-v110') };
 
   test('a pin that disagrees with the env document is unreadable', () => {
     for (const value of [
@@ -222,7 +226,7 @@ describe('pnpm-workspace.yaml and the env document', () => {
     ]) {
       expect([
         value,
-        kinds(config(withConfig(`  semver: ${value}`), v110)),
+        locations(config(withConfig(`  semver: ${value}`), v110)),
       ]).toEqual([value, [['unreadable', 'pnpm-workspace.yaml', 'semver']]]);
     }
   });
@@ -242,7 +246,7 @@ describe('the workspace file itself', () => {
       'configDependencies: [lib]\n',
       '- a\n',
     ]) {
-      expect([text, kinds(config(text))]).toEqual([
+      expect([text, locations(config(text))]).toEqual([
         text,
         [['unreadable', 'pnpm-workspace.yaml', undefined]],
       ]);
@@ -266,10 +270,10 @@ describe('package.json', () => {
   });
 
   test('pnpm 10 config dependencies in package.json are unreadable', () => {
-    expect(kinds(config(undefined, { manifest }))).toEqual([
+    expect(locations(config(undefined, { manifest }))).toEqual([
       ['unreadable', 'package.json', 'lib'],
     ]);
-    expect(kinds(config('packages: []\n', { manifest }))).toEqual([
+    expect(locations(config('packages: []\n', { manifest }))).toEqual([
       ['unreadable', 'package.json', 'lib'],
     ]);
   });
@@ -281,11 +285,35 @@ describe('package.json', () => {
   });
 
   test('a package.json gate cannot read is unreadable', () => {
-    expect(kinds(config(undefined, { manifest: '{' }))).toEqual([
+    expect(locations(config(undefined, { manifest: '{' }))).toEqual([
       ['unreadable', 'package.json', undefined],
     ]);
-    expect(kinds(config(undefined, { manifest: '{"name":"app"}' }))).toEqual(
-      [],
-    );
+    expect(
+      locations(config(undefined, { manifest: '{"name":"app"}' })),
+    ).toEqual([]);
   });
+});
+
+test('the nodes come with the file they were read from', () => {
+  const env = new Map();
+  const workspace = {
+    path: 'pnpm-workspace.yaml',
+    text: withConfig('  lib: 1.0.0'),
+  };
+  const manifest = {
+    path: 'package.json',
+    text: JSON.stringify({ pnpm: { configDependencies: { lib: '1.0.0' } } }),
+  };
+
+  expect(readPnpmConfigDependencies({ env, workspace, manifest })?.file).toBe(
+    workspace,
+  );
+  expect(
+    readPnpmConfigDependencies({
+      env,
+      workspace: { path: 'pnpm-workspace.yaml', text: 'packages: []\n' },
+      manifest,
+    })?.file,
+  ).toBe(manifest);
+  expect(readPnpmConfigDependencies({ env })).toBeUndefined();
 });

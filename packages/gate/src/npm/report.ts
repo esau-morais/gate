@@ -397,7 +397,7 @@ function integrityDetail(
         }
       : {
           evidence: `${node.path} pins no sha512 integrity`,
-          step: `pnpm installs a config dependency with the integrity it pins. Run pnpm add --config ${node.name}@${node.version ?? ''} to record the registry's sha512, if it has one.`,
+          step: `pnpm installs a config dependency with the integrity it pins. Run pnpm add --config ${node.version === null ? node.name : `${node.name}@${node.version}`} to record the registry's sha512, if it has one.`,
           own: [],
         };
   }

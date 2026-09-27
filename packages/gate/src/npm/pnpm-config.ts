@@ -1,6 +1,10 @@
 import { Result, Schema } from 'effect';
 import { readYaml } from '../yaml';
-import { registryTarball, type LockfileNode } from './lockfile';
+import {
+  registryTarball,
+  type LockfileNode,
+  type LockfileSource,
+} from './lockfile';
 import { classifyTarball, semver, type EnvConfigDependency } from './pnpm-lock';
 
 const ConfigDependencies = Schema.optionalKey(
@@ -17,7 +21,7 @@ const Manifest = Schema.fromJsonString(
   }),
 );
 const TarballPin = Schema.Struct({
-  tarball: Schema.optionalKey(Schema.NonEmptyString),
+  tarball: Schema.optionalKey(Schema.String),
   integrity: Schema.String,
 });
 
@@ -27,7 +31,11 @@ const decodeTarballPin = Schema.decodeUnknownResult(TarballPin);
 
 const integrityToken = /^sha(?:1|256|384|512)-[A-Za-z0-9+/]+={0,2}$/;
 const reservedNames = new Set(['node_modules', 'favicon.ico']);
-const byteOrderMark = String.fromCodePoint(0xfeff);
+const httpTarball = /^https?:\/\//;
+
+export type ConfigFile = { readonly path: string; readonly text: string };
+
+type Location = { readonly path: string; readonly dependency: string };
 
 type Pin = {
   readonly version: string;
@@ -92,9 +100,15 @@ function parseEntry(value: unknown): Entry {
   }
 
   const { integrity, tarball } = pin.success;
+  if (tarball !== undefined && tarball !== '' && !httpTarball.test(tarball)) {
+    return {
+      kind: 'error',
+      error: `pnpm pins config dependencies to http(s) tarballs, not ${tarball}`,
+    };
+  }
 
   return integrity.includes('+')
-    ? parsePin(integrity, tarball)
+    ? parsePin(integrity, tarball === '' ? undefined : tarball)
     : {
         kind: 'error',
         error: `${JSON.stringify(integrity)} is not <version>+<integrity>`,
@@ -104,16 +118,30 @@ function parseEntry(value: unknown): Entry {
 function samePin(name: string, pin: Pin, env: EnvConfigDependency): boolean {
   return (
     pin.version === env.version &&
-    pin.integrity === env.integrity &&
+    pin.integrity === env.resolution?.integrity &&
     (pin.tarball ?? registryTarball(name, pin.version)) ===
-      (env.tarball ?? registryTarball(name, env.version))
+      (env.resolution?.tarball ?? registryTarball(name, env.version))
   );
 }
 
-function pinnedNode(
-  location: { path: string; dependency: string },
-  pin: Pin,
+function packageNode(
+  location: Location,
+  version: string | null,
+  source: LockfileSource,
 ): LockfileNode {
+  return {
+    kind: 'package',
+    ...location,
+    name: location.dependency,
+    version,
+    source,
+    dev: false,
+    optional: false,
+    hasInstallScript: null,
+  };
+}
+
+function pinnedNode(location: Location, pin: Pin): LockfileNode {
   const name = location.dependency;
   const classified = classifyTarball(
     name,
@@ -134,25 +162,17 @@ function pinnedNode(
     };
   }
 
-  return {
-    kind: 'package',
-    ...location,
-    name,
-    version: classified.version,
-    source: classified.source,
-    dev: false,
-    optional: false,
-    hasInstallScript: null,
-  };
+  return packageNode(location, classified.version, classified.source);
 }
 
+const inEnvDocument = { kind: 'env-document' } as const;
+
 function configNode(
-  path: string,
-  name: string,
+  location: Location,
   value: unknown,
   env: EnvConfigDependency | undefined,
-): LockfileNode | undefined {
-  const location = { path, dependency: name };
+): LockfileNode | typeof inEnvDocument {
+  const name = location.dependency;
   if (!isPackageName(name)) {
     return { kind: 'unreadable', ...location, error: 'not a package name' };
   }
@@ -168,7 +188,7 @@ function configNode(
     }
 
     return samePin(name, entry.pin, env)
-      ? undefined
+      ? inEnvDocument
       : {
           kind: 'unreadable',
           ...location,
@@ -178,20 +198,11 @@ function configNode(
 
   const { specifier } = entry;
   if (env?.specifier === specifier) {
-    return undefined;
+    return inEnvDocument;
   }
 
   return semver.test(specifier)
-    ? {
-        kind: 'package',
-        ...location,
-        name,
-        version: specifier,
-        source: { kind: 'registry', integrity: null },
-        dev: false,
-        optional: false,
-        hasInstallScript: null,
-      }
+    ? packageNode(location, specifier, { kind: 'registry', integrity: null })
     : {
         kind: 'unreadable',
         ...location,
@@ -199,10 +210,8 @@ function configNode(
       };
 }
 
-function manifestNodes(path: string, text: string): LockfileNode[] {
-  const manifest = decodeManifest(
-    text.startsWith(byteOrderMark) ? text.slice(byteOrderMark.length) : text,
-  );
+function manifestNodes({ path, text }: ConfigFile): LockfileNode[] {
+  const manifest = decodeManifest(text);
   if (Result.isFailure(manifest)) {
     return [{ kind: 'unreadable', path, error: String(manifest.failure) }];
   }
@@ -218,42 +227,52 @@ function manifestNodes(path: string, text: string): LockfileNode[] {
   );
 }
 
-export function readPnpmConfigDependencies(input: {
+function workspaceNodes(
+  { path, text }: ConfigFile,
+  env: ReadonlyMap<string, EnvConfigDependency>,
+): LockfileNode[] | undefined {
+  if (text.trim() === '') {
+    return undefined;
+  }
+
+  const yaml = readYaml(text);
+  if (yaml.kind === 'unreadable') {
+    return [{ kind: 'unreadable', path, error: yaml.error }];
+  }
+
+  const settings = decodeSettings(yaml.value);
+  if (Result.isFailure(settings)) {
+    return [{ kind: 'unreadable', path, error: String(settings.failure) }];
+  }
+
+  const configDependencies = settings.success?.configDependencies;
+
+  return configDependencies === undefined
+    ? undefined
+    : Object.entries(configDependencies).flatMap(([name, value]) => {
+        const node = configNode(
+          { path, dependency: name },
+          value,
+          env.get(name),
+        );
+
+        return node.kind === 'env-document' ? [] : [node];
+      });
+}
+
+export function readPnpmConfigDependencies<F extends ConfigFile>(input: {
   readonly env: ReadonlyMap<string, EnvConfigDependency>;
-  readonly workspace?: { readonly path: string; readonly text: string };
-  readonly manifest?: { readonly path: string; readonly text: string };
-}): LockfileNode[] {
+  readonly workspace?: F;
+  readonly manifest?: F;
+}): { readonly file: F; readonly nodes: LockfileNode[] } | undefined {
   const { workspace, manifest } = input;
-  let configDependencies: Readonly<Record<string, unknown>> | undefined;
-  if (workspace !== undefined && workspace.text.trim() !== '') {
-    const yaml = readYaml(workspace.text);
-    if (yaml.kind === 'unreadable') {
-      return [{ kind: 'unreadable', path: workspace.path, error: yaml.error }];
-    }
-
-    const settings = decodeSettings(yaml.value);
-    if (Result.isFailure(settings)) {
-      return [
-        {
-          kind: 'unreadable',
-          path: workspace.path,
-          error: String(settings.failure),
-        },
-      ];
-    }
-
-    configDependencies = settings.success?.configDependencies;
+  const nodes =
+    workspace === undefined ? undefined : workspaceNodes(workspace, input.env);
+  if (workspace !== undefined && nodes !== undefined) {
+    return { file: workspace, nodes };
   }
 
-  if (configDependencies === undefined || workspace === undefined) {
-    return manifest === undefined
-      ? []
-      : manifestNodes(manifest.path, manifest.text);
-  }
-
-  return Object.entries(configDependencies).flatMap(([name, value]) => {
-    const node = configNode(workspace.path, name, value, input.env.get(name));
-
-    return node === undefined ? [] : [node];
-  });
+  return manifest === undefined
+    ? undefined
+    : { file: manifest, nodes: manifestNodes(manifest) };
 }

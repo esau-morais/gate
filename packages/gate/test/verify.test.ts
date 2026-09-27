@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -670,6 +671,35 @@ describe('pnpm config dependencies', () => {
           },
         ]);
         expect(implicit.stdout).toBe(explicit.stdout);
+      },
+    );
+  });
+
+  test('a lockfile folder reached through a symlink finds the workspace file of the real folder', () => {
+    inRepository(
+      {
+        'real/app/pnpm-lock.yaml': emptyLock,
+        'real/pnpm-workspace.yaml': vite(viteSha512),
+      },
+      (dir) => {
+        symlinkSync(join(dir, 'real', 'app'), join(dir, 'link'));
+        const run = raw([
+          'verify',
+          '--lockfile',
+          join(dir, 'link', 'pnpm-lock.yaml'),
+          '--evidence',
+          evidence,
+          '--at',
+          viteAt,
+          '--json',
+        ]);
+
+        expect(
+          summarizeOutput(run.stdout).map((node) => [
+            node.path,
+            node.dependency,
+          ]),
+        ).toEqual([['../pnpm-workspace.yaml', 'vite']]);
       },
     );
   });

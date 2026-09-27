@@ -120,7 +120,7 @@ type ParsedSnapshot =
   | { readonly kind: 'snapshot'; readonly edges: readonly Edge[] }
   | { readonly kind: 'error'; readonly error: string };
 
-export type Classified =
+type Classified =
   | {
       readonly kind: 'source';
       readonly source: LockfileSource;
@@ -703,11 +703,12 @@ function readDocument(prefix: string, document: Document): LockfileNode[] {
   return nodes;
 }
 
-export type EnvConfigDependency = {
-  readonly specifier: string;
-  readonly version: string;
-  readonly integrity: string | undefined;
-  readonly tarball: string | undefined;
+type Reference = NonNullable<
+  (typeof Importer.Type)['configDependencies']
+>[string];
+
+export type EnvConfigDependency = Reference & {
+  readonly resolution: typeof TarballResolution.Type | undefined;
 };
 
 export type PnpmLockRead = {
@@ -725,27 +726,22 @@ function envConfigDependencies(
     return env;
   }
 
-  for (const [name, { specifier, version }] of Object.entries(
+  for (const [name, reference] of Object.entries(
     importer.success.configDependencies ?? {},
   )) {
-    const id = `${name}@${version}`;
+    const id = `${name}@${reference.version}`;
     const info = decodePackageInfo(
       Object.hasOwn(packages, id) ? packages[id] : undefined,
     );
     const resolution = Result.isSuccess(info)
-      ? info.success.resolution
+      ? decodeTarball(info.success.resolution, closed)
       : undefined;
-    const field = (key: string) => {
-      const value = resolution?.[key];
-
-      return typeof value === 'string' ? value : undefined;
-    };
-
     env.set(name, {
-      specifier,
-      version,
-      integrity: field('integrity'),
-      tarball: field('tarball'),
+      ...reference,
+      resolution:
+        resolution !== undefined && Result.isSuccess(resolution)
+          ? resolution.success
+          : undefined,
     });
   }
 
