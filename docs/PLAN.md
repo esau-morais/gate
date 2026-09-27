@@ -54,6 +54,32 @@ Evaluate each benign repo at a time after its newest dependency has cleared `rel
 
 The 1% is a starting number. Revisit it once the 10 repos are measured.
 
+Evaluated with no config at `2026-09-27T00:55:32Z`, on evidence fetched between 00:55 and 01:01 UTC. vscode was evaluated at `2026-09-27T21:41:00Z`, 72 hours after its newest dependency, on the same evidence. v2 is `gate verify` at c28e0bc. v3 is the proposal in REVIEW §12 plus the SLSA v0.2 evidence fix, run in a scratch copy of gate. No run had a REJECT. Each column counts nodes quarantined for anything other than `release_age`:
+
+| Repository | Nodes | v2 | v3 | v3 without `integrity_unknown` and fsevents |
+|---|---|---|---|---|
+| camsong/You-Dont-Need-jQuery@d413b575 | 99 | 9 (9.1%) | 2 (2.0%) | 1 (1.0%) |
+| npm/cli@0c3b82a9 | 883 | 644 (72.9%) | 606 (68.6%) | 23 (2.6%) |
+| sigstore/sigstore-js@769a53d8 | 1,034 | 844 (81.6%) | 820 (79.3%) | 13 (1.3%) |
+| open-telemetry/opentelemetry-js@547bff40 | 1,685 | 233 (13.8%) | 8 (0.5%) | 7 (0.4%) |
+| lerna/lerna@752bdbba | 2,232 | 481 (21.6%) | 260 (11.6%) | 10 (0.4%) |
+| microsoft/TypeScript@4f5ddae2 | 327 | 42 (12.8%) | 21 (6.4%) | 21 (6.4%) |
+| Leaflet/Leaflet@125bda1e | 394 | 50 (12.7%) | 5 (1.3%) | 3 (0.8%) |
+| actions/checkout@f548e57e | 586 | 43 (7.3%) | 3 (0.5%) | 2 (0.3%) |
+| mozilla/pdf.js@d52fdf41 | 964 | 95 (9.9%) | 3 (0.3%) | 2 (0.2%) |
+| microsoft/vscode@66a33c85 | 1,659 | 201 (12.1%) | 32 (1.9%) | 31 (1.9%) |
+
+v2 misses the budget on all 10. v3 meets it on otel-js, checkout and pdf.js. It also meets it on Leaflet and lerna once two things are set aside. The first is fsevents, whose malware-feed entry has a version range gate can't evaluate yet, which is separate work. The second is lockfile integrity. Under v3, every remaining quarantine falls in one of these groups:
+
+- `integrity_unknown` on 584, 811 and 251 entries that have neither `resolved` nor `integrity`. The lockfile pins no bytes. With npm 10.9.8, `npm install`, a reinstall without `node_modules` and `--package-lock-only` left such an entry unchanged, and `npm update` refilled it but can move versions.
+- New publishers less than 90 days old. TypeScript 7.0.2 and 20 `@typescript/typescript-*` packages came from `microsoft1es` instead of `typescript-deploys` on 2026-07-08, and they clear on 2026-10-06. The others are picomatch 4.0.5, @devcontainers/cli 0.88.0, @vscode/gulp-vinyl-zip 2.7.0, @jest/get-type 30.5.0 and process-warning 5.1.0.
+- `publisher_recent` less than 90 days old: conventional-changelog-preset-loader 6.0.1, conventional-commits-filter 6.0.1 and @npmcli/arborist 9.9.1.
+- 8 new or changed install hooks, including core-js 3.50.0, protobufjs 7.6.6 and es5-ext 0.10.64.
+- Unknown evidence: 6 versions whose earlier documents lack `_npmUser`, own-keys 1.0.1, whatwg-url 17.1.1's missing attestation, and @tufjs/canonical-json 2.0.0 until gate reads identities from the SAN URI.
+- fsevents' `feeds_unavailable`.
+
+At this size, 1% of a 99-node repository is zero nodes, and one publisher switch at Microsoft quarantines 21. Counting distinct packages per repository may suit the budget better.
+
 ### M3: logs in CI
 
 CI runners are thrown away, and the log is single-writer. The plan to test:
@@ -145,5 +171,6 @@ Decide before the milestone named.
 | Certificate output: in-toto VSA, gate's own signed statement, or keep JSON lines. A VSA has no field for per-node decisions (After M2) | M2 |
 | Urgent-fix lane for `release_age` (REVIEW §6.4) | M2 |
 | Who signs policy v3 and how orgs upgrade (REVIEW §6.9) | Before v3 |
+| Adopt the SupplyChainPolicy/v3 proposal, including its 90-day identity window (REVIEW §12) | Before v3 |
 | Send the CEL fixes upstream or keep the fork alone | M2 |
 | Which M4 option | End of M3 |
