@@ -317,6 +317,46 @@ describe('registry packages', () => {
     expect(named('work').kind).toBe('unreadable');
   });
 
+  test('a registry entry whose version differs from its key is unreadable', () => {
+    expect(
+      byPath(
+        nodes(
+          withLib().replace(
+            registryPackage,
+            `${registryPackage}\n    version: 6.6.6`,
+          ),
+        ),
+        'lib@1.0.0',
+      ).kind,
+    ).toBe('unreadable');
+    expect(
+      byPath(
+        nodes(
+          withLib().replace(
+            registryPackage,
+            `${registryPackage}\n    version: 1.0.0`,
+          ),
+        ),
+        'lib@1.0.0',
+      ).kind,
+    ).toBe('package');
+  });
+
+  test('a tarball URL with credentials is unreadable and the error leaves them out', () => {
+    const node = byPath(
+      nodes(
+        withLib().replace(
+          `resolution: {integrity: ${sha512}}`,
+          `resolution: {integrity: ${sha512}, tarball: 'https://user:s3cret@mirror.example/lib.tgz'}`,
+        ),
+      ),
+      'lib@1.0.0',
+    );
+
+    expect(node.kind).toBe('unreadable');
+    expect(JSON.stringify(node)).not.toContain('s3cret');
+  });
+
   test('a registry revision is unreadable', () => {
     expect(
       byPath(
@@ -633,6 +673,23 @@ describe('workspaces', () => {
     expect(fileNodes(nodes(lock('link:../packages/c')))).toEqual([
       ['lib@1.0.0', 'c', '../packages/c'],
     ]);
+  });
+
+  test('importers with a backslash or a node_modules segment are not workspaces', () => {
+    const app = (version: string) => ({
+      dependencies: { evil: { specifier: version, version } },
+    });
+
+    for (const id of ['..\\evil', 'packages\\evil', 'node_modules/evil']) {
+      expect(
+        fileNodes(
+          nodes(pnpmLock({ importers: { '.': app(`link:${id}`), [id]: {} } })),
+        ),
+      ).toEqual([['.', 'evil', id]]);
+      expect(
+        fileNodes(nodes(injected(id, { '.': app(`file:${id}`), [id]: {} }))),
+      ).toEqual([[`b@file:${id}`, '', id]]);
+    }
   });
 
   test('a lockfile that leaves links out is unreadable where they would be', () => {

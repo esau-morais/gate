@@ -77,6 +77,10 @@ function folderSegments(path: string): readonly string[] | undefined {
     : undefined;
 }
 
+export function isFolderPath(path: string): boolean {
+  return folderSegments(path) !== undefined;
+}
+
 export function workspaceMatcher(
   workspaces: unknown,
 ): (path: string) => boolean {

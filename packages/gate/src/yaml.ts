@@ -42,9 +42,6 @@ function refusal(text: string, node: YamlNode): string | undefined {
     : undefined;
 }
 
-// Reads one YAML document and refuses every feature that can change what a
-// node means (anchors, aliases, tags, merge keys, directives, folded lines), so
-// that none can give a node a meaning pnpm's own reader wouldn't.
 export function readYaml(text: string): YamlRead {
   const doc = parseDocument(text, {
     version: '1.2',

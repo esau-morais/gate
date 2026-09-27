@@ -10,20 +10,23 @@ import {
   type LockfileRead,
   type LockfileSource,
 } from './lockfile';
+import { isFolderPath } from './workspaces';
 
 const lockfileVersion = '9.0';
 
 const Entries = Schema.Record(Schema.String, Schema.Unknown);
-const Settings = Schema.Struct({
-  excludeLinksFromLockfile: Schema.optionalKey(Schema.Boolean),
-});
 const Document = Schema.Struct({
   lockfileVersion: Schema.Literal(lockfileVersion),
-  settings: Schema.optionalKey(Settings),
+  settings: Schema.optionalKey(
+    Schema.Struct({
+      excludeLinksFromLockfile: Schema.optionalKey(Schema.Boolean),
+    }),
+  ),
   importers: Entries,
   packages: Schema.optionalKey(Entries),
   snapshots: Schema.optionalKey(Entries),
 });
+type Document = typeof Document.Type;
 
 const References = Schema.optionalKey(
   Schema.Record(
@@ -53,8 +56,8 @@ const PackageInfo = Schema.Struct({
   resolution: Schema.Record(Schema.String, Schema.Unknown),
   name: Schema.optionalKey(Schema.String),
   version: Schema.optionalKey(Schema.String),
-  requiresBuild: Schema.optionalKey(Schema.Boolean),
 });
+type PackageInfo = typeof PackageInfo.Type;
 
 const TarballResolution = Schema.Struct({
   integrity: Schema.optionalKey(Schema.String),
@@ -81,8 +84,6 @@ const decodeTarball = Schema.decodeUnknownResult(TarballResolution);
 const decodeGit = Schema.decodeUnknownResult(GitResolution);
 const decodeDirectory = Schema.decodeUnknownResult(DirectoryResolution);
 
-// pnpm 11 merges a packages entry into its snapshot with Object.assign, so a
-// field in the wrong section would override the other section's.
 const snapshotFields = ['dependencies', 'optionalDependencies', 'optional'];
 const packageFields = ['resolution', 'name', 'version'];
 
@@ -92,26 +93,26 @@ const documentSeparator = '\n---\n';
 const fullCommit = /^[0-9a-f]{40}$/;
 const semver = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
 
-// Reached through a production, dev, optional, or dev-then-optional path.
-type Mode = 0 | 1 | 2 | 3;
-const devMode = 1;
-const optionalMode = 2;
-const devOptionalMode = 3;
+type Reach = 'production' | 'dev' | 'optional' | 'devOptional';
 
 const importerGroups = [
-  ['dependencies', 0],
-  ['devDependencies', devMode],
-  ['optionalDependencies', optionalMode],
-  ['configDependencies', 0],
-  ['packageManagerDependencies', 0],
+  ['dependencies', 'production'],
+  ['devDependencies', 'dev'],
+  ['optionalDependencies', 'optional'],
+  ['configDependencies', 'production'],
+  ['packageManagerDependencies', 'production'],
 ] as const;
 
 type Edge = {
   readonly from: Location & { readonly dependency: string };
   readonly base: string;
-  readonly mode: Mode;
   readonly ref: string;
+  readonly optional: boolean;
 };
+
+type ParsedSnapshot =
+  | { readonly kind: 'snapshot'; readonly edges: readonly Edge[] }
+  | { readonly kind: 'error'; readonly error: string };
 
 type Classified =
   | {
@@ -121,6 +122,23 @@ type Classified =
     }
   | { readonly kind: 'workspace' }
   | { readonly kind: 'error'; readonly error: string };
+
+type SnapshotSource = Extract<Classified, { kind: 'source' }> & {
+  readonly name: string;
+};
+
+type GitArchive =
+  | {
+      readonly kind: 'archive';
+      readonly repository: string;
+      readonly ref: string;
+    }
+  | { readonly kind: 'malformed' };
+
+const invalid = (failure: unknown): Classified => ({
+  kind: 'error',
+  error: String(failure),
+});
 
 function splitDocuments(text: string): readonly string[] | undefined {
   const normalized = (
@@ -160,7 +178,8 @@ function packageKey(snapshotKey: string): string {
   return snapshotKey;
 }
 
-function snapshotKeyOf(ref: string, alias: string): string {
+function snapshotKeyOf(edge: Edge): string {
+  const { ref } = edge;
   if (ref.startsWith('@')) {
     return ref;
   }
@@ -173,16 +192,7 @@ function snapshotKeyOf(ref: string, alias: string): string {
     (colon === -1 || at < colon) &&
     (bracket === -1 || at < bracket)
     ? ref
-    : `${alias}@${ref}`;
-}
-
-function isOutside(path: string): boolean {
-  return (
-    path === '..' ||
-    path.startsWith('../') ||
-    posix.isAbsolute(path) ||
-    win32.isAbsolute(path)
-  );
+    : `${edge.from.dependency}@${ref}`;
 }
 
 function resolvePath(base: string, target: string): string {
@@ -195,22 +205,26 @@ function resolvePath(base: string, target: string): string {
   return joined === './' ? '.' : joined.replace(/\/$/, '');
 }
 
-function gitArchiveSpec(url: URL): string | undefined {
+function gitArchive(url: URL): GitArchive | undefined {
   const segments = url.pathname.split('/').slice(1);
   if (url.hostname === 'codeload.github.com') {
-    const [owner, repo, kind, ref] = segments;
+    const [owner, repo, kind, ref = ''] = segments;
 
     return segments.length === 4 && kind === 'tar.gz'
-      ? `github:${owner}/${repo}#${ref}`
-      : '';
+      ? { kind: 'archive', repository: `github:${owner}/${repo}`, ref }
+      : { kind: 'malformed' };
   }
 
   if (url.hostname === 'bitbucket.org' && segments[2] === 'get') {
     const [owner, repo, , file = ''] = segments;
 
     return segments.length === 4 && file.endsWith('.tar.gz')
-      ? `bitbucket:${owner}/${repo}#${file.slice(0, -'.tar.gz'.length)}`
-      : '';
+      ? {
+          kind: 'archive',
+          repository: `bitbucket:${owner}/${repo}`,
+          ref: file.slice(0, -'.tar.gz'.length),
+        }
+      : { kind: 'malformed' };
   }
 
   if (url.hostname !== 'gitlab.com') {
@@ -219,7 +233,11 @@ function gitArchiveSpec(url: URL): string | undefined {
 
   const dash = segments.indexOf('-');
   if (dash > 1 && segments[dash + 1] === 'archive') {
-    return `gitlab:${segments.slice(0, dash).join('/')}#${segments[dash + 2] ?? ''}`;
+    return {
+      kind: 'archive',
+      repository: `gitlab:${segments.slice(0, dash).join('/')}`,
+      ref: segments[dash + 2] ?? '',
+    };
   }
 
   const [api, v4, projects, project = '', repository, file] = segments;
@@ -229,7 +247,11 @@ function gitArchiveSpec(url: URL): string | undefined {
     projects === 'projects' &&
     repository === 'repository' &&
     file === 'archive.tar.gz'
-    ? `gitlab:${decodeURIComponent(project)}#${url.searchParams.get('ref') ?? ''}`
+    ? {
+        kind: 'archive',
+        repository: `gitlab:${decodeURIComponent(project)}`,
+        ref: url.searchParams.get('ref') ?? '',
+      }
     : undefined;
 }
 
@@ -245,12 +267,18 @@ function classifyTarball(
     const version = keyVersion.startsWith('npmjs:')
       ? keyVersion.slice('npmjs:'.length)
       : keyVersion;
+    if (!semver.test(version)) {
+      return {
+        kind: 'error',
+        error: `${name}@${keyVersion} has no tarball and no registry version`,
+      };
+    }
 
-    return semver.test(version)
+    return entryVersion === null || entryVersion === version
       ? { kind: 'source', source: { kind: 'registry', integrity }, version }
       : {
           kind: 'error',
-          error: `${name}@${keyVersion} has no tarball and no registry version`,
+          error: `${name}@${keyVersion} records version ${entryVersion}`,
         };
   }
 
@@ -264,17 +292,22 @@ function classifyTarball(
 
   const url = URL.parse(tarball);
   if (url === null || (url.protocol !== 'https:' && url.protocol !== 'http:')) {
-    return { kind: 'error', error: `unrecognized tarball ${tarball}` };
+    return {
+      kind: 'error',
+      error: 'a tarball that is neither file: nor http(s)',
+    };
   }
 
-  const git = gitArchiveSpec(url);
-  if (git !== undefined || resolution.gitHosted === true) {
-    const commit = git?.slice(git.lastIndexOf('#') + 1) ?? '';
+  if (url.username !== '' || url.password !== '') {
+    return { kind: 'error', error: 'a tarball URL with credentials' };
+  }
 
-    return git !== undefined && fullCommit.test(commit)
+  const git = gitArchive(url);
+  if (git !== undefined || resolution.gitHosted === true) {
+    return git?.kind === 'archive' && fullCommit.test(git.ref)
       ? {
           kind: 'source',
-          source: { kind: 'git', spec: git },
+          source: { kind: 'git', spec: `${git.repository}#${git.ref}` },
           version: entryVersion,
         }
       : {
@@ -304,54 +337,65 @@ function classifyTarball(
       };
 }
 
+function classifyGit(
+  resolution: typeof GitResolution.Type,
+  entryVersion: string | null,
+): Classified {
+  const { repo, commit } = resolution;
+  const url = URL.parse(repo);
+  if (
+    url !== null &&
+    (url.password !== '' || !['', 'git'].includes(url.username))
+  ) {
+    return { kind: 'error', error: 'a git repository URL with credentials' };
+  }
+
+  const spec = `${repo}#${commit}`;
+
+  return fullCommit.test(commit)
+    ? { kind: 'source', source: { kind: 'git', spec }, version: entryVersion }
+    : { kind: 'error', error: `git source ${spec} does not pin a full commit` };
+}
+
 function classify(
   name: string,
   keyVersion: string,
-  info: typeof PackageInfo.Type,
+  info: PackageInfo,
   importers: ReadonlySet<string>,
 ): Classified {
   const { resolution } = info;
   const entryVersion = info.version ?? null;
   const type = resolution['type'];
   if (type === undefined) {
-    const tarball = decodeTarball(resolution, closed);
-
-    return Result.isSuccess(tarball)
-      ? classifyTarball(name, keyVersion, tarball.success, entryVersion)
-      : { kind: 'error', error: String(tarball.failure) };
+    return Result.match(decodeTarball(resolution, closed), {
+      onFailure: invalid,
+      onSuccess: (tarball) =>
+        classifyTarball(name, keyVersion, tarball, entryVersion),
+    });
   }
 
   if (type === 'git') {
-    const git = decodeGit(resolution, closed);
-    if (Result.isFailure(git)) {
-      return { kind: 'error', error: String(git.failure) };
-    }
-
-    const spec = `${git.success.repo}#${git.success.commit}`;
-
-    return fullCommit.test(git.success.commit)
-      ? { kind: 'source', source: { kind: 'git', spec }, version: entryVersion }
-      : {
-          kind: 'error',
-          error: `git source ${spec} does not pin a full commit`,
-        };
+    return Result.match(decodeGit(resolution, closed), {
+      onFailure: invalid,
+      onSuccess: (git) => classifyGit(git, entryVersion),
+    });
   }
 
   if (type === 'directory') {
-    const directory = decodeDirectory(resolution, closed);
-    if (Result.isFailure(directory)) {
-      return { kind: 'error', error: String(directory.failure) };
-    }
+    return Result.match(decodeDirectory(resolution, closed), {
+      onFailure: invalid,
+      onSuccess: ({ directory }): Classified => {
+        const path = resolvePath('', directory);
 
-    const path = resolvePath('', directory.success.directory);
-
-    return importers.has(path)
-      ? { kind: 'workspace' }
-      : {
-          kind: 'source',
-          source: { kind: 'file', spec: path },
-          version: entryVersion,
-        };
+        return importers.has(path)
+          ? { kind: 'workspace' }
+          : {
+              kind: 'source',
+              source: { kind: 'file', spec: path },
+              version: entryVersion,
+            };
+      },
+    });
   }
 
   return {
@@ -368,19 +412,11 @@ function hasAny(value: unknown, fields: readonly string[]): boolean {
   );
 }
 
-function snapshotNode(
+function classifySnapshot(
   key: string,
   packages: Readonly<Record<string, unknown>>,
   importers: ReadonlySet<string>,
-):
-  | (Classified & { readonly kind: 'workspace' | 'error' })
-  | {
-      readonly kind: 'source';
-      readonly name: string;
-      readonly version: string | null;
-      readonly source: LockfileSource;
-      readonly hasInstallScript: boolean | null;
-    } {
+): SnapshotSource | Exclude<Classified, { kind: 'source' }> {
   const id = packageKey(key);
   const at = id.indexOf('@', 1);
   if (at === -1) {
@@ -411,67 +447,47 @@ function snapshotNode(
 
   const classified = classify(name, id.slice(at + 1), info.success, importers);
 
-  return classified.kind === 'source'
-    ? {
-        kind: 'source',
-        name,
-        version: classified.version,
-        source: classified.source,
-        hasInstallScript: info.success.requiresBuild === true ? true : null,
-      }
-    : classified;
+  return classified.kind === 'source' ? { ...classified, name } : classified;
 }
 
-function along(mode: Mode, edge: Mode): Mode {
-  if (edge !== optionalMode) {
-    return mode;
-  }
-
-  return mode === devMode || mode === devOptionalMode
-    ? devOptionalMode
-    : optionalMode;
-}
-
-function flags(modes: number): { dev: boolean; optional: boolean } {
-  const only = (allowed: readonly Mode[]) =>
-    modes !== 0 &&
-    ([0, 1, 2, 3] as const).every(
-      (mode) => (modes & (1 << mode)) === 0 || allowed.includes(mode),
-    );
-  const dev = only([devMode, devOptionalMode]);
-  const optional = only([optionalMode, devOptionalMode]);
-  const devOptional = only([devMode, optionalMode, devOptionalMode]);
+function dependencyFlags(reaches: ReadonlySet<Reach> | undefined): {
+  dev: boolean;
+  optional: boolean;
+} {
+  const all = (...allowed: readonly Reach[]) =>
+    reaches !== undefined &&
+    reaches.size > 0 &&
+    [...reaches].every((reach) => allowed.includes(reach));
+  const dev = all('dev', 'devOptional');
+  const optional = all('optional', 'devOptional');
+  const devOrOptional = all('dev', 'optional', 'devOptional');
 
   return {
-    dev: dev || (devOptional && !optional),
-    optional: optional || (devOptional && !dev),
+    dev: dev || (devOrOptional && !optional),
+    optional: optional || (devOrOptional && !dev),
   };
 }
 
-function readDocument(
-  prefix: string,
-  document: typeof Document.Type,
-): LockfileNode[] {
-  const packages = document.packages ?? {};
-  const importerIds = new Set(
-    Object.keys(document.importers).filter(
-      (id) => id === '.' || (resolvePath('', id) === id && !isOutside(id)),
-    ),
-  );
-  const nodes: LockfileNode[] = [];
-  if (document.settings?.excludeLinksFromLockfile === true) {
-    nodes.push({
-      kind: 'unreadable',
-      path: `${prefix}.`,
-      error: 'excludeLinksFromLockfile leaves links out of the lockfile',
-    });
+function throughEdge(reach: Reach, edge: Edge): Reach {
+  if (!edge.optional) {
+    return reach;
   }
 
-  const roots: Edge[] = [];
-  for (const [id, raw] of Object.entries(document.importers)) {
+  return reach === 'dev' || reach === 'devOptional'
+    ? 'devOptional'
+    : 'optional';
+}
+
+function parseImporters(
+  prefix: string,
+  importers: Readonly<Record<string, unknown>>,
+): { roots: (readonly [Edge, Reach])[]; errors: LockfileNode[] } {
+  const roots: (readonly [Edge, Reach])[] = [];
+  const errors: LockfileNode[] = [];
+  for (const [id, raw] of Object.entries(importers)) {
     const importer = decodeImporter(raw ?? {});
     if (Result.isFailure(importer)) {
-      nodes.push({
+      errors.push({
         kind: 'unreadable',
         path: `${prefix}${id}`,
         error: String(importer.failure),
@@ -479,91 +495,135 @@ function readDocument(
       continue;
     }
 
-    for (const [group, mode] of importerGroups) {
-      const refs = importer.success[group] ?? {};
-      for (const [alias, { version }] of Object.entries(refs)) {
-        roots.push({
+    for (const [group, reach] of importerGroups) {
+      for (const [alias, { version }] of Object.entries(
+        importer.success[group] ?? {},
+      )) {
+        const edge = {
           from: { path: `${prefix}${id}`, dependency: alias },
           base: id === '.' ? '' : id,
-          mode,
           ref: version,
-        });
+          optional: false,
+        };
+        roots.push([edge, reach]);
       }
     }
   }
 
-  const snapshots = new Map<
-    string,
-    { readonly edges: readonly Edge[] } | { readonly error: string }
-  >();
-  for (const [key, raw] of Object.entries(document.snapshots ?? {})) {
-    const snapshot = hasAny(raw, packageFields)
-      ? undefined
-      : decodeSnapshot(raw ?? {});
-    if (snapshot === undefined || Result.isFailure(snapshot)) {
-      snapshots.set(key, {
-        error:
-          snapshot === undefined
-            ? 'package fields in a snapshot'
-            : String(snapshot.failure),
-      });
+  return { roots, errors };
+}
+
+function parseSnapshots(
+  prefix: string,
+  snapshots: Readonly<Record<string, unknown>>,
+): Map<string, ParsedSnapshot> {
+  const parsed = new Map<string, ParsedSnapshot>();
+  for (const [key, raw] of Object.entries(snapshots)) {
+    if (hasAny(raw, packageFields)) {
+      parsed.set(key, { kind: 'error', error: 'package fields in a snapshot' });
+      continue;
+    }
+
+    const snapshot = decodeSnapshot(raw ?? {});
+    if (Result.isFailure(snapshot)) {
+      parsed.set(key, { kind: 'error', error: String(snapshot.failure) });
       continue;
     }
 
     const edgesOf = (
       refs: Readonly<Record<string, string>> | undefined,
-      mode: Mode,
+      optional: boolean,
     ) =>
       Object.entries(refs ?? {}).map(([alias, ref]) => ({
         from: { path: `${prefix}${key}`, dependency: alias },
         base: '',
-        mode,
         ref,
+        optional,
       }));
-    snapshots.set(key, {
+    parsed.set(key, {
+      kind: 'snapshot',
       edges: [
-        ...edgesOf(snapshot.success.dependencies, 0),
-        ...edgesOf(snapshot.success.optionalDependencies, optionalMode),
+        ...edgesOf(snapshot.success.dependencies, false),
+        ...edgesOf(snapshot.success.optionalDependencies, true),
       ],
     });
   }
 
-  const reached = new Map<string, number>();
-  const linkModes = new Map<Edge, number>();
-  const queue: (readonly [string, Mode])[] = [];
-  const follow = (edge: Edge, mode: Mode) => {
+  return parsed;
+}
+
+function walk(
+  roots: readonly (readonly [Edge, Reach])[],
+  snapshots: ReadonlyMap<string, ParsedSnapshot>,
+): {
+  snapshots: Map<string, Set<Reach>>;
+  links: Map<Edge, Set<Reach>>;
+} {
+  const reached = new Map<string, Set<Reach>>();
+  const links = new Map<Edge, Set<Reach>>();
+  const queue: (readonly [string, Reach])[] = [];
+  const add = <K>(map: Map<K, Set<Reach>>, key: K, reach: Reach) => {
+    const seen = map.get(key) ?? new Set<Reach>();
+    map.set(key, seen);
+    if (seen.has(reach)) {
+      return false;
+    }
+
+    seen.add(reach);
+
+    return true;
+  };
+
+  const follow = (edge: Edge, reach: Reach) => {
     if (edge.ref.startsWith('link:')) {
-      linkModes.set(edge, (linkModes.get(edge) ?? 0) | (1 << mode));
+      add(links, edge, reach);
 
       return;
     }
 
-    const key = snapshotKeyOf(edge.ref, edge.from.dependency);
-    const seen = reached.get(key) ?? 0;
-    if ((seen & (1 << mode)) === 0) {
-      reached.set(key, seen | (1 << mode));
-      queue.push([key, mode]);
+    const key = snapshotKeyOf(edge);
+    if (add(reached, key, reach)) {
+      queue.push([key, reach]);
     }
   };
 
-  for (const edge of roots) {
-    follow(edge, edge.mode);
+  for (const [edge, reach] of roots) {
+    follow(edge, reach);
   }
 
   for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-    const [key, mode] = next;
+    const [key, reach] = next;
     const snapshot = snapshots.get(key);
-    for (const edge of snapshot !== undefined && 'edges' in snapshot
-      ? snapshot.edges
-      : []) {
-      follow(edge, along(mode, edge.mode));
+    for (const edge of snapshot?.kind === 'snapshot' ? snapshot.edges : []) {
+      follow(edge, throughEdge(reach, edge));
     }
   }
 
+  return { snapshots: reached, links };
+}
+
+function readDocument(prefix: string, document: Document): LockfileNode[] {
+  const importerIds = new Set(
+    Object.keys(document.importers).filter(
+      (id) => id === '.' || isFolderPath(id),
+    ),
+  );
+  const { roots, errors } = parseImporters(prefix, document.importers);
+  const snapshots = parseSnapshots(prefix, document.snapshots ?? {});
+  const reached = walk(roots, snapshots);
+  const nodes: LockfileNode[] = [...errors];
+  if (document.settings?.excludeLinksFromLockfile === true) {
+    nodes.unshift({
+      kind: 'unreadable',
+      path: `${prefix}.`,
+      error: 'excludeLinksFromLockfile leaves links out of the lockfile',
+    });
+  }
+
   const edges = [
-    ...roots,
+    ...roots.map(([edge]) => edge),
     ...[...snapshots.values()].flatMap((snapshot) =>
-      'edges' in snapshot ? snapshot.edges : [],
+      snapshot.kind === 'snapshot' ? snapshot.edges : [],
     ),
   ];
   for (const edge of edges) {
@@ -576,36 +636,41 @@ function readDocument(
           name: edge.from.dependency,
           version: null,
           source: { kind: 'file', spec: path },
-          ...flags(linkModes.get(edge) ?? 0),
+          ...dependencyFlags(reached.links.get(edge)),
           hasInstallScript: null,
         });
       }
-    } else if (!snapshots.has(snapshotKeyOf(edge.ref, edge.from.dependency))) {
+
+      continue;
+    }
+
+    const key = snapshotKeyOf(edge);
+    if (!snapshots.has(key)) {
       nodes.push({
         kind: 'unreadable',
         ...edge.from,
-        error: `no snapshot ${snapshotKeyOf(edge.ref, edge.from.dependency)}`,
+        error: `no snapshot ${key}`,
       });
     }
   }
 
   for (const [key, snapshot] of snapshots) {
     const path = `${prefix}${key}`;
-    const node =
-      'error' in snapshot
-        ? ({ kind: 'error', error: snapshot.error } as const)
-        : snapshotNode(key, packages, importerIds);
-    if (node.kind === 'error') {
-      nodes.push({ kind: 'unreadable', path, error: node.error });
-    } else if (node.kind === 'source') {
+    const classified =
+      snapshot.kind === 'error'
+        ? snapshot
+        : classifySnapshot(key, document.packages ?? {}, importerIds);
+    if (classified.kind === 'error') {
+      nodes.push({ kind: 'unreadable', path, error: classified.error });
+    } else if (classified.kind === 'source') {
       nodes.push({
         kind: 'package',
         path,
-        name: node.name,
-        version: node.version,
-        source: node.source,
-        ...flags(reached.get(key) ?? 0),
-        hasInstallScript: node.hasInstallScript,
+        name: classified.name,
+        version: classified.version,
+        source: classified.source,
+        ...dependencyFlags(reached.snapshots.get(key)),
+        hasInstallScript: null,
       });
     }
   }
@@ -622,7 +687,7 @@ export function readPnpmLock(text: string): LockfileRead {
     };
   }
 
-  const decoded: (typeof Document.Type)[] = [];
+  const decoded: Document[] = [];
   for (const source of documents) {
     const yaml = readYaml(source);
     if (yaml.kind === 'unreadable') {
