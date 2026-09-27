@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Schema } from 'effect';
 import {
   evidenceDir,
   expectedNodes,
@@ -17,6 +18,7 @@ import {
   summarizeOutput,
   verifyArgs,
 } from './verify/cases';
+import { recordedPnpmLock, recordedPnpmLockPath } from './pnpm/locks';
 import { recordedLock, recordedLockPath, type Lock } from './workspaces/locks';
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
@@ -171,7 +173,7 @@ describe('zero config', () => {
       });
 
       expect(run.stderr).toContain(
-        `gate verify: no package-lock.json in ${dir}; pass --lockfile`,
+        `gate verify: no package-lock.json or pnpm-lock.yaml in ${dir}; pass --lockfile`,
       );
       expect(run.stdout).toBe('');
       expect(existsSync(join(dir, 'cache', 'gate'))).toBe(false);
@@ -274,5 +276,181 @@ describe('workspace links', () => {
 
     expect(run.exitCode).toBe(1);
     expect(run.paths).toHaveLength(16);
+  });
+});
+
+describe('pnpm-lock.yaml', () => {
+  const evidence = fileURLToPath(evidenceDir);
+  const viteAt = '2026-09-23T12:17:15Z';
+  const vue = recordedPnpmLockPath('vuejs-core');
+  const verifyAt = (lockfile: string, at = viteAt) =>
+    raw(['verify', '--lockfile', lockfile, '--evidence', evidence, '--at', at]);
+  const decodeLine = Schema.decodeUnknownSync(
+    Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+  );
+  const decisions = (stdout: string) =>
+    stdout
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => decodeLine(line));
+  const withTempLock = <A>(text: string, run: (file: string) => A): A => {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-pnpm-'));
+    try {
+      const file = join(dir, 'pnpm-lock.yaml');
+      writeFileSync(file, text);
+
+      return run(file);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  test('without --lockfile, gate verify reads ./pnpm-lock.yaml', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-cwd-'));
+    try {
+      copyFileSync(vue, join(dir, 'pnpm-lock.yaml'));
+      const explicit = verifyAt(vue);
+      const implicit = raw(['verify', '--evidence', evidence, '--at', viteAt], {
+        cwd: dir,
+      });
+
+      expect(implicit.stderr).toBe('');
+      expect(explicit.stdout).not.toBe('');
+      expect(implicit.stdout).toBe(explicit.stdout);
+      expect(implicit.exitCode).toBe(explicit.exitCode);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('with both lockfiles in the directory, gate verify asks for --lockfile before fetching', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-cwd-'));
+    try {
+      copyFileSync(vue, join(dir, 'pnpm-lock.yaml'));
+      copyFileSync(recordedLockPath('npm-cli'), join(dir, 'package-lock.json'));
+      const run = raw(['verify'], {
+        cwd: dir,
+        env: { XDG_CACHE_HOME: join(dir, 'cache') },
+      });
+
+      expect(run.stderr).toContain(
+        `gate verify: both package-lock.json and pnpm-lock.yaml in ${dir}; pass --lockfile`,
+      );
+      expect(run.stdout).toBe('');
+      expect(existsSync(join(dir, 'cache', 'gate'))).toBe(false);
+      expect(run.exitCode).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('vite in vuejs/core gets the decision vite gets in a package-lock.json', () => {
+    const npm = decisions(
+      verifyAt(
+        fileURLToPath(
+          new URL(
+            'verify/cases/vite-8.3.0-benign/package-lock.json',
+            import.meta.url,
+          ),
+        ),
+      ).stdout,
+    );
+    const pnpm = decisions(verifyAt(vue).stdout).filter(
+      (line) =>
+        typeof line['path'] === 'string' && line['path'].startsWith('vite@'),
+    );
+    const decision = (line: Readonly<Record<string, unknown>>) =>
+      Object.fromEntries(
+        Object.entries(line).filter(([key]) => key !== 'path' && key !== 'dev'),
+      );
+
+    expect(npm).toHaveLength(1);
+    expect(pnpm).toHaveLength(1);
+    expect(pnpm.map(decision)).toEqual(npm.map(decision));
+    expect(pnpm[0]).toMatchObject({ outcome: 'ACCEPT', dev: true });
+  });
+
+  test('a registry node without integrity quarantines on integrity_unknown', () => {
+    const text = recordedPnpmLock('vuejs-core').replace(
+      /resolution: \{integrity: sha512-lhZBV[^}]*\}/,
+      'resolution: {}',
+    );
+    const run = withTempLock(text, verifyAt);
+    const vite = summarizeOutput(run.stdout).find((node) =>
+      node.path.startsWith('vite@'),
+    );
+
+    expect(vite).toMatchObject({ outcome: 'QUARANTINE' });
+    expect(vite && 'reasons' in vite && vite.reasons).toContain(
+      'integrity_unknown',
+    );
+    expect(run.exitCode).toBe(1);
+  });
+
+  const addLink = (target: string) =>
+    recordedPnpmLock('vuejs-core').replace(
+      '  packages/vue:\n    dependencies:\n',
+      `  packages/vue:\n    dependencies:\n      extra:\n        specifier: ${target}\n        version: ${target}\n`,
+    );
+  const rejectedAt = (text: string) =>
+    withTempLock(text, (file) => {
+      const run = verifyAt(file);
+
+      return {
+        exitCode: run.exitCode,
+        rejected: summarizeOutput(run.stdout).flatMap((node) =>
+          'outcome' in node &&
+          node.outcome === 'REJECT' &&
+          node.reasons.includes('exotic_source')
+            ? [[node.path, node.dependency]]
+            : [],
+        ),
+      };
+    });
+
+  test('a link outside the repository still rejects', () => {
+    expect(rejectedAt(addLink('link:../../../outside'))).toEqual({
+      exitCode: 1,
+      rejected: [['packages/vue', 'extra']],
+    });
+  });
+
+  test('a link to a path no importer names still rejects', () => {
+    expect(rejectedAt(addLink('link:../../vendor/lib'))).toEqual({
+      exitCode: 1,
+      rejected: [['packages/vue', 'extra']],
+    });
+  });
+
+  const unreadableAt = (text: string) =>
+    withTempLock(text, (file) => {
+      const run = verifyAt(file);
+
+      return {
+        exitCode: run.exitCode,
+        unreadable: summarizeOutput(run.stdout).flatMap((node) =>
+          'unreadable' in node ? [node.path] : [],
+        ),
+      };
+    });
+
+  test('a git dependency without a full commit is unreadable', () => {
+    const key = 'g@git+https://example.com/o/r.git#main';
+    const lock = recordedPnpmLock('vuejs-core');
+    const main = lock.lastIndexOf('\nsnapshots:\n');
+    const text =
+      `${lock.slice(0, main)}\n  '${key}':\n    resolution: {commit: main, repo: https://example.com/o/r.git, type: git}\n    version: 1.0.0\n\nsnapshots:\n\n  '${key}': {}\n${lock.slice(main + '\nsnapshots:\n'.length)}`.replace(
+        '  packages/vue:\n    dependencies:\n',
+        `  packages/vue:\n    dependencies:\n      g:\n        specifier: git+https://example.com/o/r.git#main\n        version: git+https://example.com/o/r.git#main\n`,
+      );
+
+    expect(unreadableAt(text)).toEqual({ exitCode: 1, unreadable: [key] });
+  });
+
+  test('an unsupported lockfileVersion is unreadable', () => {
+    expect(unreadableAt(recordedPnpmLock('rules-js-v60'))).toEqual({
+      exitCode: 1,
+      unreadable: [''],
+    });
   });
 });

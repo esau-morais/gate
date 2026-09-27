@@ -1,0 +1,188 @@
+lockfileVersion: 5.4
+
+onlyBuiltDependencies:
+  - '@aspect-test/c'
+
+overrides:
+  is-number: file:../vendored/is-number
+  diff: https://github.com/kpdecker/jsdiff/archive/refs/tags/v5.2.0.tar.gz
+  fsevents: ^2.3
+  typescript: 5.5.2
+  '@types/glob': ^8.1.0
+
+patchedDependencies:
+  meaning-of-life@1.0.0:
+    hash: o3deharooos255qt5xdujc3cuq
+    path: patches/meaning-of-life@1.0.0-pnpm.patch
+
+importers:
+
+  .:
+    specifiers:
+      '@aspect-test-a-bad-scope': npm:@aspect-test/a
+      '@aspect-test-custom-scope/a': npm:@aspect-test/a
+      '@aspect-test/a': ^5.0.2
+      '@aspect-test/a2': npm:@aspect-test/a
+      '@aspect-test/b': 5.0.2
+      '@aspect-test/c': 2.0.0
+      '@aspect-test/h-is-only-optional': npm:@aspect-test/h@1.0.0
+      '@isaacs/cliui': 8.0.2
+      '@scoped/a': workspace:*
+      '@scoped/b': link:../projects/b
+      '@scoped/c': file:../projects/c
+      '@scoped/d': ../projects/d
+      '@types/archiver': 5.3.1
+      '@types/node': 18.19.54
+      alias-only-sizzle: npm:@types/sizzle@~2.3.10
+      alias-project-a: link:../projects/a
+      alias-types-node: npm:@types/node@~18.19.54
+      aspect-test-a-no-scope: npm:@aspect-test/a
+      aspect-test-a/no-at: npm:@aspect-test/a
+      debug: ngokevin/debug#9742c5f383a6f8046241920156236ade8ec30d53
+      hello: https://gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello
+      is-odd: npm:is-odd@3.0.1
+      is-odd-alias: npm:is-odd
+      is-odd-v0: npm:is-odd@0.1.0
+      is-odd-v1: npm:is-odd@1.0.0
+      is-odd-v2: npm:is-odd@2.0.0
+      is-odd-v3: npm:is-odd@3.0.0
+      jquery-git-ssh-399b201: git+ssh://git@github.com:jquery/jquery#399b201bb3143a3952894cf3489b4848fc003967
+      jquery-git-ssh-e61fccb: git+ssh://git@github.com/jquery/jquery.git#e61fccb9d736235b4b011f89cba6866bc0b8997d
+      jsonify: https://github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz
+      lodash: file:../vendored/lodash-4.17.21.tgz
+      meaning-of-life: 1.0.0
+      rollup: 2.14.0
+      rollup-plugin-with-peers: npm:@rollup/plugin-typescript@8.2.1
+      rollup3: npm:rollup@3.29.4
+      scoped/bad: link:../projects/b
+      test-c200-d200: workspace:*
+      test-c201-d200: workspace:*
+      test-peer-types: ../projects/peer-types
+      tslib: ^2.6.3
+      typescript: 5.5.2
+      uvu: 0.5.6
+    dependencies:
+      '@aspect-test-a-bad-scope': /@aspect-test/a/5.0.2
+      '@aspect-test-custom-scope/a': /@aspect-test/a/5.0.2
+      '@aspect-test/a': 5.0.2
+      '@aspect-test/a2': /@aspect-test/a/5.0.2
+      '@isaacs/cliui': 8.0.2
+      '@scoped/a': link:../projects/a
+      '@scoped/b': link:../projects/b
+      '@scoped/c': file:../projects/c_@scoped+b@projects+b
+      '@scoped/d': link:../projects/d
+      alias-project-a: link:../projects/a
+      aspect-test-a-no-scope: /@aspect-test/a/5.0.2
+      aspect-test-a/no-at: /@aspect-test/a/5.0.2
+      debug: github.com/ngokevin/debug/9742c5f383a6f8046241920156236ade8ec30d53
+      hello: '@gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello'
+      is-odd: 3.0.1
+      is-odd-alias: /is-odd/3.0.1
+      is-odd-v0: /is-odd/0.1.0
+      is-odd-v1: /is-odd/1.0.0
+      is-odd-v2: /is-odd/2.0.0
+      is-odd-v3: /is-odd/3.0.0
+      jquery-git-ssh-399b201: github.com/jquery/jquery/399b201bb3143a3952894cf3489b4848fc003967
+      jquery-git-ssh-e61fccb: github.com/jquery/jquery/e61fccb9d736235b4b011f89cba6866bc0b8997d
+      jsonify: '@github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz'
+      lodash: file:../vendored/lodash-4.17.21.tgz
+      meaning-of-life: 1.0.0_o3deharooos255qt5xdujc3cuq
+      rollup: 2.14.0
+      rollup-plugin-with-peers: /@rollup/plugin-typescript/8.2.1_3vgsug3mjv7wvue74swjdxifxy
+      rollup3: /rollup/3.29.4
+      scoped/bad: link:../projects/b
+      test-c200-d200: link:../projects/peers-combo-2
+      test-c201-d200: link:../projects/peers-combo-1
+      test-peer-types: link:../projects/peer-types
+      tslib: 2.8.1
+      typescript: 5.5.2
+      uvu: 0.5.6
+    optionalDependencies:
+      '@aspect-test/c': 2.0.0
+      '@aspect-test/h-is-only-optional': /@aspect-test/h/1.0.0
+    devDependencies:
+      '@aspect-test/b': 5.0.2
+      '@types/archiver': registry.npmjs.org/@types/archiver/5.3.1
+      '@types/node': registry.npmjs.org/@types/node/18.19.54
+      alias-only-sizzle: registry.npmjs.org/@types/sizzle/2.3.10
+      alias-types-node: registry.npmjs.org/@types/node/18.19.54
+
+  ../projects/a:
+    specifiers: {}
+
+  ../projects/a-types:
+    specifiers:
+      '@types/node': 18.19.54
+    dependencies:
+      '@types/node': registry.npmjs.org/@types/node/18.19.54
+
+  ../projects/alts:
+    specifiers:
+      lodash: 4.0.1
+      lodash-4.17.20: npm:lodash@4.17.20
+      lodash-4.17.21: npm:lodash@4.17.21
+      lodash-4.17.21-file: file:../../vendored/lodash-4.17.21.tgz
+    dependencies:
+      lodash: 4.0.1
+      lodash-4.17.20: /lodash/4.17.20
+      lodash-4.17.21: /lodash/4.17.21
+      lodash-4.17.21-file: file:../vendored/lodash-4.17.21.tgz
+
+  ../projects/b:
+    specifiers:
+      '@scoped/a': workspace:*
+      '@types/node': 18.19.54
+      a-types: workspace:*
+    dependencies:
+      '@scoped/a': link:../a
+    devDependencies:
+      '@types/node': registry.npmjs.org/@types/node/18.19.54
+      a-types: link:../a-types
+
+  ../projects/c:
+    specifiers:
+      '@scoped/a': link:../a
+      a-types: file:../a-types
+    dependencies:
+      '@scoped/a': link:../a
+    devDependencies:
+      a-types: file:../projects/a-types
+
+  ../projects/d:
+    specifiers:
+      '@scoped/a': workspace:*
+    dependencies:
+      '@scoped/a': link:../a
+
+  ../projects/peer-types:
+    specifiers:
+      '@scoped/a': workspace:*
+      '@scoped/b': link:../b
+      '@scoped/c': file:../c
+      hello: https://gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello
+      jsonify: https://github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz
+    devDependencies:
+      '@scoped/a': link:../a
+      '@scoped/b': link:../b
+      '@scoped/c': file:../projects/c_@scoped+b@projects+b
+      hello: '@gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello'
+      jsonify: '@github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz'
+
+  ../projects/peers-combo-1:
+    specifiers:
+      '@aspect-test/c': 2.0.1
+      '@aspect-test/d': 2.0.0
+    dependencies:
+      '@aspect-test/c': 2.0.1
+      '@aspect-test/d': 2.0.0_@aspect-test+c@2.0.1
+
+  ../projects/peers-combo-2:
+    specifiers:
+      '@aspect-test/c': 2.0.0
+      '@aspect-test/d': 2.0.0
+    dependencies:
+      '@aspect-test/c': 2.0.0
+      '@aspect-test/d': 2.0.0_@aspect-test+c@2.0.0
+
+  ../vendored/is-number:
+    specifiers: {}

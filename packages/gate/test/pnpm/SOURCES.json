@@ -1,0 +1,55 @@
+{
+  "capturedAt": "2026-09-27",
+  "files": [
+    {
+      "path": "vuejs-core.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/vuejs/core/4ab865a848a1da3d10fb674f857e5fff13094644/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:03Z, git blob 96f7ee07 (commit time 2026-09-18T02:59:51Z). lockfileVersion '9.0' with an env document written by pnpm 12.4.2. Kept verbatim: the env document, settings, catalogs, the header of all 18 importers, their 33 link: dependencies and their vite edges, the vite@8.3.0 packages entry and its one snapshot. Dropped every other importer dependency, packages entry and snapshot, and the snapshot's dependencies and optionalDependencies, whose targets are gone"
+    },
+    {
+      "path": "rules-js-v90.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/272208fd38f09b2f0e914fd32d296fa10d51af35/e2e/pnpm_lockfiles/v90/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:14Z, verbatim. e2e/pnpm_lockfiles/setup.sh at that commit writes it with `npx -y pnpm@~9 install --lockfile-only`. The project pins git, codeload, tarball URL, file: tarball, file: directory, link: and workspace: dependencies, npm: aliases, a patch, overrides and peers (e2e/pnpm_lockfiles/v90/package.json). rules_js is Apache-2.0"
+    },
+    {
+      "path": "rules-js-v101.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/272208fd38f09b2f0e914fd32d296fa10d51af35/e2e/pnpm_lockfiles/v101/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:14Z, verbatim. Written by `npx -y pnpm@~10 install --lockfile-only` per setup.sh"
+    },
+    {
+      "path": "rules-js-v110.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/272208fd38f09b2f0e914fd32d296fa10d51af35/e2e/pnpm_lockfiles/v110/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:14Z, verbatim. Written by `npx -y pnpm@~11 install --lockfile-only` per setup.sh; its env document pins configDependencies"
+    },
+    {
+      "path": "rules-js-v120.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/272208fd38f09b2f0e914fd32d296fa10d51af35/e2e/pnpm_lockfiles/v120/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:14Z, verbatim. Written by `npx -y pnpm@~12 install --lockfile-only` per setup.sh (last changed in 6e0fdb5d, 2026-09-01)"
+    },
+    {
+      "path": "rules-js-multi-document-v11.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/272208fd38f09b2f0e914fd32d296fa10d51af35/e2e/pnpm_lockfiles/cases/multi-document-v11/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:18Z, verbatim"
+    },
+    {
+      "path": "rules-js-v54.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/60c5a890edb65bec787aea77543e9191453ce87b/e2e/pnpm_lockfiles/v54/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:14Z. lockfileVersion 5.4, written by pnpm@^7.0 per setup.sh at that commit. Kept the lines before `packages:`, verbatim"
+    },
+    {
+      "path": "rules-js-v60.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/60c5a890edb65bec787aea77543e9191453ce87b/e2e/pnpm_lockfiles/v60/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:14Z. lockfileVersion '6.0', written by pnpm@8.5.1 per setup.sh. Kept the lines before `packages:`, verbatim"
+    },
+    {
+      "path": "rules-js-v61.pnpm-lock.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/60c5a890edb65bec787aea77543e9191453ce87b/e2e/pnpm_lockfiles/v61/pnpm-lock.yaml",
+      "sanitized": "fetched 2026-09-27T00:14Z. lockfileVersion '6.1', written by pnpm@8.6.0 per setup.sh. Kept the lines before `packages:`, verbatim"
+    }
+  ],
+  "gaps": [
+    "no recorded lockfile has a git source without a full commit, a link outside the lockfile's directory from a root importer, an absolute link, a link to a folder no importer names at the root, a gitlab or bitbucket archive, a named-registry key, a runtime: or custom resolution, excludeLinksFromLockfile: true, or any YAML the pnpm emitter doesn't write (anchors, tags, merge keys, directives, duplicate keys); the tests build those by hand",
+    "the rules_js importers sit outside the lockfile's directory (../projects/*), so every rules_js workspace link rejects; the in-repository workspace case is vuejs/core",
+    "the vuejs/core fragment has one registry node in its main document; its env document's pnpm 12.4.2 packages have no recorded evidence"
+  ]
+}

@@ -1,0 +1,248 @@
+lockfileVersion: '6.0'
+
+onlyBuiltDependencies:
+  - '@aspect-test/c'
+
+overrides:
+  is-number: file:../vendored/is-number
+  diff: https://github.com/kpdecker/jsdiff/archive/refs/tags/v5.2.0.tar.gz
+  fsevents: ^2.3
+  typescript: 5.5.2
+  '@types/glob': ^8.1.0
+
+patchedDependencies:
+  meaning-of-life@1.0.0:
+    hash: o3deharooos255qt5xdujc3cuq
+    path: patches/meaning-of-life@1.0.0-pnpm.patch
+
+importers:
+
+  .:
+    dependencies:
+      '@aspect-test-a-bad-scope':
+        specifier: npm:@aspect-test/a
+        version: /@aspect-test/a@5.0.2
+      '@aspect-test-custom-scope/a':
+        specifier: npm:@aspect-test/a
+        version: /@aspect-test/a@5.0.2
+      '@aspect-test/a':
+        specifier: ^5.0.2
+        version: 5.0.2
+      '@aspect-test/a2':
+        specifier: npm:@aspect-test/a
+        version: /@aspect-test/a@5.0.2
+      '@aspect-test/e':
+        specifier: ~1.0.0
+        version: 1.0.0
+      '@isaacs/cliui':
+        specifier: 8.0.2
+        version: 8.0.2
+      '@scoped/a':
+        specifier: workspace:*
+        version: link:../projects/a
+      '@scoped/b':
+        specifier: link:../projects/b
+        version: link:../projects/b
+      '@scoped/c':
+        specifier: file:../projects/c
+        version: file:../projects/c(@scoped/b@projects+b)
+      '@scoped/d':
+        specifier: ../projects/d
+        version: link:../projects/d
+      alias-project-a:
+        specifier: link:../projects/a
+        version: link:../projects/a
+      aspect-test-a-no-scope:
+        specifier: npm:@aspect-test/a
+        version: /@aspect-test/a@5.0.2
+      aspect-test-a/no-at:
+        specifier: npm:@aspect-test/a
+        version: /@aspect-test/a@5.0.2
+      debug:
+        specifier: ngokevin/debug#9742c5f383a6f8046241920156236ade8ec30d53
+        version: github.com/ngokevin/debug/9742c5f383a6f8046241920156236ade8ec30d53
+      hello:
+        specifier: https://gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello
+        version: '@gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello'
+      is-odd:
+        specifier: npm:is-odd@3.0.1
+        version: 3.0.1
+      is-odd-alias:
+        specifier: npm:is-odd
+        version: /is-odd@3.0.1
+      is-odd-v0:
+        specifier: npm:is-odd@0.1.0
+        version: /is-odd@0.1.0
+      is-odd-v1:
+        specifier: npm:is-odd@1.0.0
+        version: /is-odd@1.0.0
+      is-odd-v2:
+        specifier: npm:is-odd@2.0.0
+        version: /is-odd@2.0.0
+      is-odd-v3:
+        specifier: npm:is-odd@3.0.0
+        version: /is-odd@3.0.0
+      jquery-git-ssh-399b201:
+        specifier: git+ssh://git@github.com:jquery/jquery#399b201bb3143a3952894cf3489b4848fc003967
+        version: github.com/jquery/jquery/399b201bb3143a3952894cf3489b4848fc003967
+      jquery-git-ssh-e61fccb:
+        specifier: git+ssh://git@github.com/jquery/jquery.git#e61fccb9d736235b4b011f89cba6866bc0b8997d
+        version: github.com/jquery/jquery/e61fccb9d736235b4b011f89cba6866bc0b8997d
+      jsonify:
+        specifier: https://github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz
+        version: '@github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz'
+      lodash:
+        specifier: file:../vendored/lodash-4.17.21.tgz
+        version: file:../vendored/lodash-4.17.21.tgz
+      meaning-of-life:
+        specifier: 1.0.0
+        version: 1.0.0(patch_hash=o3deharooos255qt5xdujc3cuq)
+      rollup:
+        specifier: 2.14.0
+        version: 2.14.0
+      rollup-plugin-with-peers:
+        specifier: npm:@rollup/plugin-typescript@8.2.1
+        version: /@rollup/plugin-typescript@8.2.1(rollup@3.29.4)(tslib@2.6.3)(typescript@5.5.2)
+      rollup3:
+        specifier: npm:rollup@3.29.4
+        version: /rollup@3.29.4
+      scoped/bad:
+        specifier: link:../projects/b
+        version: link:../projects/b
+      test-c200-d200:
+        specifier: workspace:*
+        version: link:../projects/peers-combo-2
+      test-c201-d200:
+        specifier: workspace:*
+        version: link:../projects/peers-combo-1
+      test-peer-types:
+        specifier: ../projects/peer-types
+        version: link:../projects/peer-types
+      tslib:
+        specifier: ^2.6.3
+        version: 2.6.3
+      typescript:
+        specifier: 5.5.2
+        version: 5.5.2
+      uvu:
+        specifier: 0.5.6
+        version: 0.5.6
+    optionalDependencies:
+      '@aspect-test/c':
+        specifier: 2.0.0
+        version: 2.0.0
+      '@aspect-test/h-is-only-optional':
+        specifier: npm:@aspect-test/h@1.0.0
+        version: /@aspect-test/h@1.0.0
+    devDependencies:
+      '@aspect-test/b':
+        specifier: 5.0.2
+        version: 5.0.2
+      '@types/archiver':
+        specifier: 5.3.1
+        version: registry.npmjs.org/@types/archiver@5.3.1
+      '@types/node':
+        specifier: 18.19.54
+        version: registry.npmjs.org/@types/node@18.19.54
+      alias-only-sizzle:
+        specifier: npm:@types/sizzle@~2.3.10
+        version: registry.npmjs.org/@types/sizzle@2.3.10
+      alias-types-node:
+        specifier: npm:@types/node@~18.19.54
+        version: registry.npmjs.org/@types/node@18.19.54
+
+  ../projects/a: {}
+
+  ../projects/a-types:
+    dependencies:
+      '@types/node':
+        specifier: 18.19.54
+        version: registry.npmjs.org/@types/node@18.19.54
+
+  ../projects/alts:
+    dependencies:
+      lodash:
+        specifier: 4.0.1
+        version: 4.0.1
+      lodash-4.17.20:
+        specifier: npm:lodash@4.17.20
+        version: /lodash@4.17.20
+      lodash-4.17.21:
+        specifier: npm:lodash@4.17.21
+        version: /lodash@4.17.21
+      lodash-4.17.21-file:
+        specifier: file:../../vendored/lodash-4.17.21.tgz
+        version: file:../vendored/lodash-4.17.21.tgz
+
+  ../projects/b:
+    dependencies:
+      '@scoped/a':
+        specifier: workspace:*
+        version: link:../a
+    devDependencies:
+      '@types/node':
+        specifier: 18.19.54
+        version: registry.npmjs.org/@types/node@18.19.54
+      a-types:
+        specifier: workspace:*
+        version: link:../a-types
+
+  ../projects/c:
+    dependencies:
+      '@scoped/a':
+        specifier: link:../a
+        version: link:../a
+      '@scoped/b':
+        specifier: workspace:*
+        version: link:../b
+    devDependencies:
+      a-types:
+        specifier: file:../a-types
+        version: file:../projects/a-types
+
+  ../projects/d:
+    dependencies:
+      '@scoped/a':
+        specifier: workspace:*
+        version: link:../a
+      '@scoped/b':
+        specifier: workspace:*
+        version: link:../b
+
+  ../projects/peer-types:
+    devDependencies:
+      '@scoped/a':
+        specifier: workspace:*
+        version: link:../a
+      '@scoped/b':
+        specifier: link:../b
+        version: link:../b
+      '@scoped/c':
+        specifier: file:../c
+        version: file:../projects/c(@scoped/b@projects+b)
+      hello:
+        specifier: https://gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello
+        version: '@gitpkg.vercel.app/EqualMa/gitpkg-hello/packages/hello'
+      jsonify:
+        specifier: https://github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz
+        version: '@github.com/aspect-build/test-packages/releases/download/0.0.0/@foo-jsonify-0.0.0.tgz'
+
+  ../projects/peers-combo-1:
+    dependencies:
+      '@aspect-test/c':
+        specifier: 2.0.1
+        version: 2.0.1
+      '@aspect-test/d':
+        specifier: 2.0.0
+        version: 2.0.0(@aspect-test/c@2.0.1)
+
+  ../projects/peers-combo-2:
+    dependencies:
+      '@aspect-test/c':
+        specifier: 2.0.0
+        version: 2.0.0
+      '@aspect-test/d':
+        specifier: 2.0.0
+        version: 2.0.0(@aspect-test/c@2.0.0)
+
+  ../vendored/is-number: {}

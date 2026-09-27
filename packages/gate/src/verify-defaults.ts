@@ -52,3 +52,38 @@ export function evidenceSource(
     ? { kind: 'recorded', dir: flags.evidence }
     : { kind: 'conflict' };
 }
+
+export const lockfileNames = ['package-lock.json', 'pnpm-lock.yaml'] as const;
+
+export type LockfileChoice =
+  | { readonly kind: 'found'; readonly path: string }
+  | { readonly kind: 'none' }
+  | { readonly kind: 'ambiguous' };
+
+export function defaultLockfile(
+  exists: (name: string) => boolean,
+): LockfileChoice {
+  const [found, ...others] = lockfileNames.filter(exists);
+  if (found === undefined) {
+    return { kind: 'none' };
+  }
+
+  return others.length === 0
+    ? { kind: 'found', path: found }
+    : { kind: 'ambiguous' };
+}
+
+export function lockfileFormat(
+  path: string,
+  text: string,
+): 'package-lock' | 'pnpm-lock' {
+  if (path.endsWith('.json')) {
+    return 'package-lock';
+  }
+
+  if (path.endsWith('.yaml') || path.endsWith('.yml')) {
+    return 'pnpm-lock';
+  }
+
+  return text.trimStart().startsWith('{') ? 'package-lock' : 'pnpm-lock';
+}
