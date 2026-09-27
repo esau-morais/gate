@@ -598,9 +598,9 @@ Accepted 2026-09-26. Added `yaml@2.9.1` for pnpm-lock.yaml. It was published 202
 - pnpm 9 to 11 read with `@zkochan/js-yaml` (0.0.7 and 0.0.11), whose default schema resolves merge keys (`lib/schema/default.js`, 0.0.11). Its int and timestamp types also read plain `0b1`, `1_0` and `2001-12-14` as a number or a date where `yaml`'s core schema keeps a string (`lib/type/int.js`, `timestamp.js`). So gate refuses anything that can change a node's meaning. Line breaks inside a flow collection only separate entries, so they're allowed, and a prettier-formatted lockfile reads the same.
 - The Node bundle grows from 1.17 to 1.42 MB unminified.
 
-### SupplyChainPolicy/v3 (proposed)
+### SupplyChainPolicy/v3
 
-Proposed 2026-09-26, not accepted. No v3 file exists, and publishing one waits for the decision on who signs it (§6.9). PLAN's False-positive budget has the numbers.
+Proposed 2026-09-26 and accepted as written 2026-09-27. v3 is pinned at `sha256:9c76a6238a17f2a6e2dfa4b5054bca9423d96bce14a29c24c3693df9e4ca5d70` and `gate verify` evaluates it. `gate replay` still replays v1 and v2 records. Who signs policy versions (§6.9) is still open, so v3 ships unsigned, like v1 and v2. PLAN's False-positive budget has the proposal's numbers.
 
 Under v2, 2,642 of 9,863 nodes in 10 repositories were quarantined for something other than `release_age`. Verdicts, with sources checked 2026-09-26:
 
@@ -625,8 +625,13 @@ trust_downgrade: evidence.provenance.kind == 'absent' && evidence.earlierProvena
 provenance_history_unknown: evidence.provenance.kind == 'absent' && evidence.earlierProvenanceExcludingRemoved == 'unknown'
 ```
 
-- Every replay-corpus moment and both lockfile cases keep their outcome and reason codes, evaluated in a scratch copy of gate with these fields. The fixtures record no repository and no removed versions, so the new fields change nothing there.
+- Every replay-corpus moment and both lockfile cases keep their outcome and reason codes under v1, v2 and v3 (`replay.test.ts`, `verify.test.ts`). The fixtures record no repository and no removed versions, so the new fields change nothing there.
 - v3 gives up three cases. A version from a new identity that stays unreported past 90 days. A token holder who can run workflows in the package's repository and publishes its first provenance-bearing version, which v2 quarantines. A trust downgrade hidden by removing the only earlier version with provenance.
+- `publisher` and `earlierProvenance` keep their v2 meaning. `repositoryCheck` exists only on `publisherExcludingRemoved`, the publisher v3's rules compare. The new fields are optional in the schema, so v1 and v2 records decode to the same bytes. Under v3, evidence without them quarantines on rules that fail to evaluate.
+- A removed version has a `time` entry and no `versions` document. A document that is listed but unreadable still makes history unknown.
+- `repositoryCheck` compares owner and repository on github.com, ignoring case, since GitHub names are case-insensitive and gate verifies provenance only from GitHub Actions. It reads `repository` as a string or its `url`, including `owner/repo`, `github:`, scp-style and `git+` forms and `/tree/` or `/blob/` paths. `matched` needs at least one earlier version to declare a repository. A repository gate can't read gives `unchecked`, because only `matched` relaxes a rule.
+- The packument cache now keeps `repository.url`. An entry cached before this change keeps its old body on a 304, so its check reads `unchecked` until npm changes that packument. That errs toward quarantine.
+- For v3 the Policy invariants laws on an unknown publisher and unknown earlier provenance read `publisherExcludingRemoved` and `earlierProvenanceExcludingRemoved`, the fields v3's rules read. The other laws are unchanged. `policy-invariants.test.ts` checks 120,285 evidence combinations against v2 and v3, about 3 s per policy on Bun 1.4.2. It catches the three weakened copies listed under Policy invariants, for both versions.
 - Separately, gate should accept SLSA v0.2 provenance and read the identity from the certificate's SAN URI when it lacks the `.12` and `.18` extensions, as @tufjs/canonical-json 1.0.0's does. That fixes evidence for every policy. Done in [SLSA v0.2 provenance](#slsa-v02-provenance).
 
 ### SLSA v0.2 provenance
