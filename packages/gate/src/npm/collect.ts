@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { mapConcurrent, type HttpClient } from '../http';
-import { isEvidenceName } from './evidence-directory';
+import { formatGap, isEvidenceName } from './evidence-directory';
 import type { LockfileNode } from './lockfile';
 import { fetchMalwareFeed, type FeedSnapshot } from './malware-feed';
 import { attestedVersions } from './packument';
@@ -166,7 +166,10 @@ export async function collectEvidence(input: {
           wanted.set(`${name}@${version}`, { name, version });
         } else {
           skipped.push(
-            `attestations/${name}: version ${JSON.stringify(version)} is not safe as a file name`,
+            formatGap({
+              path: `attestations/${name}`,
+              reason: `version ${JSON.stringify(version)} is not safe as a file name`,
+            }),
           );
         }
       }
@@ -191,7 +194,7 @@ export async function collectEvidence(input: {
   const gaps: string[] = [...skipped];
   const record = (path: string, fetched: Fetched) => {
     if (fetched.kind === 'failed') {
-      gaps.push(`${path}: ${fetched.url}: ${fetched.reason}`);
+      gaps.push(formatGap({ path, url: fetched.url, reason: fetched.reason }));
 
       return;
     }
@@ -214,14 +217,14 @@ export async function collectEvidence(input: {
 
   const snapshot = await feed;
   if (snapshot.kind === 'unavailable') {
-    gaps.push(`osv/: ${snapshot.reason}`);
+    gaps.push(formatGap({ path: 'osv/', reason: snapshot.reason }));
   }
 
   files.push(...writeFeed(staging, snapshot, names));
 
   const root = await trust;
   if (root.kind === 'failed') {
-    gaps.push(`trusted_root.json: ${root.reason}`);
+    gaps.push(formatGap({ path: 'trusted_root.json', reason: root.reason }));
   } else {
     const text = JSON.stringify(root.body);
     writeFileSync(join(staging, 'trusted_root.json'), text);

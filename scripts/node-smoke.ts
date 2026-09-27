@@ -99,6 +99,51 @@ try {
     console.log('gate verify bundle replays every lockfile case on Node');
   }
 
+  const waivers = join(import.meta.dir, '../packages/gate/test/waivers');
+  const reports = [
+    ...loadVerifyCases().flatMap(({ dir, fixture }) =>
+      fixture.evaluations.map((evaluation) =>
+        verifyArgs(dir, fixture, evaluation).filter((arg) => arg !== '--json'),
+      ),
+    ),
+    [
+      'verify',
+      '--lockfile',
+      join(waivers, 'package-lock.json'),
+      '--evidence',
+      join(waivers, 'evidence'),
+      '--at',
+      '2026-09-27T00:05:21.915Z',
+    ],
+  ];
+  for (const args of reports) {
+    const [onNode, onBun] = [
+      ['node', cli],
+      ['bun', 'packages/gate/src/cli.ts'],
+    ].map((runtime) =>
+      Bun.spawnSync([...runtime, ...args], {
+        stdout: 'pipe',
+        stderr: 'inherit',
+      }),
+    );
+    const report = onNode?.stdout.toString() ?? '';
+    if (
+      !report.startsWith('gate verify: ') ||
+      report !== onBun?.stdout.toString() ||
+      onNode?.exitCode !== onBun.exitCode
+    ) {
+      console.error(
+        `gate verify prints a different report on Node and Bun for ${args.join(' ')}`,
+        report,
+      );
+      process.exitCode = 1;
+    }
+  }
+
+  if (process.exitCode !== 1) {
+    console.log('gate verify prints the same report on Node and Bun');
+  }
+
   const repo = join(outdir, 'npm-cli');
   mkdirSync(repo);
   copyFileSync(recordedLockPath('npm-cli'), join(repo, 'package-lock.json'));
@@ -111,6 +156,7 @@ try {
       fileURLToPath(evidenceDir),
       '--at',
       '2026-09-26T00:00:00Z',
+      '--json',
     ],
     { cwd: repo, stdout: 'pipe', stderr: 'inherit' },
   );

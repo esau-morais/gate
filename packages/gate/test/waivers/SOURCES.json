@@ -1,0 +1,20 @@
+{
+  "capturedAt": "2026-09-27",
+  "files": [
+    {
+      "path": "package-lock.json",
+      "url": "https://raw.githubusercontent.com/lerna/lerna/752bdbba912e9ddfc69239ae5de489d5ec6cc044/package-lock.json",
+      "sanitized": "fetched 2026-09-26T23:58Z. lockfileVersion 3. Kept the root entry's name, license and workspaces, and node_modules/encodeurl, node_modules/cookie, node_modules/rxjs and node_modules/unrs-resolver verbatim; dropped every other field and entry. In the full lockfile these four nodes fire publisher_changed, publisher_recent, trust_downgrade and new_install_script, one rule each"
+    },
+    {
+      "path": "evidence/",
+      "url": "https://registry.npmjs.org",
+      "sanitized": "see evidence/SOURCES.json. gate verify --fetch wrote it, listing each file's URL and fetch time and no gaps; its sanitized key was added by hand"
+    }
+  ],
+  "gaps": [
+    "evidence is as of capture; each rule fires on what npm served on 2026-09-27, and a later packument could add versions or remove documents",
+    "the attestation bundles were fetched at 2026-09-26T23:59Z by an earlier run through the same cache over the full lerna lockfile, and gate reuses bundles for good; the packuments were fetched again at 2026-09-27T00:04Z",
+    "no node here has an unknown integrity, so the case where no waiver can be written is covered by a hand-built record in report.test.ts"
+  ]
+}

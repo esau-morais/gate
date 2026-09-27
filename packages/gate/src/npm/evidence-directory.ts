@@ -1,5 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { Option, Schema } from 'effect';
+import { UtcTimestamp } from '../time';
 import { readOsvSnapshot, type OsvSnapshot } from './osv';
 import { trustMaterialFrom, type TrustRoot } from './provenance';
 import type { EvidenceStore } from './verify';
@@ -127,4 +129,61 @@ export function readEvidenceDirectory(root: string): EvidenceStore {
     trust: readTrust(root),
     osv: readOsv(root),
   };
+}
+
+export type FetchGap = {
+  readonly path: string;
+  readonly url?: string;
+  readonly reason: string;
+};
+
+export type FetchGaps =
+  | { readonly kind: 'listed'; readonly gaps: readonly FetchGap[] }
+  | { readonly kind: 'unlisted' };
+
+export function formatGap(gap: FetchGap): string {
+  return gap.url === undefined
+    ? `${gap.path}: ${gap.reason}`
+    : `${gap.path}: ${gap.url}: ${gap.reason}`;
+}
+
+export function parseGap(line: string): FetchGap {
+  const cut = line.indexOf(': ');
+  if (cut === -1) {
+    return { path: line, reason: '' };
+  }
+
+  const path = line.slice(0, cut);
+  const rest = line.slice(cut + 2);
+  const withUrl = /^(https?:\/\/\S+): (.*)$/s.exec(rest);
+
+  return withUrl?.[1] === undefined || withUrl[2] === undefined
+    ? { path, reason: rest }
+    : { path, url: withUrl[1], reason: withUrl[2] };
+}
+
+const CollectedSources = Schema.fromJsonString(
+  Schema.Struct({
+    collectedAt: UtcTimestamp,
+    gaps: Schema.Array(Schema.String),
+  }),
+);
+const decodeSources = Schema.decodeUnknownOption(CollectedSources);
+
+export function readFetchGaps(root: string): FetchGaps {
+  let text: string;
+  try {
+    text = readFileSync(join(root, 'SOURCES.json'), 'utf8');
+  } catch (error) {
+    if (isFileSystemError(error)) {
+      return { kind: 'unlisted' };
+    }
+
+    throw error;
+  }
+
+  return Option.match(decodeSources(text), {
+    onNone: () => ({ kind: 'unlisted' }),
+    onSome: ({ gaps }) => ({ kind: 'listed', gaps: gaps.map(parseGap) }),
+  });
 }

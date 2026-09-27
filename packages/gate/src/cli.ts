@@ -17,15 +17,18 @@ import {
   EvidenceDirectoryError,
   isFileSystemError,
   readEvidenceDirectory,
+  readFetchGaps,
 } from './npm/evidence-directory';
 import { collectEvidence } from './npm/collect';
 import { readPackageLock, type PackageLockRead } from './npm/lockfile';
+import { humanReport } from './npm/report';
 import { sigstoreTrustedRoot } from './npm/trusted-root';
 import { decisionRecords, verifyExitCode, verifyNodes } from './npm/verify';
 import { canonicalPolicy, pinnedPolicies } from './pinned-policies';
 import { PolicyLoadError } from './policy';
 import { encodeRecord, lockfileDigest } from './record';
 import { replayEntry, replayExitCode } from './replay';
+import { ansi, colorEnabled, inert, plain } from './terminal';
 import { UtcTimestamp } from './time';
 
 const decodeAt = Schema.decodeUnknownOption(UtcTimestamp);
@@ -40,7 +43,9 @@ class InputError extends Error {
 
 const fail = (command: string, message: string) =>
   Effect.gen(function* () {
-    yield* Console.error(`gate ${command}: ${message}`);
+    yield* Console.error(
+      `gate ${command}: ${message.split('\n').map(inert).join('\n')}`,
+    );
     process.exitCode = 1;
   });
 
@@ -226,6 +231,12 @@ const verify = Command.make(
       ),
       Flag.optional,
     ),
+    json: Flag.Boolean('json').pipe(
+      Flag.withDescription(
+        'print one JSON decision record per line instead of the report',
+      ),
+      Flag.withDefault(false),
+    ),
   },
   (config) =>
     Effect.gen(function* () {
@@ -252,7 +263,7 @@ const verify = Command.make(
         const { dir, gaps } = collected.success;
         if (gaps.length > 0) {
           yield* Console.error(
-            `gate verify: ${gaps.length} evidence fetches failed; see ${join(dir, 'SOURCES.json')}`,
+            `gate verify: ${gaps.length} evidence fetches failed; see ${inert(join(dir, 'SOURCES.json'))}`,
           );
         }
 
@@ -294,8 +305,25 @@ const verify = Command.make(
         }
       }
 
-      for (const record of records) {
-        yield* Console.log(JSON.stringify(record));
+      if (config.json) {
+        for (const record of records) {
+          yield* Console.log(JSON.stringify(record));
+        }
+      } else {
+        const report = humanReport({
+          records,
+          nodes: lock.kind === 'read' ? lock.nodes : [],
+          policy,
+          context,
+          gaps: readFetchGaps(evidenceDir),
+          style: colorEnabled({
+            isTTY: process.stdout.isTTY,
+            env: process.env,
+          })
+            ? ansi
+            : plain,
+        });
+        yield* Console.log(report.trimEnd());
       }
 
       process.exitCode = verifyExitCode(records);

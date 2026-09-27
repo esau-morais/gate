@@ -1,0 +1,104 @@
+{
+  "collectedAt": "2026-09-27T00:05:21.913Z",
+  "files": [
+    {
+      "path": "packuments/encodeurl.json",
+      "url": "https://registry.npmjs.org/encodeurl",
+      "fetchedAt": "2026-09-27T00:04:49.384Z"
+    },
+    {
+      "path": "packuments/cookie.json",
+      "url": "https://registry.npmjs.org/cookie",
+      "fetchedAt": "2026-09-27T00:04:49.388Z"
+    },
+    {
+      "path": "packuments/rxjs.json",
+      "url": "https://registry.npmjs.org/rxjs",
+      "fetchedAt": "2026-09-27T00:04:49.382Z"
+    },
+    {
+      "path": "packuments/unrs-resolver.json",
+      "url": "https://registry.npmjs.org/unrs-resolver",
+      "fetchedAt": "2026-09-27T00:04:49.381Z"
+    },
+    {
+      "path": "attestations/rxjs@8.0.0-alpha.13.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/rxjs@8.0.0-alpha.13",
+      "fetchedAt": "2026-09-26T23:59:42.551Z"
+    },
+    {
+      "path": "attestations/rxjs@8.0.0-alpha.14.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/rxjs@8.0.0-alpha.14",
+      "fetchedAt": "2026-09-26T23:59:42.588Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.12.2.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.12.2",
+      "fetchedAt": "2026-09-26T23:59:43.479Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.8.1.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.8.1",
+      "fetchedAt": "2026-09-26T23:59:43.487Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.9.0.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.9.0",
+      "fetchedAt": "2026-09-26T23:59:43.494Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.9.1.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.9.1",
+      "fetchedAt": "2026-09-26T23:59:43.488Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.9.2.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.9.2",
+      "fetchedAt": "2026-09-26T23:59:43.494Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.10.0.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.10.0",
+      "fetchedAt": "2026-09-26T23:59:43.504Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.10.1.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.10.1",
+      "fetchedAt": "2026-09-26T23:59:43.509Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.11.0.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.11.0",
+      "fetchedAt": "2026-09-26T23:59:43.537Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.11.1.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.11.1",
+      "fetchedAt": "2026-09-26T23:59:43.541Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.12.0.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.12.0",
+      "fetchedAt": "2026-09-26T23:59:43.554Z"
+    },
+    {
+      "path": "attestations/unrs-resolver@1.12.1.json",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.12.1",
+      "fetchedAt": "2026-09-26T23:59:43.555Z"
+    },
+    {
+      "path": "osv/",
+      "url": "https://codeload.github.com/ossf/malicious-packages/tar.gz/refs/heads/main",
+      "fetchedAt": "2026-09-26T23:58:53.522Z",
+      "commit": "89d286051d611a25523aa21e3dfdb340dfdca7e3"
+    },
+    {
+      "path": "trusted_root.json",
+      "url": "https://tuf-repo-cdn.sigstore.dev/targets/trusted_root.json",
+      "fetchedAt": "2026-09-27T00:05:17.641Z",
+      "sha256": "45e4fc0bc5bbd7d0bb053489d0e1db8d97582802f5c4d96df1ee4e995084ac2a"
+    }
+  ],
+  "gaps": [],
+  "sanitized": "Written by gate verify --fetch (bf37e69) for ../package-lock.json. Packuments keep the target and the 10 versions published before it, as trimmed by gate (name, time, versions; each version keeps name, version, scripts, gypfile, _npmUser name and dist integrity, shasum, tarball, attestations). Attestation bundles, osv/ and trusted_root.json are unchanged."
+}

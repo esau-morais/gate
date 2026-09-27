@@ -1,0 +1,199 @@
+{
+  "name": "unrs-resolver",
+  "time": {
+    "1.8.1": "2025-06-11T10:41:18.586Z",
+    "1.9.0": "2025-06-11T19:18:56.029Z",
+    "1.9.1": "2025-06-20T10:55:02.984Z",
+    "1.9.2": "2025-06-24T10:48:32.231Z",
+    "1.10.0": "2025-07-02T19:46:50.806Z",
+    "1.10.1": "2025-07-02T20:16:58.615Z",
+    "1.11.0": "2025-07-06T12:38:27.335Z",
+    "1.11.1": "2025-07-09T14:58:18.146Z",
+    "1.12.0": "2026-05-18T15:54:25.730Z",
+    "1.12.1": "2026-05-19T03:44:11.349Z",
+    "1.12.2": "2026-05-19T12:33:25.064Z"
+  },
+  "versions": {
+    "1.8.1": {
+      "name": "unrs-resolver",
+      "version": "1.8.1",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.8.1 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-M5++xH5Tu/m3NNAc0+dBHidXfF6bTC08mfhQ3AB5UTonEzQSH9ASC/a7EbZN3WU5m0OWMTvf12GHVJZ3uUmPtA==",
+        "shasum": "f84ce4aee9ffc2d6eaad497178e0a996bc18433c",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.8.1.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.8.1",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.9.0": {
+      "name": "unrs-resolver",
+      "version": "1.9.0",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.9.0 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-wqaRu4UnzBD2ABTC1kLfBjAqIDZ5YUTr/MLGa7By47JV1bJDSW7jq/ZSLigB7enLe7ubNaJhtnBXgrc/50cEhg==",
+        "shasum": "22877e2e0f1ba3f848f75f7be5ecb81b634066dc",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.9.0.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.9.0",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.9.1": {
+      "name": "unrs-resolver",
+      "version": "1.9.1",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.9.1 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-4AZVxP05JGN6DwqIkSP4VKLOcwQa5l37SWHF/ahcuqBMbfxbpN1L1QKafEhWCziHhzKex9H/AR09H0OuVyU+9g==",
+        "shasum": "c3579abf32e48dbb1b429f4812196611afb021cf",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.9.1.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.9.1",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.9.2": {
+      "name": "unrs-resolver",
+      "version": "1.9.2",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.9.2 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-VUyWiTNQD7itdiMuJy+EuLEErLj3uwX/EpHQF8EOf33Dq3Ju6VW1GXm+swk6+1h7a49uv9fKZ+dft9jU7esdLA==",
+        "shasum": "1a7c73335a5e510643664d7bb4bb6f5c28782e36",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.9.2.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.9.2",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.10.0": {
+      "name": "unrs-resolver",
+      "version": "1.10.0",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.10.0 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-b0oxmThwVNYC+dyOCcHmkMpyO0t4RzIQCUZWD5wlgLcIzY2gBhvyXedodebESqSv7xsYTmi5Ky/4QYWj+IUOSg==",
+        "shasum": "62bb5fd9959fc5f91a6a54b3c4033631171273b7",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.10.0.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.10.0",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.10.1": {
+      "name": "unrs-resolver",
+      "version": "1.10.1",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.10.1 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-EFrL7Hw4kmhZdwWO3dwwFJo6hO3FXuQ6Bg8BK/faHZ9m1YxqBS31BNSTxklIQkxK/4LlV8zTYnPsIRLBzTzjCA==",
+        "shasum": "ac9a24c598cf43231f13db0ab8463430183b563f",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.10.1.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.10.1",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.11.0": {
+      "name": "unrs-resolver",
+      "version": "1.11.0",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.11.0 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-uw3hCGO/RdAEAb4zgJ3C/v6KIAFFOtBoxR86b2Ejc5TnH7HrhTWJR2o0A9ullC3eWMegKQCw/arQ/JivywQzkg==",
+        "shasum": "6c14cf04f44fc7117c84f9341115e180b99a44bb",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.11.0.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.11.0",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.11.1": {
+      "name": "unrs-resolver",
+      "version": "1.11.1",
+      "scripts": {
+        "postinstall": "napi-postinstall unrs-resolver 1.11.1 check"
+      },
+      "_npmUser": { "name": "jounqin" },
+      "dist": {
+        "integrity": "sha512-bSjt9pjaEBnNiGgc9rUiHGKv5l4/TGzDmYw3RhnkJGtLhbnnA/5qJj7x3dNDCRx/PJxu774LlH8lCOlB4hEfKg==",
+        "shasum": "be9cd8686c99ef53ecb96df2a473c64d304048a9",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.11.1.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.11.1",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.12.0": {
+      "name": "unrs-resolver",
+      "version": "1.12.0",
+      "scripts": { "postinstall": "node postinstall.js" },
+      "_npmUser": { "name": "GitHub Actions" },
+      "dist": {
+        "integrity": "sha512-hiJjN9x3O/SF2yGpNX7swfg24bi4t+uqEww16EeH9LT2I6mkGNf8uZvAS9PL1pvkA/fBagTaxbgHfYQPRfahuQ==",
+        "shasum": "a5f374edd63526fa9d98cc99a5106c12d8b0f02b",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.12.0.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.12.0",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.12.1": {
+      "name": "unrs-resolver",
+      "version": "1.12.1",
+      "scripts": { "postinstall": "node postinstall.js" },
+      "_npmUser": { "name": "GitHub Actions" },
+      "dist": {
+        "integrity": "sha512-LmOTmcBbFqxu1rzubnqHT6EZeqDYpenlGYwyFhHj7oc1HdyZE+0cLQ+s9SDSK+KKQQKuoJhUbzHQ89Ubwg2Oxg==",
+        "shasum": "a5322b37be7119528b9742ead43101b4f5c2d4e9",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.12.1.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.12.1",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "1.12.2": {
+      "name": "unrs-resolver",
+      "version": "1.12.2",
+      "scripts": { "postinstall": "node postinstall.js" },
+      "_npmUser": { "name": "GitHub Actions" },
+      "dist": {
+        "integrity": "sha512-dmlRxBJJayXjqTwC+JtF1HhJmgf3ftQ3YejFcZrf4+KKtJv0qDsK1pjqaaVjG7wJ5NJ6UVP1OqRMQ71Z4C3rxQ==",
+        "shasum": "a6c6888396abba5adaac4cab6587df866f1d7afd",
+        "tarball": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.12.2.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/unrs-resolver@1.12.2",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    }
+  }
+}

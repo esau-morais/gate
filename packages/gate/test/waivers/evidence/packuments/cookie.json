@@ -1,0 +1,210 @@
+{
+  "name": "cookie",
+  "time": {
+    "0.2.4": "2016-05-21T00:32:45.246Z",
+    "0.3.0": "2016-05-27T01:00:41.646Z",
+    "0.3.1": "2016-05-27T04:32:39.156Z",
+    "0.4.0": "2019-05-16T03:26:07.333Z",
+    "0.4.1": "2020-04-22T03:23:57.297Z",
+    "0.4.2": "2022-02-02T23:29:30.095Z",
+    "0.5.0": "2022-04-11T23:31:57.179Z",
+    "0.6.0": "2023-11-07T05:01:09.857Z",
+    "0.7.0": "2024-10-02T23:06:25.847Z",
+    "0.7.1": "2024-10-03T18:17:17.990Z",
+    "0.7.2": "2024-10-07T03:41:28.828Z"
+  },
+  "versions": {
+    "0.2.4": {
+      "name": "cookie",
+      "version": "0.2.4",
+      "scripts": {
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "test-ci": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
+        "test-cov": "istanbul cover node_modules/mocha/bin/_mocha -- --reporter dot --check-leaks test/"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-wQLxYCPiulwnfcvEZHF8YVj6cxvkpOBFgN1nL3Ukgh+D1+4A1SUKHdxR7h+T9kcuC54mFWoeZdnLT7ZeIC9Emw==",
+        "shasum": "a8c155aa7b9b2cf2c4d32ebc7b9a0aa288ccc6bd",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.2.4.tgz"
+      }
+    },
+    "0.3.0": {
+      "name": "cookie",
+      "version": "0.3.0",
+      "scripts": {
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "test-ci": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
+        "test-cov": "istanbul cover node_modules/mocha/bin/_mocha -- --reporter dot --check-leaks test/"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-hPRNPncC/li8RRZh6m5gPYf6f4CrDZK9+JFLAhHAKAxABwRPCcOy98DQ0W1mvSQCL1LlyNI5MsR981n6EqHCZw==",
+        "shasum": "a4bdd609d86748a5ce6c64d7ede6f4840ba434d8",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.3.0.tgz"
+      }
+    },
+    "0.3.1": {
+      "name": "cookie",
+      "version": "0.3.1",
+      "scripts": {
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "test-ci": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
+        "test-cov": "istanbul cover node_modules/mocha/bin/_mocha -- --reporter dot --check-leaks test/"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-+IJOX0OqlHCszo2mBUq+SrEbCj6w7Kpffqx60zYbPTFaO4+yYgRjHwcZNpWvaTylDHaV7PPmBHzSecZiMhtPgw==",
+        "shasum": "e7e0a1f9ef43b4c8ba925c5c5a96e806d16873bb",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.3.1.tgz"
+      }
+    },
+    "0.4.0": {
+      "name": "cookie",
+      "version": "0.4.0",
+      "scripts": {
+        "lint": "eslint --plugin markdown --ext js,md .",
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
+        "version": "node scripts/version-history.js && git add HISTORY.md",
+        "test-cov": "istanbul cover node_modules/mocha/bin/_mocha -- --reporter dot --check-leaks test/"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-+Hp8fLp57wnUSt0tY0tHEXh4voZRDnoIrZPqlo3DPiI4y9lwg/jqx+1Om94/W6ZaPDOUbnjOt/99w66zk+l1Xg==",
+        "shasum": "beb437e7022b3b6d49019d088665303ebe9c14ba",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.4.0.tgz"
+      }
+    },
+    "0.4.1": {
+      "name": "cookie",
+      "version": "0.4.1",
+      "scripts": {
+        "lint": "eslint --plugin markdown --ext js,md .",
+        "test": "mocha --reporter spec --bail --check-leaks --ui qunit test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "nyc --reporter=text npm test",
+        "version": "node scripts/version-history.js && git add HISTORY.md",
+        "test-cov": "nyc --reporter=html --reporter=text npm test"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-ZwrFkGJxUR3EIoXtO+yVE69Eb7KlixbaeAWfBQB9vVsNn/o+Yw69gBWSSDK825hQNdN+wF8zELf3dFNl/kxkUA==",
+        "shasum": "afd713fe26ebd21ba95ceb61f9a8116e50a537d1",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.4.1.tgz"
+      }
+    },
+    "0.4.2": {
+      "name": "cookie",
+      "version": "0.4.2",
+      "scripts": {
+        "lint": "eslint .",
+        "test": "mocha --reporter spec --bail --check-leaks --ui qunit test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "nyc --reporter=lcov --reporter=text npm test",
+        "version": "node scripts/version-history.js && git add HISTORY.md",
+        "test-cov": "nyc --reporter=html --reporter=text npm test",
+        "update-bench": "node scripts/update-benchmark.js"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-aSWTXFzaKWkvHO1Ny/s+ePFpvKsPnjc551iI41v3ny/ow6tBG5Vd+FuqGNhh1LxOmVzOlGUriIlOaokOvhaStA==",
+        "shasum": "0e41f24de5ecf317947c82fc789e06a884824432",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.4.2.tgz"
+      }
+    },
+    "0.5.0": {
+      "name": "cookie",
+      "version": "0.5.0",
+      "scripts": {
+        "lint": "eslint .",
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "nyc --reporter=lcov --reporter=text npm test",
+        "version": "node scripts/version-history.js && git add HISTORY.md",
+        "test-cov": "nyc --reporter=html --reporter=text npm test",
+        "update-bench": "node scripts/update-benchmark.js"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-YZ3GUyn/o8gfKJlnlX7g7xq4gyO6OSuhGPKaaGssGB2qgDUS0gPgtTvoyZLTt9Ab6dC4hfc9dV5arkvc/OCmrw==",
+        "shasum": "d1f5d71adec6558c58f389987c366aa47e994f8b",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.5.0.tgz"
+      }
+    },
+    "0.6.0": {
+      "name": "cookie",
+      "version": "0.6.0",
+      "scripts": {
+        "lint": "eslint .",
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "nyc --reporter=lcov --reporter=text npm test",
+        "version": "node scripts/version-history.js && git add HISTORY.md",
+        "test-cov": "nyc --reporter=html --reporter=text npm test",
+        "update-bench": "node scripts/update-benchmark.js"
+      },
+      "_npmUser": { "name": "dougwilson" },
+      "dist": {
+        "integrity": "sha512-U71cyTamuh1CRNCfpGY6to28lxvNwPG4Guz/EVjgf3Jmzv0vlDp1atT9eS5dDjMYHucpHbWns6Lwf3BKz6svdw==",
+        "shasum": "2798b04b071b0ecbff0dbb62a505a8efa4e19051",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.6.0.tgz"
+      }
+    },
+    "0.7.0": {
+      "name": "cookie",
+      "version": "0.7.0",
+      "scripts": {
+        "lint": "eslint .",
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "nyc --reporter=lcov --reporter=text npm test",
+        "test-cov": "nyc --reporter=html --reporter=text npm test",
+        "update-bench": "node scripts/update-benchmark.js"
+      },
+      "_npmUser": { "name": "blakeembrey" },
+      "dist": {
+        "integrity": "sha512-qCf+V4dtlNhSRXGAZatc1TasyFO6GjohcOul807YOb5ik3+kQSnb4d7iajeCL8QHaJ4uZEjCgiCJerKXwdRVlQ==",
+        "shasum": "2148f68a77245d5c2c0005d264bc3e08cfa0655d",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.7.0.tgz"
+      }
+    },
+    "0.7.1": {
+      "name": "cookie",
+      "version": "0.7.1",
+      "scripts": {
+        "lint": "eslint .",
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "nyc --reporter=lcov --reporter=text npm test",
+        "test-cov": "nyc --reporter=html --reporter=text npm test",
+        "update-bench": "node scripts/update-benchmark.js"
+      },
+      "_npmUser": { "name": "blakeembrey" },
+      "dist": {
+        "integrity": "sha512-6DnInpx7SJ2AK3+CTUE/ZM0vWTUboZCegxhC2xiIydHR9jNuTAASBrfEpHhiGOZw/nX51bHt6YQl8jsGo4y/0w==",
+        "shasum": "2f73c42142d5d5cf71310a74fc4ae61670e5dbc9",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.7.1.tgz"
+      }
+    },
+    "0.7.2": {
+      "name": "cookie",
+      "version": "0.7.2",
+      "scripts": {
+        "lint": "eslint .",
+        "test": "mocha --reporter spec --bail --check-leaks test/",
+        "bench": "node benchmark/index.js",
+        "test-ci": "nyc --reporter=lcov --reporter=text npm test",
+        "test-cov": "nyc --reporter=html --reporter=text npm test",
+        "update-bench": "node scripts/update-benchmark.js"
+      },
+      "_npmUser": { "name": "blakeembrey" },
+      "dist": {
+        "integrity": "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==",
+        "shasum": "556369c472a2ba910f2979891b526b3436237ed7",
+        "tarball": "https://registry.npmjs.org/cookie/-/cookie-0.7.2.tgz"
+      }
+    }
+  }
+}
