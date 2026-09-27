@@ -75,7 +75,7 @@ v2 misses the budget on all 10. v3 meets it on otel-js, checkout and pdf.js. It 
 - New publishers less than 90 days old. TypeScript 7.0.2 and 20 `@typescript/typescript-*` packages came from `microsoft1es` instead of `typescript-deploys` on 2026-07-08, and they clear on 2026-10-06. The others are picomatch 4.0.5, @devcontainers/cli 0.88.0, @vscode/gulp-vinyl-zip 2.7.0, @jest/get-type 30.5.0 and process-warning 5.1.0.
 - `publisher_recent` less than 90 days old: conventional-changelog-preset-loader 6.0.1, conventional-commits-filter 6.0.1 and @npmcli/arborist 9.9.1.
 - 8 new or changed install hooks, including core-js 3.50.0, protobufjs 7.6.6 and es5-ext 0.10.64.
-- Unknown evidence: 6 versions whose earlier documents lack `_npmUser`, own-keys 1.0.1, whatwg-url 17.1.1's missing attestation, and @tufjs/canonical-json 2.0.0 until gate reads identities from the SAN URI.
+- Unknown evidence: 6 versions whose earlier documents lack `_npmUser`, own-keys 1.0.1, whatwg-url 17.1.1's missing attestation, and @tufjs/canonical-json 2.0.0, which gate reads since [SLSA v0.2 provenance](REVIEW.md#slsa-v02-provenance).
 - fsevents' `feeds_unavailable`.
 
 At this size, 1% of a 99-node repository is zero nodes, and one publisher switch at Microsoft quarantines 21. Counting distinct packages per repository may suit the budget better.
