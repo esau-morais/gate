@@ -277,6 +277,24 @@ describe('SupplyChainPolicy/v3', () => {
     ).toMatchObject({ outcome: 'ACCEPT', reasons: [] });
   });
 
+  test('an account that joined recently is found past a removed version', () => {
+    expect(
+      codes(
+        decideV3({
+          publisher: {
+            kind: 'unknown',
+            reason: 'an earlier version was removed',
+          },
+          publisherExcludingRemoved: {
+            kind: 'continuous',
+            identity: account,
+            joinedAt: hours(24 * 33),
+          },
+        }),
+      ),
+    ).toEqual(['publisher_recent']);
+  });
+
   test('unknown history without removed versions still quarantines', () => {
     expect(
       codes(
@@ -359,13 +377,21 @@ describe('SupplyChainPolicy/v3', () => {
     const unknownTime = {
       publishTime: { kind: 'unknown', reason: 'missing' },
     } as const;
+    const fired = (decision: ReturnType<typeof decide>) =>
+      decision.reasons.map((reason) => [reason.kind, reason.code]).toSorted();
 
     expect(
-      codes(decideV3({ ...changed('unchecked'), ...unknownTime })),
-    ).toEqual(['publish_time_unknown', 'publisher_changed']);
+      fired(decideV3({ ...changed('unchecked'), ...unknownTime })),
+    ).toEqual([
+      ['fired', 'publish_time_unknown'],
+      ['fired', 'publisher_changed'],
+    ]);
     expect(
-      codes(decideV3({ provenance: { kind: 'absent' }, ...unknownTime })),
-    ).toEqual(['publish_time_unknown', 'trust_downgrade']);
+      fired(decideV3({ provenance: { kind: 'absent' }, ...unknownTime })),
+    ).toEqual([
+      ['fired', 'publish_time_unknown'],
+      ['fired', 'trust_downgrade'],
+    ]);
   });
 
   test('a trust downgrade still counts versions npm removed', () => {
