@@ -185,6 +185,7 @@ try {
     fileURLToPath(evidenceDir),
     '--at',
     '2026-09-23T12:17:15Z',
+    '--json',
   ];
   const runPnpm = (runtime: readonly string[]) =>
     Bun.spawnSync([...runtime, ...pnpmArgs], {

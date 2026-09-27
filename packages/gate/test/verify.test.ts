@@ -284,7 +284,16 @@ describe('pnpm-lock.yaml', () => {
   const viteAt = '2026-09-23T12:17:15Z';
   const vue = recordedPnpmLockPath('vuejs-core');
   const verifyAt = (lockfile: string, at = viteAt) =>
-    raw(['verify', '--lockfile', lockfile, '--evidence', evidence, '--at', at]);
+    raw([
+      'verify',
+      '--lockfile',
+      lockfile,
+      '--evidence',
+      evidence,
+      '--at',
+      at,
+      '--json',
+    ]);
   const decodeLine = Schema.decodeUnknownSync(
     Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
   );
@@ -310,9 +319,12 @@ describe('pnpm-lock.yaml', () => {
     try {
       copyFileSync(vue, join(dir, 'pnpm-lock.yaml'));
       const explicit = verifyAt(vue);
-      const implicit = raw(['verify', '--evidence', evidence, '--at', viteAt], {
-        cwd: dir,
-      });
+      const implicit = raw(
+        ['verify', '--evidence', evidence, '--at', viteAt, '--json'],
+        {
+          cwd: dir,
+        },
+      );
 
       expect(implicit.stderr).toBe('');
       expect(explicit.stdout).not.toBe('');
