@@ -1,9 +1,19 @@
 import { Option, Schema } from 'effect';
 import { AllowedSource, Waiver, type DecisionContext } from '../context';
 import type { Identity, PackageVersionEvidence } from '../evidence';
-import { decide, type Outcome, type Policy, type Reason } from '../policy';
+import {
+  decide,
+  waiverNames,
+  type Outcome,
+  type Policy,
+  type Reason,
+} from '../policy';
 import { inert, inertJson, type Style } from '../terminal';
-import { isEvidenceName, type FetchGaps } from './evidence-directory';
+import {
+  isEvidenceName,
+  type FetchGap,
+  type FetchGaps,
+} from './evidence-directory';
 import type { LockfileNode, LockfileSource } from './lockfile';
 import type { VerifyRecord } from './verify';
 
@@ -50,6 +60,13 @@ const rejectSteps: Readonly<Record<string, string>> = {
     "Don't install it. Find out why the bytes differ before you regenerate the entry.",
 };
 
+function ownEntry(
+  table: Readonly<Record<string, string>>,
+  key: string,
+): string | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined;
+}
+
 const waiverDays = 30;
 const horizonMs = 3650 * 86_400_000;
 const missingFromDirectory = [
@@ -61,6 +78,7 @@ const missingFromDirectory = [
   /^OSV snapshot from .* is more than a day old$/,
 ];
 const removedDocument = 'version document missing';
+const httpNotFound = 'HTTP 404';
 const provenanceFiles = ['trusted_root.json'];
 const severity: Record<Shown, number> = { REJECT: 0, QUARANTINE: 1 };
 
@@ -184,37 +202,22 @@ function stopsFiring(
   return new Date(high);
 }
 
-type Gap = { readonly path: string; readonly reason: string };
-
-function parseGap(gap: string): Gap {
-  const cut = gap.indexOf(': ');
-
-  return cut === -1
-    ? { path: gap, reason: '' }
-    : {
-        path: gap.slice(0, cut),
-        reason: gap.slice(cut + 2).replace(/^https?:\/\/\S+: /, ''),
-      };
-}
-
 function gapsFor(
   gaps: FetchGaps,
   name: string,
   shared: readonly string[],
-): readonly Gap[] {
+): readonly FetchGap[] {
   if (gaps.kind === 'unlisted') {
     return [];
   }
 
-  return gaps.gaps
-    .map(parseGap)
-    .filter(
-      ({ path }) =>
-        path === `packuments/${name}.json` ||
-        path === `attestations/${name}` ||
-        path.startsWith(`attestations/${name}@`) ||
-        shared.includes(path),
-    );
+  return gaps.gaps.filter(
+    ({ path }) =>
+      path === `packuments/${name}.json` ||
+      path === `attestations/${name}` ||
+      path.startsWith(`attestations/${name}@`) ||
+      shared.includes(path),
+  );
 }
 
 function rerun(
@@ -225,7 +228,7 @@ function rerun(
 ): string {
   const { name } = evidence.subject;
   const gaps = gapsFor(input.gaps, name, shared);
-  const failed = gaps.find((gap) => !/\bHTTP 404$/.test(gap.reason));
+  const failed = gaps.find((gap) => gap.reason !== httpNotFound);
   if (failed !== undefined) {
     const more = gaps.length > 1 ? ` and ${gaps.length - 1} more` : '';
 
@@ -238,10 +241,6 @@ function rerun(
   }
 
   const { provenance, source } = evidence;
-  if (source.kind !== 'registry') {
-    return `rerun: won't help, gate reads no registry evidence for a ${source.kind} source`;
-  }
-
   if (
     reason === removedDocument ||
     (provenance.kind === 'unavailable' && provenance.reason === removedDocument)
@@ -256,6 +255,10 @@ function rerun(
     return isEvidenceName(name)
       ? 'rerun: can fix this, gate verify without --evidence fetches it'
       : `rerun: won't help, ${name} is not a valid npm package name`;
+  }
+
+  if (source.kind !== 'registry') {
+    return `rerun: won't help, gate reads no registry evidence for a ${source.kind} source`;
   }
 
   return input.gaps.kind === 'listed'
@@ -280,24 +283,19 @@ function waiverLines(input: Input, record: Decided, code: string): Line[] {
     return [text('no waiver can be written: the node has no version')];
   }
 
-  const near = input.context.waivers.flatMap((waiver): Line[] => {
-    if (
-      waiver.policy !== input.policy.ref.id ||
-      waiver.rule !== code ||
-      waiver.package !== subject.name ||
-      waiver.version !== subject.version
-    ) {
-      return [];
-    }
-
-    return [
-      text(
-        waiver.integrity === source.integrity
-          ? `the waiver in --context expired at ${waiver.expiresAt.toISOString()}`
-          : `the waiver in --context pins other bytes (${waiver.integrity})`,
-      ),
-    ];
-  });
+  const expired = input.context.waivers.flatMap((waiver): Line[] =>
+    waiverNames(waiver, {
+      policy: input.policy.ref,
+      code,
+      evidence: record.evidence,
+    }) && record.at >= waiver.expiresAt
+      ? [
+          text(
+            `the waiver in --context expired at ${waiver.expiresAt.toISOString()}`,
+          ),
+        ]
+      : [],
+  );
   const raw = {
     policy: input.policy.ref.id,
     package: subject.name,
@@ -313,7 +311,7 @@ function waiverLines(input: Input, record: Decided, code: string): Line[] {
   const waiver = Option.getOrUndefined(decodeWaiver(raw));
   if (waiver === undefined) {
     return [
-      ...near,
+      ...expired,
       text('no waiver can be written: the node does not fit the waiver schema'),
     ];
   }
@@ -326,7 +324,7 @@ function waiverLines(input: Input, record: Decided, code: string): Line[] {
   });
 
   return [
-    ...near,
+    ...expired,
     { kind: 'json', label: `waiver (then ${outcomeAfter(after)})`, value: raw },
   ];
 }
@@ -377,7 +375,7 @@ function integrityDetail(
   if (lockSource?.kind === 'registry' && lockSource.integrity === null) {
     return {
       evidence: 'the lockfile entry has no sha512 integrity',
-      step: 'npm keeps a missing integrity when it rewrites the lockfile. Remove these entries from package-lock.json and run npm install --package-lock-only to record it.',
+      step: 'npm keeps a missing or sha1 integrity when it rewrites the lockfile. Remove these entries from package-lock.json and run npm install --package-lock-only to record their sha512.',
       own: [],
     };
   }
@@ -581,7 +579,7 @@ function waivable(policy: Policy, code: string): boolean {
 
 function ruleStep(input: Input, code: string, outcome: Shown): string {
   if (outcome === 'REJECT') {
-    return rejectSteps[code] ?? 'No waiver exists for a REJECT rule.';
+    return ownEntry(rejectSteps, code) ?? 'No waiver exists for a REJECT rule.';
   }
 
   if (waivable(input.policy, code)) {
@@ -625,9 +623,7 @@ function renderGroup(
 ): string[] {
   const { style } = input;
   const { code, outcome, items } = group;
-  const meaning = Object.hasOwn(ruleMeanings, code)
-    ? ruleMeanings[code]
-    : undefined;
+  const meaning = ownEntry(ruleMeanings, code);
   const lines = [
     `${style.outcome(outcome, outcome)} ${style.strong(inert(code))}  ${plural(items.length, 'node')}`,
     ...(meaning === undefined ? [] : [`  ${meaning}`]),
@@ -796,11 +792,15 @@ export function humanReport(input: Input): string {
   const failing =
     records.length -
     decided.filter((record) => record.outcome === 'ACCEPT').length;
-  lines.push(
-    failing === 0
-      ? 'Every node is ACCEPT.'
-      : `${plural(failing, 'node is', 'nodes are')} not ACCEPT, so gate verify exits 1. gate verify --json prints the full decision records.`,
-  );
+  if (records.length === 0) {
+    lines.push('No nodes to check.');
+  } else if (failing === 0) {
+    lines.push('Every node is ACCEPT.');
+  } else {
+    lines.push(
+      `${plural(failing, 'node is', 'nodes are')} not ACCEPT, so gate verify exits 1. gate verify --json prints the full decision records.`,
+    );
+  }
 
   return `${lines.join('\n')}\n`;
 }

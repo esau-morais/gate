@@ -1,11 +1,12 @@
-import { describe, expect, test } from 'bun:test';
+import { beforeAll, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Schema } from 'effect';
-import { Waiver } from '../src/context';
+import { AllowedSource, Waiver } from '../src/context';
 import { evidenceDir } from './verify/cases';
+import { unsafe } from './support/unsafe';
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 const waiverLock = fileURLToPath(
@@ -45,6 +46,7 @@ const JsonReason = Schema.Struct({ kind: Schema.String, code: Schema.String });
 const JsonLine = Schema.fromJsonString(
   Schema.Struct({
     path: Schema.String,
+    dependency: Schema.optionalKey(Schema.String),
     outcome: Schema.String,
     reasons: Schema.Array(JsonReason),
   }),
@@ -70,8 +72,6 @@ function printedWaivers(stdout: string) {
   });
 }
 
-const unsafe = /(?!\n)[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
-
 describe('printed waivers', () => {
   const args = [
     'verify',
@@ -82,7 +82,10 @@ describe('printed waivers', () => {
     '--at',
     waiverAt,
   ];
-  const human = gate(args);
+  let human = { exitCode: 0, stdout: '', stderr: '' };
+  beforeAll(() => {
+    human = gate(args);
+  });
 
   for (const [rule, name] of [
     ['publisher_changed', 'encodeurl'],
@@ -123,6 +126,79 @@ describe('printed waivers', () => {
       }
     });
   }
+});
+
+const decodeAllowed = Schema.decodeUnknownSync(
+  Schema.fromJsonString(AllowedSource),
+);
+
+test('the printed allowedSources entry decodes and clears exotic_source', () => {
+  const args = [
+    'verify',
+    '--lockfile',
+    tanstackLock,
+    '--evidence',
+    fileURLToPath(evidenceDir),
+    '--at',
+    '2026-05-11T20:14:12Z',
+  ];
+  const text = /^\s+allow[^:]*: (\{.*\})$/m.exec(gate(args).stdout)?.[1];
+  if (text === undefined) {
+    throw new Error('no allowedSources entry printed');
+  }
+
+  expect(decodeAllowed(text).name).toBe('@tanstack/setup');
+  const dir = mkdtempSync(join(tmpdir(), 'gate-allow-'));
+  try {
+    const context = join(dir, 'context.json');
+    writeFileSync(context, `{"allowedSources": [${text}], "waivers": []}`);
+    const edge = decisions(
+      gate([...args, '--json', '--context', context]).stdout,
+    ).find((line) => line.dependency === '@tanstack/setup');
+
+    expect(edge?.reasons).toEqual([
+      { kind: 'fired', code: 'install_scripts_unknown' },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+describe('lockfile shapes', () => {
+  function verifyLock(lock: unknown) {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-shape-'));
+    try {
+      const lockfile = join(dir, 'package-lock.json');
+      writeFileSync(lockfile, JSON.stringify(lock));
+
+      return gate([
+        'verify',
+        '--lockfile',
+        lockfile,
+        '--evidence',
+        fileURLToPath(evidenceDir),
+        '--at',
+        '2026-09-26T00:00:00Z',
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  test('an unsupported lockfile prints an UNREADABLE block and exits 1', () => {
+    const run = verifyLock({ lockfileVersion: 1, dependencies: {} });
+
+    expect(run.stdout).toContain('UNREADABLE  1 lockfile entry');
+    expect(run.stdout).toContain('not a package-lock.json v2 or v3');
+    expect(run.exitCode).toBe(1);
+  });
+
+  test('a lockfile with no nodes says there is nothing to check', () => {
+    const run = verifyLock({ lockfileVersion: 3, packages: { '': {} } });
+
+    expect(run.stdout).toContain('No nodes to check.');
+    expect(run.exitCode).toBe(0);
+  });
 });
 
 describe('release_age', () => {

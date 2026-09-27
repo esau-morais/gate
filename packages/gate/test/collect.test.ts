@@ -11,7 +11,10 @@ import { join } from 'node:path';
 import { Schema } from 'effect';
 import { noContext } from '../src/context';
 import { collectEvidence } from '../src/npm/collect';
-import { readEvidenceDirectory } from '../src/npm/evidence-directory';
+import {
+  readEvidenceDirectory,
+  readFetchGaps,
+} from '../src/npm/evidence-directory';
 import { readPackageLock, type LockfileNode } from '../src/npm/lockfile';
 import { maliciousPackagesUrl } from '../src/npm/malware-feed';
 import { feedsFor } from '../src/npm/osv';
@@ -265,6 +268,15 @@ describe('malware feed', () => {
     expect(sourcesOf(collected.dir).gaps).toEqual([
       'osv/: malicious-packages snapshot: HTTP 429 after 3 attempts',
     ]);
+    expect(readFetchGaps(collected.dir)).toEqual({
+      kind: 'listed',
+      gaps: [
+        {
+          path: 'osv/',
+          reason: 'malicious-packages snapshot: HTTP 429 after 3 attempts',
+        },
+      ],
+    });
     expect(decide(collected.dir, viteNodes(), viteAt).nodes).toEqual([
       {
         path: 'node_modules/vite',
@@ -435,6 +447,16 @@ describe('registry cache', () => {
     expect(sourcesOf(collected.dir).gaps).toEqual([
       `packuments/${name}.json: ${packumentUrl(name)}: HTTP 404`,
     ]);
+    expect(readFetchGaps(collected.dir)).toEqual({
+      kind: 'listed',
+      gaps: [
+        {
+          path: `packuments/${name}.json`,
+          url: packumentUrl(name),
+          reason: 'HTTP 404',
+        },
+      ],
+    });
     expect(decide(collected.dir, nodes, collectedAt).nodes).toEqual([
       {
         path: `node_modules/${name}`,

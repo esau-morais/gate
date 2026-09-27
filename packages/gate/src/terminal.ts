@@ -35,15 +35,15 @@ const named: Readonly<Record<string, string>> = {
   '\r': '\\r',
 };
 
-function codePoint(char: string): number {
-  return char.codePointAt(0) ?? 0;
-}
-
 function hex(char: string): string {
-  const code = codePoint(char);
+  const code = char.codePointAt(0) ?? 0;
 
-  return code < 0x100
-    ? `\\x${code.toString(16).padStart(2, '0')}`
+  if (code < 0x100) {
+    return `\\x${code.toString(16).padStart(2, '0')}`;
+  }
+
+  return code > 0xffff
+    ? `\\u{${code.toString(16)}}`
     : `\\u${code.toString(16).padStart(4, '0')}`;
 }
 
@@ -54,19 +54,23 @@ export function inert(text: string): string {
 }
 
 export function inertJson(value: unknown): string {
-  return JSON.stringify(value).replaceAll(
-    unprintable,
-    (char) => `\\u${codePoint(char).toString(16).padStart(4, '0')}`,
+  return JSON.stringify(value).replaceAll(unprintable, (char) =>
+    char
+      .split('')
+      .map((unit) => `\\u${unit.charCodeAt(0).toString(16).padStart(4, '0')}`)
+      .join(''),
   );
 }
+
+const forcing = new Set(['', '1', 'true', '2', '3']);
 
 export function colorEnabled(input: {
   isTTY: boolean | undefined;
   env: Readonly<Record<string, string | undefined>>;
 }): boolean {
   const { FORCE_COLOR: force, NO_COLOR: no, TERM: term } = input.env;
-  if (force !== undefined && force !== '') {
-    return force !== '0' && force !== 'false';
+  if (force !== undefined) {
+    return forcing.has(force);
   }
 
   if (no !== undefined && no !== '') {

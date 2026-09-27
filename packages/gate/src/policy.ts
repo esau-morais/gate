@@ -206,6 +206,22 @@ export function loadPolicy(bytes: Uint8Array, digest: PolicyDigest): Policy {
   };
 }
 
+export function waiverNames(
+  waiver: Waiver,
+  target: { policy: PolicyRef; code: string; evidence: PackageVersionEvidence },
+): boolean {
+  const { subject, source } = target.evidence;
+
+  return (
+    source.integrity !== null &&
+    waiver.policy === target.policy.id &&
+    waiver.rule === target.code &&
+    waiver.package === subject.name &&
+    waiver.version === subject.version &&
+    waiver.integrity === source.integrity
+  );
+}
+
 function findWaiver(
   policy: PolicyRef,
   rule: Rule,
@@ -213,18 +229,13 @@ function findWaiver(
   now: Date,
   waivers: readonly Waiver[],
 ): Waiver | undefined {
-  const { integrity } = evidence.source;
-  if (!rule.waivable || integrity === null) {
+  if (!rule.waivable) {
     return undefined;
   }
 
   return waivers.find(
     (waiver) =>
-      waiver.policy === policy.id &&
-      waiver.rule === rule.code &&
-      waiver.package === evidence.subject.name &&
-      waiver.version === evidence.subject.version &&
-      waiver.integrity === integrity &&
+      waiverNames(waiver, { policy, code: rule.code, evidence }) &&
       now < waiver.expiresAt,
   );
 }
