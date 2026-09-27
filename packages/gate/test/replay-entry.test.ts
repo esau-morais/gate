@@ -12,6 +12,7 @@ import { replayEntry } from '../src/replay';
 import {
   loadSupplyChainPolicyV1,
   loadSupplyChainPolicyV2,
+  loadSupplyChainPolicyV3,
 } from './support/policies';
 
 const at = new Date('2026-01-02T01:00:00.000Z');
@@ -61,8 +62,12 @@ const included = (logged: DecisionRecord) => ({
 });
 const policies = pinnedPolicies();
 
-test('a decision logged under v1 or v2 replays under the policy its digest names', () => {
-  for (const policy of [loadSupplyChainPolicyV1(), loadSupplyChainPolicyV2()]) {
+test('a decision logged under v1, v2 or v3 replays under the policy its digest names', () => {
+  for (const policy of [
+    loadSupplyChainPolicyV1(),
+    loadSupplyChainPolicyV2(),
+    loadSupplyChainPolicyV3(),
+  ]) {
     const result = replayEntry(included(record(policy)), policies);
 
     expect(result).toMatchObject({ index: 0, result: 'match' });

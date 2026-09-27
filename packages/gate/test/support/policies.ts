@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import {
   supplyChainPolicyV1Digest,
   supplyChainPolicyV2Digest,
+  supplyChainPolicyV3Digest,
 } from '../../src/policies';
 import { loadPolicy } from '../../src/policy';
 
@@ -27,4 +28,16 @@ export const supplyChainPolicyV2 = {
 
 export function loadSupplyChainPolicyV2() {
   return loadPolicy(supplyChainPolicyV2.bytes(), supplyChainPolicyV2.digest);
+}
+
+export const supplyChainPolicyV3 = {
+  bytes: (): Uint8Array =>
+    readFileSync(
+      new URL('../../policies/supply-chain-policy-v3.json', import.meta.url),
+    ),
+  digest: supplyChainPolicyV3Digest,
+};
+
+export function loadSupplyChainPolicyV3() {
+  return loadPolicy(supplyChainPolicyV3.bytes(), supplyChainPolicyV3Digest);
 }

@@ -18,6 +18,7 @@ import {
   evidenceDir,
   expectedNodes,
   loadVerifyCases,
+  type NodeSummary,
   summarizeOutput,
   verifyArgs,
 } from './verify/cases';
@@ -31,6 +32,27 @@ import { readLog } from '../src/log/log';
 import { parseVerifierKey } from '../src/log/note';
 import { decodeRecord, lockfileDigest } from '../src/record';
 import { recordedLock, recordedLockPath, type Lock } from './workspaces/locks';
+import {
+  loadSupplyChainPolicyV1,
+  loadSupplyChainPolicyV2,
+  loadSupplyChainPolicyV3,
+} from './support/policies';
+import { noContext } from '../src/context';
+import { PolicyRef } from '../src/policy';
+import { readEvidenceDirectory } from '../src/npm/evidence-directory';
+import { readPackageLock } from '../src/npm/lockfile';
+import { verifyNodes } from '../src/npm/verify';
+
+const pinned = [
+  loadSupplyChainPolicyV1(),
+  loadSupplyChainPolicyV2(),
+  loadSupplyChainPolicyV3(),
+];
+const decodePolicies = Schema.decodeUnknownSync(
+  Schema.fromJsonString(
+    Schema.Struct({ policies: Schema.NonEmptyArray(PolicyRef) }),
+  ),
+);
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 
@@ -74,9 +96,67 @@ for (const { name, dir, fixture } of loadVerifyCases()) {
         expect(run.nodes).toEqual(expectedNodes(evaluation));
         expect(run.exitCode).toBe(evaluation.exitCode);
       });
+
+      test.each(pinned.map((policy) => [policy.ref.id, policy] as const))(
+        `${evaluation.moment} (%s)`,
+        (_, policy) => {
+          const lock = readPackageLock(
+            readFileSync(new URL(fixture.lockfile, dir), 'utf8'),
+          );
+          if (lock.kind !== 'read') {
+            throw new Error(lock.error);
+          }
+
+          const nodes = verifyNodes({
+            nodes: lock.nodes,
+            store: readEvidenceDirectory(fileURLToPath(evidenceDir)),
+            at: evaluation.at,
+            policy,
+            context: noContext,
+          }).map((record): NodeSummary => {
+            const location =
+              record.dependency === undefined
+                ? { path: record.path }
+                : { path: record.path, dependency: record.dependency };
+
+            return record.kind === 'decision'
+              ? {
+                  ...location,
+                  outcome: record.outcome,
+                  reasons: record.reasons
+                    .map((reason) => reason.code)
+                    .toSorted(),
+                }
+              : { ...location, unreadable: record.error };
+          });
+
+          expect(nodes).toEqual(expectedNodes(evaluation));
+        },
+      );
     }
   });
 }
+
+test('gate verify decides under SupplyChainPolicy/v3', () => {
+  const vite = loadVerifyCases().find(
+    ({ name }) => name === 'vite-8.3.0-benign',
+  );
+  if (vite === undefined) {
+    throw new Error('the vite lockfile case is missing');
+  }
+
+  const [evaluation] = vite.fixture.evaluations;
+  const run = raw(verifyArgs(vite.dir, vite.fixture, evaluation));
+  const policies = run.stdout
+    .split('\n')
+    .filter((line) => line !== '')
+    .map((line) => decodePolicies(line).policies);
+
+  expect(policies.length).toBeGreaterThan(0);
+  for (const refs of policies) {
+    expect(refs).toEqual([loadSupplyChainPolicyV3().ref]);
+  }
+});
 
 test('an unsupported lockfile version exits non-zero with an unreadable record', () => {
   const dir = mkdtempSync(join(tmpdir(), 'gate-verify-'));

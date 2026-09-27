@@ -3,6 +3,7 @@ import { Sha512Integrity, type Provenance } from '../evidence';
 import { UtcTimestamp } from '../time';
 import type { NpmVersionFacts } from './facts';
 import { verifyNpmProvenance, type TrustRoot } from './provenance';
+import { repositoryName } from './repository';
 
 export type PackumentFacts =
   | {
@@ -33,15 +34,36 @@ const VersionDocument = Schema.Struct({
   _npmUser: Schema.optionalKey(Schema.Struct({ name: Schema.NonEmptyString })),
   scripts: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
   gypfile: Schema.optionalKey(Schema.Boolean),
+  repository: Schema.optionalKey(Schema.Unknown),
 });
 type VersionDocument = typeof VersionDocument.Type;
+
+const RepositoryUrl = Schema.Union([
+  Schema.NonEmptyString,
+  Schema.Struct({ url: Schema.NonEmptyString }),
+]);
 
 const decodePackument = Schema.decodeUnknownResult(Packument);
 const decodeVersion = Schema.decodeUnknownOption(VersionDocument);
 const decodeTime = Schema.decodeUnknownOption(UtcTimestamp);
 const decodeSha512 = Schema.decodeUnknownOption(Sha512Integrity);
+const decodeRepositoryUrl = Schema.decodeUnknownOption(RepositoryUrl);
 
 type Published = { readonly version: string; readonly time: Date };
+
+function declaredRepository(
+  doc: VersionDocument,
+): Pick<NpmVersionFacts, 'repository'> {
+  if (!Object.hasOwn(doc, 'repository')) {
+    return {};
+  }
+
+  const declared = Option.getOrUndefined(decodeRepositoryUrl(doc.repository));
+  const url = typeof declared === 'string' ? declared : declared?.url;
+  const name = url === undefined ? undefined : repositoryName(url);
+
+  return { repository: name ?? 'unknown' };
+}
 
 function installScripts(doc: VersionDocument): Record<string, string> {
   const scripts = doc.scripts ?? {};
@@ -125,6 +147,7 @@ function versionFacts(
       },
       npmUser: null,
       scripts: 'unknown',
+      ...(raw === undefined ? { removed: true } : {}),
     };
   }
 
@@ -136,6 +159,7 @@ function versionFacts(
     provenance: provenanceFacts(doc, integrity, sources),
     npmUser: doc._npmUser?.name ?? null,
     scripts: installScripts(doc),
+    ...declaredRepository(doc),
   };
 }
 

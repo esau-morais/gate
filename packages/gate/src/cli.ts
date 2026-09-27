@@ -437,7 +437,7 @@ const verify = Command.make(
     }),
 ).pipe(
   Command.withDescription(
-    'Decide every package-lock.json or pnpm-lock.yaml node against SupplyChainPolicy/v2 from recorded or freshly fetched evidence',
+    'Decide every package-lock.json or pnpm-lock.yaml node against SupplyChainPolicy/v3 from recorded or freshly fetched evidence',
   ),
 );
 

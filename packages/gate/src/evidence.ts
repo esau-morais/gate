@@ -51,6 +51,30 @@ const Unknown = Schema.Struct({
   reason: Text,
 });
 
+const EarlierProvenance = Schema.Literals(['some', 'none', 'unknown']);
+
+export const RepositoryCheck = Schema.Literals([
+  'matched',
+  'mismatched',
+  'unchecked',
+]);
+export type RepositoryCheck = typeof RepositoryCheck.Type;
+
+const Continuous = Schema.Struct({
+  kind: Schema.Literal('continuous'),
+  identity: Identity,
+  joinedAt: Schema.optionalKey(Schema.Date),
+});
+const First = Schema.Struct({
+  kind: Schema.Literal('first'),
+  identity: Identity,
+});
+const Changed = Schema.Struct({
+  kind: Schema.Literal('changed'),
+  identity: Identity,
+  earlier: Schema.NonEmptyArray(Identity),
+});
+
 export const PackageVersionEvidence = Schema.Struct({
   subject: Schema.Struct({
     ecosystem: Schema.Literal('npm'),
@@ -74,21 +98,20 @@ export const PackageVersionEvidence = Schema.Struct({
     Unknown,
   ]),
   provenance: Provenance,
-  earlierProvenance: Schema.Literals(['some', 'none', 'unknown']),
-  publisher: Schema.Union([
-    Schema.Struct({
-      kind: Schema.Literal('continuous'),
-      identity: Identity,
-      joinedAt: Schema.optionalKey(Schema.Date),
-    }),
-    Schema.Struct({ kind: Schema.Literal('first'), identity: Identity }),
-    Schema.Struct({
-      kind: Schema.Literal('changed'),
-      identity: Identity,
-      earlier: Schema.NonEmptyArray(Identity),
-    }),
-    Unknown,
-  ]),
+  earlierProvenance: EarlierProvenance,
+  earlierProvenanceExcludingRemoved: Schema.optionalKey(EarlierProvenance),
+  publisher: Schema.Union([Continuous, First, Changed, Unknown]),
+  publisherExcludingRemoved: Schema.optionalKey(
+    Schema.Union([
+      Continuous,
+      First,
+      Schema.Struct({
+        ...Changed.fields,
+        repositoryCheck: RepositoryCheck,
+      }),
+      Unknown,
+    ]),
+  ),
   installScripts: Schema.Union([
     Schema.Struct({ kind: Schema.Literal('none') }),
     Schema.Struct({

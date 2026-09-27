@@ -56,6 +56,7 @@ const trimVersion = (doc: unknown) =>
     version: keep,
     scripts: keep,
     gypfile: keep,
+    repository: (repository) => pick(repository, { url: keep }),
     _npmUser: (user) => pick(user, { name: keep }),
     dist: (dist) =>
       pick(dist, {

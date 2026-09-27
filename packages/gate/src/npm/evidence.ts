@@ -3,9 +3,11 @@ import type {
   Identity,
   InstallScript,
   PackageVersionEvidence,
+  RepositoryCheck,
   Sha512Integrity,
 } from '../evidence';
 import type { NpmVersionFacts } from './facts';
+import { repositoryName } from './repository';
 
 const installHooks = ['preinstall', 'install', 'postinstall'] as const;
 const settledAfterMs = 72 * 3_600_000;
@@ -96,6 +98,64 @@ function publisherContinuity(
     : { kind: 'changed', identity, earlier: [first, ...rest] };
 }
 
+function repositoryCheck(
+  identity: Identity,
+  earlier: readonly NpmVersionFacts[],
+): RepositoryCheck {
+  const source =
+    identity.kind === 'workflow'
+      ? repositoryName(identity.repository)
+      : undefined;
+  if (source === undefined) {
+    return 'unchecked';
+  }
+
+  let declared = 0;
+  let unreadable = false;
+  for (const { repository } of earlier) {
+    if (repository === undefined) {
+      continue;
+    }
+
+    if (repository === 'unknown') {
+      unreadable = true;
+    } else if (repository !== source) {
+      return 'mismatched';
+    } else {
+      declared += 1;
+    }
+  }
+
+  return declared > 0 && !unreadable ? 'matched' : 'unchecked';
+}
+
+function listedHistory(
+  earlier: readonly NpmVersionFacts[],
+): readonly NpmVersionFacts[] | undefined {
+  const listed = earlier.filter((facts) => facts.removed !== true);
+
+  return listed.length === 0 && earlier.length > 0 ? undefined : listed;
+}
+
+function publisherExcludingRemoved(
+  target: NpmVersionFacts,
+  earlier: readonly NpmVersionFacts[],
+): NonNullable<PackageVersionEvidence['publisherExcludingRemoved']> {
+  const kept = listedHistory(earlier);
+  if (kept === undefined) {
+    return { kind: 'unknown', reason: 'every earlier version was removed' };
+  }
+
+  const publisher = publisherContinuity(target, kept);
+
+  return publisher.kind === 'changed'
+    ? {
+        ...publisher,
+        repositoryCheck: repositoryCheck(publisher.identity, kept),
+      }
+    : publisher;
+}
+
 function earlierProvenance(
   earlier: readonly NpmVersionFacts[],
 ): PackageVersionEvidence['earlierProvenance'] {
@@ -105,6 +165,14 @@ function earlierProvenance(
   }
 
   return kinds.includes('unavailable') ? 'unknown' : 'none';
+}
+
+function earlierProvenanceExcludingRemoved(
+  earlier: readonly NpmVersionFacts[],
+): PackageVersionEvidence['earlierProvenance'] {
+  const kept = listedHistory(earlier);
+
+  return kept === undefined ? 'unknown' : earlierProvenance(kept);
 }
 
 function installScriptsOf(facts: NpmVersionFacts): Unknowable<InstallScript[]> {
@@ -215,7 +283,10 @@ export function npmVersionEvidence(input: {
     publishTime: { kind: 'packument', at: target.time },
     provenance: target.provenance,
     earlierProvenance: earlierProvenance(earlier),
+    earlierProvenanceExcludingRemoved:
+      earlierProvenanceExcludingRemoved(earlier),
     publisher: publisherContinuity(target, earlier),
+    publisherExcludingRemoved: publisherExcludingRemoved(target, earlier),
     installScripts: installScriptChange(target, earlier.at(-1)),
     integrityCheck,
     feeds: input.feeds,
