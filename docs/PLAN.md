@@ -34,7 +34,7 @@ Non-goals: replacing npmjs.org, a public mirror, competing on threat intelligenc
 |---|---|---|
 | **M1: offline verify** (current) | `gate verify` for package-lock v2/v3 on policy v2, decision log, `gate replay` of v1 and v2 records | Done in code. Remaining: README |
 | **M2: network mode and first release** | Live evidence (below), workspace defaults, human output, pnpm-lock parser, a README that says the age window buys time for feeds and isn't a control by itself (REVIEW §6.10), publish to npm with trusted publishing and staged releases (REVIEW §11), a GitHub Action, a first test of the log against a local witness, and an exhaustive test of the policy invariants (REVIEW §12) | Runs on 10 public repos of different sizes with no config. False-positive budget met on all 10 and the numbers published. Replay corpus unchanged |
-| **M3: logs that outlive CI, hosted beta** | Log persistence, witness-network testing list, team dashboard beta | A PR run and a main-branch run on the same repo produce one consistent log. External witness cosigns before anything is charged |
+| **M3: logs that outlive CI, hosted beta** | Log persistence, witness-network testing list, team dashboard beta, and the M3 rows of After M2 below | A PR run and a main-branch run on the same repo produce one consistent log. External witness cosigns before anything is charged |
 | **M4: one of three**, chosen from M3 demand | A per-customer verifying proxy that also gates tarballs, a small publishing registry for a first-party namespace, or a package browser that shows provenance and gate's verdicts | Decided when M3 ends |
 
 ### M2: network mode
@@ -70,13 +70,15 @@ Checked 2026-09-26 against the conversation that started gate ([research](resear
 
 | Item | Why | Facts | When |
 |---|---|---|---|
-| Lockfile certificate | The conversation's "verified graph", and REVIEW §1's reason gate exists. Nothing signed says "lockfile X passed policy P at time T". gate prints per-node lines and logs per-node records | A SLSA VSA names one resource, a policy URI and digest, and PASSED or FAILED. Its only dependency field is a count per SLSA level ([VSA v1.1](https://slsa.dev/spec/v1.1/verification_summary)). `npm sbom --package-lock-only` builds an SBOM from the lockfile alone ([npm sbom](https://docs.npmjs.com/cli/v11/commands/npm-sbom)) | Format in M2 (open decisions). Build in M3, because a certificate should point at a log entry that outlives the CI runner |
-| Evidence an auditor can re-check | Replay trusts the logged evidence. Records hold derived facts, not the packuments and bundles behind them (REVIEW §12, gate replay) | Sigstore bundles verify on their own. Packuments don't | M3, with log persistence: log each raw input's digest and keep the files with the log |
+| Lockfile certificate | The conversation's "verified graph", and REVIEW §1's reason gate exists. Nothing signed says "lockfile X passed policy P at time T". gate prints per-node lines and logs per-node records | A SLSA VSA names one resource, a policy URI and digest, PASSED or FAILED, and the input attestations. It has no field for per-node decisions ([VSA v1.1](https://slsa.dev/spec/v1.1/verification_summary)). `npm sbom --package-lock-only` builds an SBOM from the lockfile alone ([npm sbom](https://docs.npmjs.com/cli/v11/commands/npm-sbom)) | Format in M2 (open decisions). Build in M3, because a certificate should point at a log entry that outlives the CI runner |
+| Evidence an auditor can re-check | Replay trusts the logged evidence. Records hold derived facts, not the packuments and bundles behind them (REVIEW §12, gate replay) | Sigstore bundles verify on their own. A packument is unsigned except for npm's registry signature over each version's name, version and integrity | M3, with log persistence: log each raw input's digest and keep the files with the log |
 | npm registry signatures | Most packages have no provenance, so only TLS ties their integrity to npm | npm signs `name@version:integrity` with ECDSA P-256 ([docs](https://docs.npmjs.com/about-registry-signatures)). npm 12.1.0 fetches the keys as `registry.npmjs.org/keys.json` through `@sigstore/tuf` (`lib/utils/verify-signatures.js`), which gate already uses | M3 |
 | Client adapters | The conversation's second check at install time. They are early warnings only (REVIEW §11) | Zero dependencies (AGENTS.md) | M3 |
-| Capability diff between versions | The only answer to the postmark-mcp case below | No rule in v1 or v2 reads `claims`, so any producer also needs a claims rule in a new policy version | After M3. Deterministic first. Classifiers stay opt-in (non-goals) |
-| Workflow checks | TanStack's compromise began with `pull_request_target` cache poisoning (REVIEW §6.5) | zizmor's `dangerous-triggers` and `cache-poisoning` audits run offline ([audits](https://docs.zizmor.sh/audits/)) | After the capability diff, as claims |
-| Typosquat, dependency confusion, client config checks | Rows in the threat table below, and REVIEW §6.6 | Dependency confusion needs an organization's private scopes | Unscheduled. Revisit with the hosted tier |
+| New dependency between versions | Would also have caught event-stream and axios (REVIEW §12, Replay corpus) | Needs only the packuments' dependency lists | After M3, as an evidence field and a rule in a new policy version |
+| Capability diff between versions | Nothing in gate catches the postmark-mcp case below | Deterministic findings belong in evidence with their own rules. Claims are for probabilistic classifiers: a REJECT rule can't read them, and `gate verify` loads no org policy, so today claims change nothing | After M3. Classifiers never block on their own (non-goals) |
+| Workflow checks | TanStack's compromise began with `pull_request_target` cache poisoning (REVIEW §6.5, [postmortem](https://tanstack.com/blog/npm-supply-chain-compromise-postmortem)) | zizmor's `dangerous-triggers` and `cache-poisoning` audits run offline ([audits](https://docs.zizmor.sh/audits/)) | After the capability diff, the same way |
+| Metadata freshness | Freeze and rollback attacks on metadata (REVIEW §5). They matter once a proxy or mirror serves packuments | npm has no signed packuments: npm/rfcs #76 is open since 2019 (REVIEW, Resolved questions) | With the proxy (M4) |
+| Typosquat, dependency confusion, client config checks, deprecated versions | The threat table below, REVIEW §6.6 (client config) and the conversation's "package not revoked" | Dependency confusion needs an organization's private scopes. gate doesn't read `deprecated` | Unscheduled. Revisit with the hosted tier. Publishing detection scores there would also show attackers the thresholds |
 
 ## Business model
 
@@ -140,7 +142,7 @@ Decide before the milestone named.
 |---|---|
 | Apply to NLnet, and the European dimension | 2026-11-03 |
 | npm package name for the CLI | M2 |
-| Certificate output: in-toto VSA or gate's own statement. A VSA has no per-node field (After M2) | M2 |
+| Certificate output: in-toto VSA, gate's own signed statement, or keep JSON lines. A VSA has no field for per-node decisions (After M2) | M2 |
 | Urgent-fix lane for `release_age` (REVIEW §6.4) | M2 |
 | Who signs policy v3 and how orgs upgrade (REVIEW §6.9) | Before v3 |
 | Send the CEL fixes upstream or keep the fork alone | M2 |

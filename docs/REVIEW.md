@@ -516,15 +516,16 @@ Accepted 2026-09-26. A link to a declared npm workspace isn't a node, like the w
 
 ### Policy invariants
 
-Accepted 2026-09-26. The decision rules in AGENTS.md get an exhaustive test over every combination of evidence kinds, against each pinned policy:
+Accepted 2026-09-26. The decision rules from AGENTS.md and policy v2 get an exhaustive test over every combination of evidence kinds, run against v2 and each later version:
 
 - a feed hit or an integrity mismatch rejects;
-- unknown evidence and a version younger than the window never accept;
+- unknown evidence never accepts: an unavailable feed, unknown install scripts, and for registry sources unavailable provenance, an unknown publisher or publish time, or no integrity. Unknown earlier provenance counts only when this version has no provenance, as v2 intends;
+- a registry version younger than the window never accepts;
 - a claim only moves ACCEPT to QUARANTINE;
 - a waiver clears only a waivable QUARANTINE rule;
 - a non-registry source never accepts without an allowlist entry.
 
-A scratch probe ran 174,960 v2 decisions in 1.2 s on Bun 1.4.2 and found no violations. It caught two weakened copies of v2: one without `feeds_unavailable`, and one with `release_age` waivable. It missed a 24 h window until the probe also tested ages just under and at 72 h, so every duration rule needs cases on both sides of its threshold. The claims invariant holds only because no rule reads `claims`.
+A scratch probe, not committed, ran 174,960 v2 decisions in 1.2 s on Bun 1.4.2 and found no violations. It caught two weakened copies of v2: one without `feeds_unavailable`, and one with `release_age` waivable. It missed a 24 h window until the probe also tested ages just under and at 72 h, so every duration rule needs cases on both sides of its threshold. The claims rule also holds by construction, because a REJECT rule that reads `claims` fails to load.
 
 ### Bend, revisited
 
