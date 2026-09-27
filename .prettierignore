@@ -3,3 +3,4 @@ bun.lock
 packages/cel/test/conformance-known-failures.json
 docs/
 packages/gate/test/pnpm/*.pnpm-lock.yaml
+packages/gate/test/pnpm/*.pnpm-workspace.yaml

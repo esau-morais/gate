@@ -97,7 +97,7 @@ const byteOrderMark = String.fromCodePoint(0xfeff);
 const documentStart = '---\n';
 const documentSeparator = '\n---\n';
 const fullCommit = /^[0-9a-f]{40}$/;
-const semver = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
+export const semver = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
 
 type Reach = 'production' | 'dev' | 'optional' | 'devOptional';
 
@@ -120,7 +120,7 @@ type ParsedSnapshot =
   | { readonly kind: 'snapshot'; readonly edges: readonly Edge[] }
   | { readonly kind: 'error'; readonly error: string };
 
-type Classified =
+export type Classified =
   | {
       readonly kind: 'source';
       readonly source: LockfileSource;
@@ -266,7 +266,7 @@ function gitArchive(url: URL): GitArchive | undefined {
     : { kind: 'malformed' };
 }
 
-function classifyTarball(
+export function classifyTarball(
   name: string,
   keyVersion: string,
   resolution: typeof TarballResolution.Type,
@@ -703,12 +703,65 @@ function readDocument(prefix: string, document: Document): LockfileNode[] {
   return nodes;
 }
 
-export function readPnpmLock(text: string): LockfileRead {
+export type EnvConfigDependency = {
+  readonly specifier: string;
+  readonly version: string;
+  readonly integrity: string | undefined;
+  readonly tarball: string | undefined;
+};
+
+export type PnpmLockRead = {
+  readonly read: LockfileRead;
+  readonly env: ReadonlyMap<string, EnvConfigDependency>;
+};
+
+function envConfigDependencies(
+  document: Document,
+): Map<string, EnvConfigDependency> {
+  const importer = decodeImporter(document.importers['.'] ?? {});
+  const packages = document.packages ?? {};
+  const env = new Map<string, EnvConfigDependency>();
+  if (Result.isFailure(importer)) {
+    return env;
+  }
+
+  for (const [name, { specifier, version }] of Object.entries(
+    importer.success.configDependencies ?? {},
+  )) {
+    const id = `${name}@${version}`;
+    const info = decodePackageInfo(
+      Object.hasOwn(packages, id) ? packages[id] : undefined,
+    );
+    const resolution = Result.isSuccess(info)
+      ? info.success.resolution
+      : undefined;
+    const field = (key: string) => {
+      const value = resolution?.[key];
+
+      return typeof value === 'string' ? value : undefined;
+    };
+
+    env.set(name, {
+      specifier,
+      version,
+      integrity: field('integrity'),
+      tarball: field('tarball'),
+    });
+  }
+
+  return env;
+}
+
+export function readPnpmLockfile(text: string): PnpmLockRead {
+  const none = new Map<string, EnvConfigDependency>();
   const documents = splitDocuments(text);
   if (documents === undefined) {
     return {
-      kind: 'unreadable',
-      error: 'not a pnpm-lock.yaml: an env document without a lockfile',
+      read: {
+        kind: 'unreadable',
+        error: 'not a pnpm-lock.yaml: an env document without a lockfile',
+      },
+      env: none,
     };
   }
 
@@ -717,26 +770,41 @@ export function readPnpmLock(text: string): LockfileRead {
     const yaml = readYaml(source);
     if (yaml.kind === 'unreadable') {
       return {
-        kind: 'unreadable',
-        error: `not a pnpm-lock.yaml: ${yaml.error}`,
+        read: {
+          kind: 'unreadable',
+          error: `not a pnpm-lock.yaml: ${yaml.error}`,
+        },
+        env: none,
       };
     }
 
     const document = decodeDocument(yaml.value);
     if (Result.isFailure(document)) {
       return {
-        kind: 'unreadable',
-        error: `not a pnpm-lock.yaml with lockfileVersion '${lockfileVersion}': ${String(document.failure)}`,
+        read: {
+          kind: 'unreadable',
+          error: `not a pnpm-lock.yaml with lockfileVersion '${lockfileVersion}': ${String(document.failure)}`,
+        },
+        env: none,
       };
     }
 
     decoded.push(document.success);
   }
 
+  const [env] = decoded.length > 1 ? decoded : [];
+
   return {
-    kind: 'read',
-    nodes: decoded.flatMap((document, index) =>
-      readDocument(index < decoded.length - 1 ? 'env:' : '', document),
-    ),
+    read: {
+      kind: 'read',
+      nodes: decoded.flatMap((document, index) =>
+        readDocument(index < decoded.length - 1 ? 'env:' : '', document),
+      ),
+    },
+    env: env === undefined ? none : envConfigDependencies(env),
   };
+}
+
+export function readPnpmLock(text: string): LockfileRead {
+  return readPnpmLockfile(text).read;
 }

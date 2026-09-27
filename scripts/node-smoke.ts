@@ -13,7 +13,10 @@ import {
   verifyArgs,
 } from '../packages/gate/test/verify/cases';
 import { generateTestLogKey } from '../packages/gate/test/support/log';
-import { recordedPnpmLockPath } from '../packages/gate/test/pnpm/locks';
+import {
+  recordedPnpmLockPath,
+  recordedPnpmWorkspacePath,
+} from '../packages/gate/test/pnpm/locks';
 import { recordedLockPath } from '../packages/gate/test/workspaces/locks';
 
 const outdir = await mkdtemp(join(tmpdir(), 'gate-node-smoke-'));
@@ -216,6 +219,48 @@ try {
   } else {
     console.log(
       "gate verify reads vuejs/core's ./pnpm-lock.yaml on Node as on Bun and accepts vite",
+    );
+  }
+
+  const configRepo = join(outdir, 'rules-js-v101');
+  mkdirSync(configRepo);
+  copyFileSync(
+    recordedPnpmLockPath('rules-js-v101'),
+    join(configRepo, 'pnpm-lock.yaml'),
+  );
+  copyFileSync(
+    recordedPnpmWorkspacePath('rules-js'),
+    join(configRepo, 'pnpm-workspace.yaml'),
+  );
+  const runConfig = (runtime: readonly string[]) =>
+    Bun.spawnSync([...runtime, ...pnpmArgs], {
+      cwd: configRepo,
+      stdout: 'pipe',
+      stderr: 'inherit',
+    });
+  const configNode = runConfig(['node', cli]);
+  const configBun = runConfig([
+    'bun',
+    join(import.meta.dir, '../packages/gate/src/cli.ts'),
+  ]);
+  const semver = summarizeOutput(configNode.stdout.toString()).filter(
+    (node) => node.path === 'pnpm-workspace.yaml',
+  );
+  if (
+    configNode.stdout.toString() !== configBun.stdout.toString() ||
+    configNode.exitCode !== configBun.exitCode ||
+    semver.length !== 1 ||
+    semver[0]?.dependency !== 'semver' ||
+    !('outcome' in semver[0])
+  ) {
+    console.error(
+      `gate verify of rules_js's pnpm 10 config dependencies differs on Node: exit ${configNode.exitCode}`,
+      semver,
+    );
+    process.exitCode = 1;
+  } else {
+    console.log(
+      "gate verify decides rules_js's pnpm-workspace.yaml config dependency on Node as on Bun",
     );
   }
 

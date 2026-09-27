@@ -45,11 +45,27 @@
       "path": "rules-js-v61.pnpm-lock.yaml",
       "url": "https://raw.githubusercontent.com/aspect-build/rules_js/60c5a890edb65bec787aea77543e9191453ce87b/e2e/pnpm_lockfiles/v61/pnpm-lock.yaml",
       "sanitized": "fetched 2026-09-27T00:14Z. lockfileVersion '6.1', written by pnpm@8.6.0 per setup.sh. Kept the lines before `packages:`, verbatim"
+    },
+    {
+      "path": "rules-js.pnpm-workspace.yaml",
+      "url": "https://raw.githubusercontent.com/aspect-build/rules_js/272208fd38f09b2f0e914fd32d296fa10d51af35/e2e/pnpm_lockfiles/base/pnpm-workspace.yaml",
+      "sanitized": "fetched 2026-09-27T01:55Z, verbatim (last changed in 401406a, 2026-04-16). v101/, v110/ and v120/ symlink their pnpm-workspace.yaml to it, so it sits beside rules-js-v101 (pnpm 10, no env document) and rules-js-v110 and rules-js-v120 (env document with the same semver pin). Pins configDependencies semver in pnpm 10's version+integrity form"
+    },
+    {
+      "path": "seek-oss-wingman.pnpm-workspace.yaml",
+      "url": "https://raw.githubusercontent.com/seek-oss/wingman/c6ff0b311ac5e9f9fbe01dda74e25b7dff9852d7/pnpm-workspace.yaml",
+      "sanitized": "fetched 2026-09-27T01:55Z, verbatim. package.json at that commit pins packageManager pnpm@10.34.5; the root pnpm-lock.yaml is one document. The configDependencies value is single-quoted"
+    },
+    {
+      "path": "quests-org-quests.pnpm-workspace.yaml",
+      "url": "https://raw.githubusercontent.com/quests-org/quests/c544a83191b1ef13644dfb00aa7fd4267ba467d1/pnpm-workspace.yaml",
+      "sanitized": "fetched 2026-09-27T01:55Z, verbatim. package.json at that commit pins packageManager pnpm@10.29.1; the root pnpm-lock.yaml is one document. The configDependencies key is double-quoted"
     }
   ],
   "gaps": [
     "no recorded lockfile has a git source without a full commit, a link outside the lockfile's directory from a root importer, an absolute link, a link to a folder no importer names at the root, a gitlab or bitbucket archive, a named-registry key, a runtime: or custom resolution, excludeLinksFromLockfile: true, or any YAML the pnpm emitter doesn't write (anchors, tags, merge keys, directives, duplicate keys); the tests build those by hand",
     "the rules_js importers sit outside the lockfile's directory (../projects/*), so every rules_js workspace link rejects; the in-repository workspace case is vuejs/core",
-    "the vuejs/core fragment has one registry node in its main document; its env document's pnpm 12.4.2 packages have no recorded evidence"
+    "the vuejs/core fragment has one registry node in its main document; its env document's pnpm 12.4.2 packages have no recorded evidence",
+    "no recorded pnpm-workspace.yaml has the {tarball, integrity} form, a sha1 or missing integrity, a bare specifier, a pin that disagrees with the lockfile's env document, YAML gate refuses, or package.json pnpm.configDependencies; the tests build those by hand. The pnpm 10 lockfiles of seek-oss/wingman and quests-org/quests aren't recorded, so their workspace files are read against a lockfile with no env document"
   ]
 }

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
@@ -9,6 +9,7 @@ import {
   defaultCacheDir,
   defaultLockfile,
   evidenceSource,
+  findPnpmWorkspace,
   lockfileFormat,
   lockfileNames,
 } from './verify-defaults';
@@ -27,13 +28,14 @@ import {
 } from './npm/evidence-directory';
 import { collectEvidence } from './npm/collect';
 import { readPackageLock, type LockfileRead } from './npm/lockfile';
-import { readPnpmLock } from './npm/pnpm-lock';
+import { readPnpmConfigDependencies } from './npm/pnpm-config';
+import { readPnpmLockfile } from './npm/pnpm-lock';
 import { humanReport } from './npm/report';
 import { sigstoreTrustedRoot } from './npm/trusted-root';
 import { decisionRecords, verifyExitCode, verifyNodes } from './npm/verify';
 import { canonicalPolicy, pinnedPolicies } from './pinned-policies';
 import { PolicyLoadError } from './policy';
-import { encodeRecord, lockfileDigest } from './record';
+import { encodeRecord, lockfileDigest, type LockfileDigest } from './record';
 import { replayEntry, replayExitCode } from './replay';
 import { ansi, colorEnabled, inert, plain } from './terminal';
 import { UtcTimestamp } from './time';
@@ -143,12 +145,58 @@ function lockfilePath(config: VerifyConfig): string {
   );
 }
 
+type ConfigFile = {
+  readonly path: string;
+  readonly text: string;
+  readonly digest: LockfileDigest;
+};
+
+function readConfigFile(from: string, path: string): ConfigFile {
+  const bytes = readFileSync(path);
+
+  return {
+    path: relative(from, path).split(sep).join('/'),
+    text: new TextDecoder().decode(bytes),
+    digest: lockfileDigest(bytes),
+  };
+}
+
 function readLockfile(path: string, text: string) {
   const format = lockfileFormat(path, text);
+  if (format === 'package-lock') {
+    return {
+      format,
+      lock: readPackageLock(text),
+      configDependencies: undefined,
+    };
+  }
+
+  const { read, env } = readPnpmLockfile(text);
+  if (read.kind === 'unreadable') {
+    return { format, lock: read, configDependencies: undefined };
+  }
+
+  const dir = dirname(resolve(path));
+  const found = findPnpmWorkspace(dir, existsSync);
+  const workspace =
+    found === undefined ? undefined : readConfigFile(dir, found);
+  const manifestPath = join(
+    found === undefined ? dir : dirname(found),
+    'package.json',
+  );
+  const manifest = existsSync(manifestPath)
+    ? readConfigFile(dir, manifestPath)
+    : undefined;
+  const nodes = readPnpmConfigDependencies({
+    env,
+    ...(workspace === undefined ? {} : { workspace }),
+    ...(manifest === undefined ? {} : { manifest }),
+  });
 
   return {
     format,
-    lock: format === 'pnpm-lock' ? readPnpmLock(text) : readPackageLock(text),
+    lock: { kind: 'read' as const, nodes: [...read.nodes, ...nodes] },
+    configDependencies: { from: read.nodes.length, digest: workspace?.digest },
   };
 }
 
@@ -271,8 +319,16 @@ const verify = Command.make(
         return yield* fail('verify', inputs.failure);
       }
 
-      const { source, format, lock, lockfile, policy, context, log } =
-        inputs.success;
+      const {
+        source,
+        format,
+        lock,
+        configDependencies,
+        lockfile,
+        policy,
+        context,
+        log,
+      } = inputs.success;
       let evidenceDir: string;
       if (source.kind === 'fetch') {
         const collected = yield* collect(source.cacheDir, lock).pipe(
@@ -316,9 +372,21 @@ const verify = Command.make(
             })
           : [{ kind: 'unreadable' as const, path: '', error: lock.error }];
       if (log !== undefined) {
-        const entries = decisionRecords({ records, context, lockfile }).map(
-          encodeRecord,
-        );
+        const from = configDependencies?.from ?? records.length;
+        const entries = [
+          ...decisionRecords({
+            records: records.slice(0, from),
+            context,
+            lockfile,
+          }),
+          ...(configDependencies?.digest === undefined
+            ? []
+            : decisionRecords({
+                records: records.slice(from),
+                context,
+                lockfile: configDependencies.digest,
+              })),
+        ].map(encodeRecord);
         const appended = yield* attempt(() =>
           appendToLog({ ...log, entries }),
         ).pipe(Effect.result);
