@@ -1,0 +1,364 @@
+{
+  "name": "rxjs",
+  "time": {
+    "7.8.0": "2022-12-15T23:25:47.887Z",
+    "8.0.0-alpha.7": "2022-12-15T23:32:30.252Z",
+    "8.0.0-alpha.8": "2023-04-04T23:53:24.642Z",
+    "7.8.1": "2023-04-26T22:56:33.678Z",
+    "8.0.0-alpha.9": "2023-04-26T23:08:31.678Z",
+    "8.0.0-alpha.10": "2023-05-25T18:52:09.381Z",
+    "8.0.0-alpha.11": "2023-08-18T18:04:57.707Z",
+    "8.0.0-alpha.12": "2023-08-19T17:05:53.163Z",
+    "8.0.0-alpha.13": "2023-12-20T19:08:38.140Z",
+    "8.0.0-alpha.14": "2024-01-12T22:23:48.154Z",
+    "7.8.2": "2025-02-22T03:00:42.711Z"
+  },
+  "versions": {
+    "7.8.0": {
+      "name": "rxjs",
+      "version": "7.8.0",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.esm5.json ./src/tsconfig.esm5.rollup.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "build:global": "node ./tools/make-umd-bundle.js && node ./tools/make-closure-core.js",
+        "publish_docs": "./publish_docs.sh",
+        "test:browser": "echo \"Browser test is not working currently\" && exit -1 && npm-run-all build:spec:browser && opn spec/support/mocha-browser-runner.html",
+        "build:package": "npm-run-all build:clean compile build:global && node ./tools/prepare-package.js && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm5",
+        "test:systemjs": "node integration/systemjs/systemjs-compatibility-spec.js",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint && npm run test:side-effects",
+        "test:side-effects": "check-side-effects --test integration/side-effects/side-effects.json",
+        "build:spec:browser": "echo \"Browser test is not working currently\" && exit -1 && webpack --config spec/support/webpack.mocha.config.js",
+        "test:side-effects:update": "npm run test:side-effects -- --update"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-F2+gxDshqmIub1KdvZkaEfGDwLNpPvk9Fs6LD/MyQxNgMds/WH9OdDDXOmxUZpME+iSK3rQCctkL0DYyytUqMg==",
+        "shasum": "90a938862a82888ff4c7359811a595e14e1e09a4",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-7.8.0.tgz"
+      }
+    },
+    "8.0.0-alpha.7": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.7",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.esm5.json ./src/tsconfig.esm5.rollup.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "build:global": "node ./tools/make-umd-bundle.js && node ./tools/make-closure-core.js",
+        "publish_docs": "./publish_docs.sh",
+        "test:browser": "echo \"Browser test is not working currently\" && exit -1 && npm-run-all build:spec:browser && opn spec/support/mocha-browser-runner.html",
+        "build:package": "npm-run-all build:clean compile build:global && node ./tools/prepare-package.js && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm5",
+        "test:systemjs": "node integration/systemjs/systemjs-compatibility-spec.js",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint && npm run test:side-effects",
+        "test:side-effects": "check-side-effects --test integration/side-effects/side-effects.json",
+        "build:spec:browser": "echo \"Browser test is not working currently\" && exit -1 && webpack --config spec/support/webpack.mocha.config.js",
+        "test:side-effects:update": "npm run test:side-effects -- --update"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-E93Uq6YXhJjLKnTefpXlsJxOfenRXr6a/Kv/PkVHn2J3knm6afm8y+JSTxtP53nSYOeipujW9/wDTGVFKRJVew==",
+        "shasum": "d24147c75a63d8b5c9a80116cb1ef1ae566ef40a",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.7.tgz"
+      }
+    },
+    "8.0.0-alpha.8": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.8",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.esm5.json ./src/tsconfig.esm5.rollup.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "build:global": "node ./tools/make-umd-bundle.js && node ./tools/make-closure-core.js",
+        "publish_docs": "./publish_docs.sh",
+        "test:browser": "echo \"Browser test is not working currently\" && exit -1 && npm-run-all build:spec:browser && opn spec/support/mocha-browser-runner.html",
+        "build:package": "npm-run-all build:clean compile build:global && node ./tools/prepare-package.js && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm5",
+        "test:systemjs": "node integration/systemjs/systemjs-compatibility-spec.js",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint && npm run test:side-effects",
+        "test:side-effects": "check-side-effects --test integration/side-effects/side-effects.json",
+        "build:spec:browser": "echo \"Browser test is not working currently\" && exit -1 && webpack --config spec/support/webpack.mocha.config.js",
+        "test:side-effects:update": "npm run test:side-effects -- --update"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-/lgA1ajy6u4u82Q3vRc0RcMwmGR3CvFNcuiSnqqIGYd3vxgDwNgQU3HBEiEWqdiQ6v8CgMPWXdCIOwU/3SJh3A==",
+        "shasum": "222f8971a7907a9deeca9f377fe345d18e0b63f2",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.8.tgz"
+      }
+    },
+    "7.8.1": {
+      "name": "rxjs",
+      "version": "7.8.1",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.esm5.json ./src/tsconfig.esm5.rollup.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "build:global": "node ./tools/make-umd-bundle.js && node ./tools/make-closure-core.js",
+        "publish_docs": "./publish_docs.sh",
+        "test:browser": "echo \"Browser test is not working currently\" && exit -1 && npm-run-all build:spec:browser && opn spec/support/mocha-browser-runner.html",
+        "build:package": "npm-run-all build:clean compile build:global && node ./tools/prepare-package.js && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm5",
+        "test:systemjs": "node integration/systemjs/systemjs-compatibility-spec.js",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint && npm run test:side-effects",
+        "test:side-effects": "check-side-effects --test integration/side-effects/side-effects.json",
+        "build:spec:browser": "echo \"Browser test is not working currently\" && exit -1 && webpack --config spec/support/webpack.mocha.config.js",
+        "test:side-effects:update": "npm run test:side-effects -- --update"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==",
+        "shasum": "6f6f3d99ea8044291efd92e7c7fcf562c4057543",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-7.8.1.tgz"
+      }
+    },
+    "8.0.0-alpha.9": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.9",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.esm5.json ./src/tsconfig.esm5.rollup.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "build:global": "node ./tools/make-umd-bundle.js && node ./tools/make-closure-core.js",
+        "publish_docs": "./publish_docs.sh",
+        "test:browser": "echo \"Browser test is not working currently\" && exit -1 && npm-run-all build:spec:browser && opn spec/support/mocha-browser-runner.html",
+        "build:package": "npm-run-all build:clean compile build:global && node ./tools/prepare-package.js && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm5",
+        "test:systemjs": "node integration/systemjs/systemjs-compatibility-spec.js",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint && npm run test:side-effects",
+        "test:side-effects": "check-side-effects --test integration/side-effects/side-effects.json",
+        "build:spec:browser": "echo \"Browser test is not working currently\" && exit -1 && webpack --config spec/support/webpack.mocha.config.js",
+        "test:side-effects:update": "npm run test:side-effects -- --update"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-V1q+n8PWU+cmPCBrrQ9ooBRKpmb5Xlip3SCW2vRFrTg5LlgRscIhbS3+2dj8j54mQIATMGxjMvu5IPZpxQ1crQ==",
+        "shasum": "aa99d2f66c5e45c3176d2f4fca003f24d8c49dbf",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.9.tgz"
+      }
+    },
+    "8.0.0-alpha.10": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.10",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "publish_docs": "./publish_docs.sh",
+        "build:package": "npm-run-all build:clean compile && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-6EuNs622MaAPvrlS5osjjSBJIDIR2gob3jQKYjX+8/ioj/1dr0p4eucQCSIYhpCYmntASp4UvHdERl38LSlxbg==",
+        "shasum": "93c134736e19bfdb4b743b3033b2e0d14b394dea",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.10.tgz"
+      }
+    },
+    "8.0.0-alpha.11": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.11",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "publish_docs": "./publish_docs.sh",
+        "build:package": "npm-run-all build:clean compile && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-Rnf/dwDwHDqwCkKCWSS3YhqPY6sxe6FThrayhfIIsSkJaR6ZpbxxwDnKBdKGHcVECTOmwYYkzplmLSb7qpt9NQ==",
+        "shasum": "f31f6f764c65c5a2842e1f8a666aa03500507f16",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.11.tgz"
+      }
+    },
+    "8.0.0-alpha.12": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.12",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "publish_docs": "./publish_docs.sh",
+        "build:package": "npm-run-all build:clean compile && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-DQwsgFqRz1dMclKNOmiUf1ESxHdjBGUqSSmnQTe/FlROVBnhzMx4PkbEtcq4L/hQpOUKLNpslEo3pS+LnNYCQA==",
+        "shasum": "751fd89e59511646a5c3c7bfef25e1716508fb15",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.12.tgz"
+      }
+    },
+    "8.0.0-alpha.13": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.13",
+      "scripts": {
+        "lint": "eslint --ext=ts,js src spec spec-dtslint",
+        "test": "yarn build && cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "build": "yarn build:clean && yarn compile && node ./tools/generate-alias.js",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "npm run lint && tsc -b ./src/tsconfig.types.json",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "node integration/import/runner.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x yarn dtslint",
+        "copy_common_package_files": "node ../../scripts/copy-common-package-files.js"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-OsRFhqeNZc1xfGSlY4YlEDNXSWzFag4akC/brIYOMlVzAk4XYNccqBeBLj+HHlsn/CvcarIYgkDSweBil1hQTg==",
+        "shasum": "f95d3ff3d74895adbae3ccdf994e1f552de615c2",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.13.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/rxjs@8.0.0-alpha.13",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "8.0.0-alpha.14": {
+      "name": "rxjs",
+      "version": "8.0.0-alpha.14",
+      "scripts": {
+        "lint": "eslint --ext=ts,js src spec spec-dtslint",
+        "test": "yarn build && cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "build": "yarn build:clean && yarn compile && node ./tools/generate-alias.js",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "npm run lint && tsc -b ./src/tsconfig.types.json",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "node integration/import/runner.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x yarn dtslint",
+        "copy_common_package_files": "node ../../scripts/copy-common-package-files.js"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-oRCzFwbAMbo0+dVUeGUCCEf339mW7CESFvVDG3RTncD6yMtV2XoubFMpKEhBd2a9d04EpHl8QSz84/V/agG6bw==",
+        "shasum": "67ad781f490e284a3d88eccedcc63702fbc12b8b",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-8.0.0-alpha.14.tgz",
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/rxjs@8.0.0-alpha.14",
+          "provenance": { "predicateType": "https://slsa.dev/provenance/v1" }
+        }
+      }
+    },
+    "7.8.2": {
+      "name": "rxjs",
+      "version": "7.8.2",
+      "scripts": {
+        "lint": "npm-run-all --parallel lint_*",
+        "test": "cross-env TS_NODE_PROJECT=tsconfig.mocha.json mocha --config spec/support/.mocharc.js \"spec/**/*-spec.ts\"",
+        "watch": "nodemon -w \"src/\" -w \"spec/\" -e ts -x npm test",
+        "compile": "tsc -b ./src/tsconfig.cjs.json ./src/tsconfig.cjs.spec.json ./src/tsconfig.esm.json ./src/tsconfig.esm5.json ./src/tsconfig.esm5.rollup.json ./src/tsconfig.types.json ./src/tsconfig.types.spec.json ./spec/tsconfig.json",
+        "dtslint": "tsc -b ./src/tsconfig.types.json && tslint -c spec-dtslint/tslint.json -p spec-dtslint/tsconfig.json \"spec-dtslint/**/*.ts\"",
+        "lint_src": "tslint -c tslint.json -p src/tsconfig.base.json \"src/**/*.ts\"",
+        "test:esm": "node spec/module-test-spec.mjs",
+        "changelog": "npx conventional-changelog-cli -p angular -i CHANGELOG.md -s",
+        "lint_spec": "tslint -c spec/tslint.json -p spec/tsconfig.json \"spec/**/*.ts\"",
+        "build:clean": "shx rm -rf ./dist",
+        "test:import": "ts-node ./integration/import/runner.ts",
+        "build:global": "node ./tools/make-umd-bundle.js && node ./tools/make-closure-core.js",
+        "publish_docs": "./publish_docs.sh",
+        "test:browser": "echo \"Browser test is not working currently\" && exit -1 && npm-run-all build:spec:browser && opn spec/support/mocha-browser-runner.html",
+        "build:package": "npm-run-all build:clean compile build:global && node ./tools/prepare-package.js && node ./tools/generate-alias.js",
+        "test:circular": "dependency-cruiser --validate .dependency-cruiser.json -x \"^node_modules\" dist/esm5",
+        "test:systemjs": "node integration/systemjs/systemjs-compatibility-spec.js",
+        "watch:dtslint": "nodemon -w \"src/\" -w \"spec-dtslint/\" -e ts -x npm run dtslint",
+        "prepublishOnly": "npm run build:package && npm run lint && npm run test && npm run test:circular && npm run dtslint && npm run test:side-effects",
+        "test:side-effects": "check-side-effects --test integration/side-effects/side-effects.json",
+        "build:spec:browser": "echo \"Browser test is not working currently\" && exit -1 && webpack --config spec/support/webpack.mocha.config.js",
+        "test:side-effects:update": "npm run test:side-effects -- --update"
+      },
+      "_npmUser": { "name": "blesh" },
+      "dist": {
+        "integrity": "sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==",
+        "shasum": "955bc473ed8af11a002a2be52071bf475638607b",
+        "tarball": "https://registry.npmjs.org/rxjs/-/rxjs-7.8.2.tgz"
+      }
+    }
+  }
+}

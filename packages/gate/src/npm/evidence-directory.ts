@@ -1,5 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { Option, Schema } from 'effect';
+import { UtcTimestamp } from '../time';
 import { readOsvSnapshot, type OsvSnapshot } from './osv';
 import { trustMaterialFrom, type TrustRoot } from './provenance';
 import type { EvidenceStore } from './verify';
@@ -127,4 +129,34 @@ export function readEvidenceDirectory(root: string): EvidenceStore {
     trust: readTrust(root),
     osv: readOsv(root),
   };
+}
+
+export type FetchGaps =
+  | { readonly kind: 'listed'; readonly gaps: readonly string[] }
+  | { readonly kind: 'unlisted' };
+
+const CollectedSources = Schema.fromJsonString(
+  Schema.Struct({
+    collectedAt: UtcTimestamp,
+    gaps: Schema.Array(Schema.String),
+  }),
+);
+const decodeSources = Schema.decodeUnknownOption(CollectedSources);
+
+export function readFetchGaps(root: string): FetchGaps {
+  let text: string;
+  try {
+    text = readFileSync(join(root, 'SOURCES.json'), 'utf8');
+  } catch (error) {
+    if (isFileSystemError(error)) {
+      return { kind: 'unlisted' };
+    }
+
+    throw error;
+  }
+
+  return Option.match(decodeSources(text), {
+    onNone: () => ({ kind: 'unlisted' }),
+    onSome: ({ gaps }) => ({ kind: 'listed', gaps }),
+  });
 }

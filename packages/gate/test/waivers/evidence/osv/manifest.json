@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-09-26T23:58:53.522Z",
+  "packages": ["cookie", "encodeurl", "rxjs", "unrs-resolver"],
+  "source": {
+    "url": "https://codeload.github.com/ossf/malicious-packages/tar.gz/refs/heads/main",
+    "commit": "89d286051d611a25523aa21e3dfdb340dfdca7e3",
+    "committedAt": "2026-09-26T23:17:57.000Z"
+  }
+}

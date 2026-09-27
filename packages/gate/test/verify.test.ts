@@ -82,6 +82,7 @@ test('an unsupported lockfile version exits non-zero with an unreadable record',
       fileURLToPath(evidenceDir),
       '--at',
       '2026-09-26T00:00:00Z',
+      '--json',
     ]);
 
     expect(run.nodes.map((node) => 'unreadable' in node)).toEqual([true]);
@@ -145,10 +146,12 @@ describe('zero config', () => {
         evidence,
         '--at',
         at,
+        '--json',
       ]);
-      const implicit = raw(['verify', '--evidence', evidence, '--at', at], {
-        cwd: dir,
-      });
+      const implicit = raw(
+        ['verify', '--evidence', evidence, '--at', at, '--json'],
+        { cwd: dir },
+      );
 
       expect(implicit.stderr).toBe('');
       expect(explicit.stdout).not.toBe('');
@@ -217,6 +220,7 @@ describe('workspace links', () => {
       fileURLToPath(evidenceDir),
       '--at',
       at,
+      '--json',
     ]);
 
   test('links to the workspaces npm/cli and sigstore-js declare do not reject', () => {

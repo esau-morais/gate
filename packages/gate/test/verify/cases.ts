@@ -172,6 +172,7 @@ export function verifyArgs(
     fileURLToPath(evidenceDir),
     '--at',
     evaluation.at.toISOString(),
+    '--json',
   ];
 }
 
