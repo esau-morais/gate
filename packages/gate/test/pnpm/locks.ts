@@ -19,3 +19,16 @@ export function recordedPnpmLockPath(name: RecordedPnpmLock): string {
 export function recordedPnpmLock(name: RecordedPnpmLock): string {
   return readFileSync(recordedPnpmLockPath(name), 'utf8');
 }
+
+export type RecordedPnpmWorkspace =
+  'rules-js' | 'seek-oss-wingman' | 'quests-org-quests';
+
+export function recordedPnpmWorkspacePath(name: RecordedPnpmWorkspace): string {
+  return fileURLToPath(
+    new URL(`./${name}.pnpm-workspace.yaml`, import.meta.url),
+  );
+}
+
+export function recordedPnpmWorkspace(name: RecordedPnpmWorkspace): string {
+  return readFileSync(recordedPnpmWorkspacePath(name), 'utf8');
+}

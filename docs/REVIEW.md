@@ -558,7 +558,7 @@ Accepted 2026-09-26. gate reads `pnpm-lock.yaml` with `lockfileVersion: '9.0'`, 
 - A git source's spec is `github:<owner>/<repo>#<commit>` for a codeload archive, and `<repo>#<commit>` for `type: git`, so a context can allow it. pnpm keys a tarball package by its URL with any `user:token@` kept (`pnpm11/resolving/tarball-resolver/src/index.ts`), so a key, tarball or git URL with credentials is unreadable, and its path and error drop them.
 - pnpm 9 dropped `requiresBuild` from the lockfile (the v9 `PackageInfo` type), so a pnpm node's install scripts come from the packument alone, without the lockfile cross-check package-lock gets.
 - pnpm 9 dropped the dev flag: the v9 snapshot type has only `optional` (`lockfile/types/src/index.ts`, 9.15.9). gate computes dev and optional from the importer groups, as npm does. On the five recorded lockfiles, optional equals the flag pnpm writes on every production snapshot.
-- The env document pnpm 11 and 12 write first (`pnpm11/lockfile/fs/src/yamlDocuments.ts`) holds `configDependencies` and `packageManagerDependencies`, and its nodes are decided with paths starting `env:`. pnpm 10 keeps config dependencies in `pnpm-workspace.yaml` (`config/deps-installer/src/resolveConfigDeps.ts`), which gate doesn't read.
+- The env document pnpm 11 and 12 write first (`pnpm11/lockfile/fs/src/yamlDocuments.ts`) holds `configDependencies` and `packageManagerDependencies`, and its nodes are decided with paths starting `env:`. pnpm 10 keeps config dependencies in `pnpm-workspace.yaml`, which gate reads too (see [pnpm config dependencies](#pnpm-config-dependencies)).
 - With `excludeLinksFromLockfile: true`, pnpm leaves non-workspace links out and reads them from package.json at install (`pnpm11/installing/deps-restorer/src/index.ts`), so gate adds an unreadable node.
 - pnpm's own Node.js runtime (`variations`, `binary`) and `custom:` resolutions are unreadable, because gate has no evidence source for them.
 - Measured 2026-09-26 on 29 public lockfiles at their HEAD (vite, vue, nuxt, astro, pnpm and others): all read, and the only unreadable entry is pnpm/pnpm's Node.js runtime.
@@ -577,6 +577,18 @@ Accepted 2026-09-26, mirroring [Workspace links](#workspace-links). A `link:` to
 
 - gate takes the lockfile's folder as the repository. The rules_js lockfiles keep their importers in `../projects`, so all their workspace links reject.
 - In the 29 lockfiles, links to folders no importer names reject: nitro 1, rolldown 2, trpc 1, drizzle-orm 13, vitest 10. vite's 110 injected packages all name importers.
+
+### pnpm config dependencies
+
+Accepted 2026-09-27. pnpm installs config dependencies and loads their pnpmfile hooks before anything else, so gate decides each one. Read from pnpm 10.34.5, 11.28.0 and 12.7.0 source on 2026-09-27 (11.28.0 and 12.7.0 are one commit; 11 lives in `pnpm11/`, 12 in `pnpm/crates/`).
+
+- pnpm 10 reads them only from `pnpm-workspace.yaml` (`cli/cli-utils/src/getConfig.ts`) and skips the lockfile's env document (`lockfile/fs/src/read.ts`). With no `configDependencies` there, it reads `pnpm.configDependencies` from package.json (`config/config/src/getOptionsFromRootManifest.ts`). pnpm 11 and 12 read both files and ignore package.json (`pnpm11/config/reader/src/index.ts`, `cli/src/cli_args/legacy_pnpm_field.rs`).
+- A pnpm 10 value is `<version>+<integrity>`, split at the first `+`, or `{tarball, integrity}`, where an empty tarball means the registry's (`config/deps-installer/src/normalizeConfigDeps.ts`). pnpm writes only http(s) tarballs (`resolveConfigDeps.ts`). pnpm 11 and 12 also take a bare specifier and resolve it through the env document (`pnpm11/installing/env-installer/src/resolveAndInstallConfigDeps.ts`).
+- gate reads the nearest `pnpm-workspace.yaml` from the real path of the lockfile's folder up, as pnpm 10's `findWorkspaceDir` does from the working directory (`workspace/find-workspace-dir/src/index.ts`). It ignores `NPM_CONFIG_WORKSPACE_DIR`, which that function checks first. pnpm rejects `.pnpm-workspace.yaml` from 10.29.0, so gate doesn't look for it. package.json comes from the workspace file's folder, or the lockfile's when there is none.
+- A pin becomes a registry node, or a url node for a tarball on another host, at `pnpm-workspace.yaml -> <name>`. A sha1 pin or a bare exact version has no sha512 and quarantines on `integrity_unknown`. A range, a malformed pin, a non-http(s) tarball or a name npm wouldn't accept is unreadable.
+- When the env document lists the name, pnpm 11 and 12 install its pin without comparing the workspace value (`resolveAndInstallConfigDeps.ts`, `plan_pinned` in `resolve_and_install_config_deps.rs`), and pnpm 10 installs the workspace value. A pin that differs in version, integrity or tarball is unreadable. A matching pin, or a bare specifier the env document records, is left to the `env:` node.
+- An empty or missing workspace file has no config dependencies, as in pnpm (`workspace/read-manifest/src/index.ts`). A file `readYaml` refuses is unreadable, and so is every config dependency in package.json: pnpm 11 dropped that form. Of 44 public `pnpm-workspace.yaml` files at HEAD on 2026-09-27, all read, and the 12 with config dependencies gave 10 nodes and 2 bare ranges that their lockfiles' env documents resolve.
+- A config dependency's decision logs the sha256 of `pnpm-workspace.yaml` as `lockfile`, the bytes the node was read from. pnpm 10 uses that file as the lock for these pins. The record schema and replay are unchanged.
 
 ### yaml
 

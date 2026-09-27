@@ -15,7 +15,7 @@ import {
   type FetchGaps,
 } from './evidence-directory';
 import type { LockfileFormat } from '../verify-defaults';
-import type { LockfileNode, LockfileSource } from './lockfile';
+import type { Location, LockfileNode } from './lockfile';
 import type { VerifyRecord } from './verify';
 
 type Decided = Extract<VerifyRecord, { kind: 'decision' }>;
@@ -128,7 +128,9 @@ function nodeLabel(record: Decided): string {
   return `${subject.name}@${version}`;
 }
 
-function location(record: VerifyRecord): string {
+type PackageNode = Extract<LockfileNode, { kind: 'package' }>;
+
+function location(record: Location): string {
   return record.dependency === undefined
     ? record.path
     : `${record.path} -> ${record.dependency}`;
@@ -384,14 +386,20 @@ const client: Readonly<Record<LockfileFormat, string>> = {
 function integrityDetail(
   input: Input,
   record: Decided,
-  lockSource: LockfileSource | undefined,
+  node: PackageNode | undefined,
 ): Detail {
-  if (lockSource?.kind === 'registry' && lockSource.integrity === null) {
-    return {
-      evidence: 'the lockfile entry has no sha512 integrity',
-      step: relockStep[input.format],
-      own: [],
-    };
+  if (node?.source.kind === 'registry' && node.source.integrity === null) {
+    return node.dependency === undefined
+      ? {
+          evidence: 'the lockfile entry has no sha512 integrity',
+          step: relockStep[input.format],
+          own: [],
+        }
+      : {
+          evidence: `${node.path} pins no sha512 integrity`,
+          step: `pnpm installs a config dependency with the integrity it pins. Run pnpm add --config ${node.version === null ? node.name : `${node.name}@${node.version}`} to record the registry's sha512, if it has one.`,
+          own: [],
+        };
   }
 
   const { evidence } = record;
@@ -457,7 +465,7 @@ function detailFor(
   input: Input,
   record: Decided,
   reason: Reason,
-  lockSources: ReadonlyMap<string, LockfileSource>,
+  lockNodes: ReadonlyMap<string, PackageNode>,
 ): Detail {
   const { evidence } = record;
   if (reason.kind === 'failed') {
@@ -494,7 +502,7 @@ function detailFor(
         ['osv/'],
       );
     case 'integrity_unknown':
-      return integrityDetail(input, record, lockSources.get(record.path));
+      return integrityDetail(input, record, lockNodes.get(location(record)));
     case 'publish_time_unknown':
       return unknownDetail(
         input,
@@ -698,11 +706,9 @@ function groupReasons(
   input: Input,
   decided: readonly Decided[],
 ): { code: string; outcome: Shown; items: Item[] }[] {
-  const lockSources = new Map(
+  const lockNodes = new Map(
     input.nodes.flatMap((node) =>
-      node.kind === 'package' && node.dependency === undefined
-        ? [[node.path, node.source] as const]
-        : [],
+      node.kind === 'package' ? [[location(node), node] as const] : [],
     ),
   );
   const groups = new Map<
@@ -727,7 +733,7 @@ function groupReasons(
       };
       group.items.push({
         record,
-        ...detailFor(input, record, reason, lockSources),
+        ...detailFor(input, record, reason, lockNodes),
       });
       groups.set(key, group);
     }

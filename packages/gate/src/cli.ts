@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
@@ -9,8 +9,10 @@ import {
   defaultCacheDir,
   defaultLockfile,
   evidenceSource,
+  findPnpmWorkspace,
   lockfileFormat,
   lockfileNames,
+  type LockfileFormat,
 } from './verify-defaults';
 import { appendToLog, LogError, readLog } from './log/log';
 import {
@@ -26,14 +28,24 @@ import {
   readFetchGaps,
 } from './npm/evidence-directory';
 import { collectEvidence } from './npm/collect';
-import { readPackageLock, type LockfileRead } from './npm/lockfile';
-import { readPnpmLock } from './npm/pnpm-lock';
+import {
+  readPackageLock,
+  type LockfileNode,
+  type LockfileRead,
+} from './npm/lockfile';
+import { readPnpmConfigDependencies } from './npm/pnpm-config';
+import { readPnpmLockfile, type EnvConfigDependency } from './npm/pnpm-lock';
 import { humanReport } from './npm/report';
 import { sigstoreTrustedRoot } from './npm/trusted-root';
-import { decisionRecords, verifyExitCode, verifyNodes } from './npm/verify';
+import {
+  decisionRecords,
+  verifyExitCode,
+  verifyNodes,
+  type VerifyRecord,
+} from './npm/verify';
 import { canonicalPolicy, pinnedPolicies } from './pinned-policies';
 import { PolicyLoadError } from './policy';
-import { encodeRecord, lockfileDigest } from './record';
+import { encodeRecord, lockfileDigest, type LockfileDigest } from './record';
 import { replayEntry, replayExitCode } from './replay';
 import { ansi, colorEnabled, inert, plain } from './terminal';
 import { UtcTimestamp } from './time';
@@ -143,12 +155,80 @@ function lockfilePath(config: VerifyConfig): string {
   );
 }
 
-function readLockfile(path: string, text: string) {
+type InputFile = {
+  readonly path: string;
+  readonly text: string;
+  readonly digest: LockfileDigest;
+};
+
+type NodeGroup = {
+  readonly nodes: readonly LockfileNode[];
+  readonly digest: LockfileDigest;
+};
+
+function readInputFile(input: { from: string; path: string }): InputFile {
+  const bytes = readFileSync(input.path);
+
+  return {
+    path: relative(input.from, input.path).split(sep).join('/'),
+    text: new TextDecoder().decode(bytes),
+    digest: lockfileDigest(bytes),
+  };
+}
+
+function readPnpmConfig(
+  lockfile: string,
+  env: ReadonlyMap<string, EnvConfigDependency>,
+): NodeGroup[] {
+  const from = realpathSync(dirname(resolve(lockfile)));
+  const workspacePath = findPnpmWorkspace(from, existsSync);
+  const manifestPath = join(
+    workspacePath === undefined ? from : dirname(workspacePath),
+    'package.json',
+  );
+  const config = readPnpmConfigDependencies({
+    env,
+    ...(workspacePath === undefined
+      ? {}
+      : { workspace: readInputFile({ from, path: workspacePath }) }),
+    ...(existsSync(manifestPath)
+      ? { manifest: readInputFile({ from, path: manifestPath }) }
+      : {}),
+  });
+
+  return config === undefined
+    ? []
+    : [{ nodes: config.nodes, digest: config.file.digest }];
+}
+
+function readLockfile(
+  path: string,
+  bytes: Uint8Array,
+): {
+  format: LockfileFormat;
+  lock: LockfileRead;
+  groups: readonly NodeGroup[];
+} {
+  const text = new TextDecoder().decode(bytes);
   const format = lockfileFormat(path, text);
+  const digest = lockfileDigest(bytes);
+  const { read, env } =
+    format === 'package-lock'
+      ? { read: readPackageLock(text), env: new Map() }
+      : readPnpmLockfile(text);
+  if (read.kind === 'unreadable') {
+    return { format, lock: read, groups: [] };
+  }
+
+  const groups = [
+    { nodes: read.nodes, digest },
+    ...(format === 'pnpm-lock' ? readPnpmConfig(path, env) : []),
+  ];
 
   return {
     format,
-    lock: format === 'pnpm-lock' ? readPnpmLock(text) : readPackageLock(text),
+    lock: { kind: 'read', nodes: groups.flatMap((group) => group.nodes) },
+    groups,
   };
 }
 
@@ -171,12 +251,10 @@ const readInputs = (config: VerifyConfig) =>
     }
 
     const path = lockfilePath(config);
-    const bytes = readFileSync(path);
 
     return {
       source,
-      ...readLockfile(path, new TextDecoder().decode(bytes)),
-      lockfile: lockfileDigest(bytes),
+      ...readLockfile(path, readFileSync(path)),
       policy: canonicalPolicy(),
       context: Option.isSome(config.context)
         ? readContext(config.context.value)
@@ -271,7 +349,7 @@ const verify = Command.make(
         return yield* fail('verify', inputs.failure);
       }
 
-      const { source, format, lock, lockfile, policy, context, log } =
+      const { source, format, lock, groups, policy, context, log } =
         inputs.success;
       let evidenceDir: string;
       if (source.kind === 'fetch') {
@@ -305,20 +383,26 @@ const verify = Command.make(
         ? requestedAt.value
         : new Date(yield* Clock.currentTimeMillis);
 
-      const records =
+      const decided = groups.map(({ nodes, digest }) => ({
+        digest,
+        records: verifyNodes({
+          nodes,
+          store: store.success,
+          at,
+          policy,
+          context,
+        }),
+      }));
+      const records: readonly VerifyRecord[] =
         lock.kind === 'read'
-          ? verifyNodes({
-              nodes: lock.nodes,
-              store: store.success,
-              at,
-              policy,
-              context,
-            })
-          : [{ kind: 'unreadable' as const, path: '', error: lock.error }];
+          ? decided.flatMap((group) => group.records)
+          : [{ kind: 'unreadable', path: '', error: lock.error }];
       if (log !== undefined) {
-        const entries = decisionRecords({ records, context, lockfile }).map(
-          encodeRecord,
-        );
+        const entries = decided
+          .flatMap(({ records: grouped, digest }) =>
+            decisionRecords({ records: grouped, context, lockfile: digest }),
+          )
+          .map(encodeRecord);
         const appended = yield* attempt(() =>
           appendToLog({ ...log, entries }),
         ).pipe(Effect.result);

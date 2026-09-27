@@ -1,4 +1,4 @@
-import { posix, win32 } from 'node:path';
+import { dirname, join, posix, win32 } from 'node:path';
 
 export function defaultCacheDir(input: {
   platform: NodeJS.Platform;
@@ -85,4 +85,22 @@ export function lockfileFormat(path: string, text: string): LockfileFormat {
   }
 
   return text.trimStart().startsWith('{') ? 'package-lock' : 'pnpm-lock';
+}
+
+export const pnpmWorkspaceName = 'pnpm-workspace.yaml';
+
+export function findPnpmWorkspace(
+  dir: string,
+  exists: (path: string) => boolean,
+): string | undefined {
+  for (let current = dir; ; current = dirname(current)) {
+    const candidate = join(current, pnpmWorkspaceName);
+    if (exists(candidate)) {
+      return candidate;
+    }
+
+    if (dirname(current) === current) {
+      return undefined;
+    }
+  }
 }

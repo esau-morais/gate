@@ -3,8 +3,11 @@ import {
   copyFileSync,
   existsSync,
   mkdtempSync,
+  mkdirSync,
   readdirSync,
+  readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -18,7 +21,15 @@ import {
   summarizeOutput,
   verifyArgs,
 } from './verify/cases';
-import { recordedPnpmLock, recordedPnpmLockPath } from './pnpm/locks';
+import {
+  recordedPnpmLock,
+  recordedPnpmLockPath,
+  recordedPnpmWorkspace,
+} from './pnpm/locks';
+import { generateTestLogKey } from './support/log';
+import { readLog } from '../src/log/log';
+import { parseVerifierKey } from '../src/log/note';
+import { decodeRecord, lockfileDigest } from '../src/record';
 import { recordedLock, recordedLockPath, type Lock } from './workspaces/locks';
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
@@ -486,5 +497,296 @@ describe('pnpm-lock.yaml', () => {
       exitCode: 1,
       unreadable: [''],
     });
+  });
+});
+
+describe('pnpm config dependencies', () => {
+  const evidence = fileURLToPath(evidenceDir);
+  const viteAt = '2026-09-23T12:17:15Z';
+  const vite = (integrity: string) =>
+    `configDependencies:\n  vite: '8.3.0+${integrity}'\n`;
+  const viteSha512 =
+    'sha512-lhZBVvEHefgE+HQZC9O7EBJgCU/nVzFNl7vkS4RE0APtWLP02/8QVIkQtzBxPquh7lq5/78NHipTj7ODQ6XuyQ==';
+  const emptyLock = "lockfileVersion: '9.0'\n\nimporters:\n\n  .: {}\n";
+  const inRepository = <A>(
+    files: Readonly<Record<string, string>>,
+    run: (dir: string) => A,
+  ): A => {
+    const dir = mkdtempSync(join(tmpdir(), 'gate-config-'));
+    try {
+      for (const [name, text] of Object.entries(files)) {
+        mkdirSync(join(dir, name, '..'), { recursive: true });
+        writeFileSync(join(dir, name), text);
+      }
+
+      return run(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  const verifyIn = (dir: string, extra: readonly string[] = []) =>
+    raw(
+      ['verify', '--evidence', evidence, '--at', viteAt, '--json', ...extra],
+      { cwd: dir },
+    );
+  const decodeLine = Schema.decodeUnknownSync(
+    Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+  );
+  const decisionOf = (stdout: string) =>
+    stdout
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => decodeLine(line));
+
+  test('a config dependency with sha512 integrity is decided like a registry node', () => {
+    const npm = decisionOf(
+      raw([
+        'verify',
+        '--lockfile',
+        fileURLToPath(
+          new URL(
+            'verify/cases/vite-8.3.0-benign/package-lock.json',
+            import.meta.url,
+          ),
+        ),
+        '--evidence',
+        evidence,
+        '--at',
+        viteAt,
+        '--json',
+      ]).stdout,
+    );
+    const run = inRepository(
+      { 'pnpm-lock.yaml': emptyLock, 'pnpm-workspace.yaml': vite(viteSha512) },
+      (dir) => verifyIn(dir),
+    );
+    const config = decisionOf(run.stdout);
+    const withoutLocation = (line: Readonly<Record<string, unknown>>) =>
+      Object.fromEntries(
+        Object.entries(line).filter(
+          ([key]) => !['path', 'dependency', 'dev'].includes(key),
+        ),
+      );
+
+    expect(config).toMatchObject([
+      {
+        path: 'pnpm-workspace.yaml',
+        dependency: 'vite',
+        outcome: 'ACCEPT',
+        dev: false,
+      },
+    ]);
+    expect(config.map(withoutLocation)).toEqual(npm.map(withoutLocation));
+    expect(run.exitCode).toBe(0);
+  });
+
+  test('a config dependency with a missing or sha1 integrity quarantines on integrity_unknown', () => {
+    for (const workspace of [
+      vite('sha1-2jmk2uB6XNwfJ9xCwhuS9fAjq1E='),
+      'configDependencies:\n  vite: 8.3.0\n',
+    ]) {
+      const run = inRepository(
+        { 'pnpm-lock.yaml': emptyLock, 'pnpm-workspace.yaml': workspace },
+        (dir) => verifyIn(dir),
+      );
+
+      expect(summarizeOutput(run.stdout)).toEqual([
+        {
+          path: 'pnpm-workspace.yaml',
+          dependency: 'vite',
+          outcome: 'QUARANTINE',
+          reasons: ['integrity_unknown'],
+        },
+      ]);
+      expect(run.exitCode).toBe(1);
+    }
+  });
+
+  test('a config dependency pnpm-workspace.yaml and the env document disagree on is unreadable', () => {
+    const run = inRepository(
+      {
+        'pnpm-lock.yaml': recordedPnpmLock('rules-js-multi-document-v11'),
+        'pnpm-workspace.yaml': recordedPnpmWorkspace('rules-js').replace(
+          'semver: 7.7.4+',
+          'semver: 7.7.3+',
+        ),
+      },
+      (dir) => verifyIn(dir),
+    );
+    expect(
+      summarizeOutput(run.stdout).map((node) => [
+        node.path,
+        node.dependency,
+        'unreadable' in node,
+      ]),
+    ).toEqual([
+      ['env:semver@7.7.4', undefined, false],
+      ['ms@2.1.3', undefined, false],
+      ['pnpm-workspace.yaml', 'semver', true],
+    ]);
+    expect(run.exitCode).toBe(1);
+  });
+
+  test('a pnpm-workspace.yaml gate cannot read is unreadable, never empty', () => {
+    const run = inRepository(
+      {
+        'pnpm-lock.yaml': emptyLock,
+        'pnpm-workspace.yaml': `pins: &pins\n  vite: '8.3.0+${viteSha512}'\nconfigDependencies: *pins\n`,
+      },
+      (dir) => verifyIn(dir),
+    );
+
+    expect(summarizeOutput(run.stdout)).toMatchObject([
+      { path: 'pnpm-workspace.yaml', unreadable: 'YAML with an anchor' },
+    ]);
+    expect(run.exitCode).toBe(1);
+  });
+
+  test('--lockfile and a lockfile below the workspace root find the nearest pnpm-workspace.yaml', () => {
+    inRepository(
+      {
+        'app/pnpm-lock.yaml': emptyLock,
+        'pnpm-workspace.yaml': vite(viteSha512),
+      },
+      (dir) => {
+        const explicit = raw([
+          'verify',
+          '--lockfile',
+          join(dir, 'app', 'pnpm-lock.yaml'),
+          '--evidence',
+          evidence,
+          '--at',
+          viteAt,
+          '--json',
+        ]);
+        const implicit = verifyIn(join(dir, 'app'));
+
+        expect(summarizeOutput(explicit.stdout)).toEqual([
+          {
+            path: '../pnpm-workspace.yaml',
+            dependency: 'vite',
+            outcome: 'ACCEPT',
+            reasons: [],
+          },
+        ]);
+        expect(implicit.stdout).toBe(explicit.stdout);
+      },
+    );
+  });
+
+  test('a lockfile folder reached through a symlink finds the workspace file of the real folder', () => {
+    inRepository(
+      {
+        'real/app/pnpm-lock.yaml': emptyLock,
+        'real/pnpm-workspace.yaml': vite(viteSha512),
+      },
+      (dir) => {
+        symlinkSync(join(dir, 'real', 'app'), join(dir, 'link'));
+        const run = raw([
+          'verify',
+          '--lockfile',
+          join(dir, 'link', 'pnpm-lock.yaml'),
+          '--evidence',
+          evidence,
+          '--at',
+          viteAt,
+          '--json',
+        ]);
+
+        expect(
+          summarizeOutput(run.stdout).map((node) => [
+            node.path,
+            node.dependency,
+          ]),
+        ).toEqual([['../pnpm-workspace.yaml', 'vite']]);
+      },
+    );
+  });
+
+  test('a package-lock.json does not read pnpm-workspace.yaml', () => {
+    const lock = readFileSync(
+      new URL(
+        'verify/cases/vite-8.3.0-benign/package-lock.json',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const run = inRepository(
+      { 'package-lock.json': lock, 'pnpm-workspace.yaml': '- not a map\n' },
+      (dir) => verifyIn(dir),
+    );
+
+    expect(summarizeOutput(run.stdout).map((node) => node.path)).toEqual([
+      'node_modules/vite',
+    ]);
+  });
+
+  test('the log binds a config dependency to the bytes of pnpm-workspace.yaml', () => {
+    const key = generateTestLogKey('gate.test/config');
+    const workspace = vite(viteSha512);
+    const lock = recordedPnpmLock('vuejs-core');
+    inRepository(
+      {
+        'pnpm-lock.yaml': lock,
+        'pnpm-workspace.yaml': workspace,
+        'log.key': key.skey,
+      },
+      (dir) => {
+        const run = verifyIn(dir, [
+          '--log',
+          join(dir, 'log'),
+          '--log-key',
+          join(dir, 'log.key'),
+        ]);
+        const read = readLog({
+          dir: join(dir, 'log'),
+          verifier: parseVerifierKey(key.vkey),
+        });
+        if (read.kind !== 'read') {
+          throw new Error(read.error);
+        }
+
+        const bound = read.entries().flatMap((entry) => {
+          const record =
+            entry.kind === 'failed' ? undefined : decodeRecord(entry.bytes);
+
+          return record?.kind === 'read'
+            ? [[record.record.path, record.record.lockfile] as const]
+            : [];
+        });
+        const digest = (text: string) =>
+          lockfileDigest(new TextEncoder().encode(text));
+
+        expect(run.stderr).toBe('');
+        expect(bound).toContainEqual([
+          'pnpm-workspace.yaml',
+          digest(workspace),
+        ]);
+        expect(
+          bound.filter(([path]) => path !== 'pnpm-workspace.yaml'),
+        ).toEqual(
+          bound
+            .filter(([path]) => path !== 'pnpm-workspace.yaml')
+            .map(([path]) => [path, digest(lock)]),
+        );
+        expect(bound.length).toBeGreaterThan(1);
+      },
+    );
+  });
+
+  test('the report tells a pnpm 10 user how to re-pin a config dependency', () => {
+    const run = inRepository(
+      {
+        'pnpm-lock.yaml': emptyLock,
+        'pnpm-workspace.yaml': 'configDependencies:\n  vite: 8.3.0\n',
+      },
+      (dir) =>
+        raw(['verify', '--evidence', evidence, '--at', viteAt], { cwd: dir }),
+    );
+
+    expect(run.stdout).toContain('pnpm-workspace.yaml -> vite');
+    expect(run.stdout).toContain('pnpm add --config vite@8.3.0');
+    expect(run.stdout).not.toContain('pnpm-lock.yaml');
   });
 });
