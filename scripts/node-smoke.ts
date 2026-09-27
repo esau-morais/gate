@@ -17,6 +17,10 @@ import {
   recordedPnpmLockPath,
   recordedPnpmWorkspacePath,
 } from '../packages/gate/test/pnpm/locks';
+import {
+  largeReportArgs,
+  slowPipeMismatch,
+} from '../packages/gate/test/support/slow-pipe';
 import { recordedLockPath } from '../packages/gate/test/workspaces/locks';
 
 const outdir = await mkdtemp(join(tmpdir(), 'gate-node-smoke-'));
@@ -146,6 +150,18 @@ try {
 
   if (process.exitCode !== 1) {
     console.log('gate verify prints the same report on Node and Bun');
+  }
+
+  for (const args of [[...largeReportArgs, '--json'], largeReportArgs]) {
+    const mismatch = slowPipeMismatch(['node', cli, ...args]);
+    if (mismatch !== undefined) {
+      console.error(`gate ${args.join(' ')} on Node: ${mismatch}`);
+      process.exitCode = 1;
+    }
+  }
+
+  if (process.exitCode !== 1) {
+    console.log('gate verify on Node writes every byte to a slow pipe');
   }
 
   const repo = join(outdir, 'npm-cli');

@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { BunRuntime, BunServices } from '@effect/platform-bun';
 import { Clock, Console, Effect, Option, Result, Schema } from 'effect';
 import { Command, Flag } from 'effect/unstable/cli';
 import { DecisionContext, noContext } from './context';
@@ -43,6 +42,7 @@ import {
   verifyNodes,
   type VerifyRecord,
 } from './npm/verify';
+import { runCli } from './output';
 import { canonicalPolicy, pinnedPolicies } from './pinned-policies';
 import { PolicyLoadError } from './policy';
 import { encodeRecord, lockfileDigest, type LockfileDigest } from './record';
@@ -486,7 +486,4 @@ const gate = Command.make('gate').pipe(
   Command.withSubcommands([verify, replay]),
 );
 
-Command.run(gate, { version: '0.0.0' }).pipe(
-  Effect.provide(BunServices.layer),
-  BunRuntime.runMain,
-);
+runCli(Command.run(gate, { version: '0.0.0' }));
