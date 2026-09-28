@@ -1,0 +1,539 @@
+{
+  "incident": "axios, 2026-03-31: a stolen maintainer account published 1.14.1 without provenance, adding plain-crypto-js, first published the day before, whose 4.2.1 ran a postinstall dropper",
+  "capturedAt": "2026-09-28",
+  "sources": [
+    {
+      "url": "https://registry.npmjs.org/axios",
+      "facts": "target.time; earlier[*]"
+    },
+    {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/axios@1.14.0",
+      "facts": "earlier[*].provenance (one request per attested earlier version)"
+    },
+    {
+      "url": "https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/axios/versions/1.14.1",
+      "facts": "target.integrity, npmUser, scripts, dependencies, provenance (no dist.attestations)"
+    },
+    {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/axios@1.14.1",
+      "facts": "target.provenance (HTTP 404)"
+    },
+    {
+      "url": "https://registry.npmjs.org/plain-crypto-js",
+      "facts": "firstPublished (time[\"4.2.0\"])"
+    },
+    {
+      "url": "https://github.com/axios/axios/pull/10591",
+      "facts": "evaluations[0].at"
+    },
+    {
+      "url": "https://github.com/axios/axios/issues/10636",
+      "facts": "takedownAt (\"March 31, 03:15 UTC: malicious versions removed from npm\")"
+    },
+    {
+      "url": "https://api.osv.dev/v1/vulns/MAL-2026-2307",
+      "facts": "feedHits.availableAt (first import_time)"
+    }
+  ],
+  "gaps": [
+    "target facts come from the packages.ecosyste.ms mirror; the registry keeps only time[\"1.14.1\"]",
+    "target.repository is not in the mirror's record, so it reads as undeclared; it matters only to a changed publisher, and this one is continuous",
+    "target.provenance is absent because the mirror's dist has no attestations and the attestation endpoint returns 404; npm removes both with the version, so this is not observed on the original manifest",
+    "target.dependencies are the mirror's runtime and optional dependencies; the mirror does not show peers, and 1.14.0 declares none",
+    "takedownAt is the post-mortem's 03:15 UTC, to the minute",
+    "the attacker deleted the first issues (around 01:00 UTC); the earliest surviving public report is PR #10591",
+    "npm reset plain-crypto-js's created time to 2026-03-31T04:26:32.907Z when it published the placeholder; firstPublished is time[\"4.2.0\"], which npm kept"
+  ],
+  "package": "axios",
+  "target": {
+    "version": "1.14.1",
+    "time": "2026-03-31T00:21:58.168Z",
+    "integrity": "sha512-vF/aB4vrIzLyOb2TB9gpuE8gusNHpZqk2ZZcAqSnRjW5IcY7tFSBEurD2tbakohj0Rw5xMHYwjSqOGSfr0iewA==",
+    "provenance": {
+      "kind": "absent"
+    },
+    "npmUser": "jasonsaayman",
+    "scripts": {
+      "fix": "eslint --fix lib/**/*.js",
+      "lint": "eslint lib/**/*.js",
+      "test": "npm run test:vitest",
+      "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+      "start": "node ./sandbox/server.js",
+      "version": "npm run build && git add package.json",
+      "examples": "node ./examples/server.js",
+      "preversion": "gulp version",
+      "test:vitest": "vitest run",
+      "test:module:cjs": "npm --prefix tests/module/cjs run test:module:cjs",
+      "test:module:esm": "npm --prefix tests/module/esm run test:module:esm",
+      "test:vitest:unit": "vitest run --project unit",
+      "test:vitest:watch": "vitest",
+      "test:vitest:browser": "vitest run --project browser",
+      "test:smoke:cjs:vitest": "npm --prefix tests/smoke/cjs run test:smoke:cjs:mocha",
+      "test:smoke:esm:vitest": "npm --prefix tests/smoke/esm run test:smoke:esm:vitest",
+      "test:vitest:browser:headless": "vitest run --project browser-headless"
+    },
+    "dependencies": {
+      "form-data": "^4.0.5",
+      "proxy-from-env": "^2.1.0",
+      "plain-crypto-js": "^4.2.1",
+      "follow-redirects": "^1.15.11"
+    }
+  },
+  "earlier": [
+    {
+      "version": "0.30.2",
+      "time": "2025-09-27T10:29:01.127Z",
+      "integrity": "sha512-0pE4RQ4UQi1jKY6p7u6i1Tkzqmu+d+/tHS7Q7rKunWLB9WyilBTpHHpXzPNMDj5hTbK0B0PTLSz07yqMBiF6xg==",
+      "provenance": {
+        "kind": "absent"
+      },
+      "npmUser": "jasonsaayman",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "node bin/ssl_hotfix.js grunt test && node bin/ssl_hotfix.js dtslint --localTs node_modules/typescript/lib",
+        "build": "cross-env NODE_ENV=production grunt build",
+        "start": "node ./sandbox/server.js",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "preversion": "grunt version && npm test"
+      },
+      "dependencies": {
+        "form-data": "^4.0.4",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.4"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.13.0",
+      "time": "2025-10-27T16:08:14.422Z",
+      "integrity": "sha512-zt40Pz4zcRXra9CVV31KeyofwiNvAbJ5B6YPz9pMJ+yOSLikvPT4Yi5LjfgjRa9CawVYBaD1JQzIVcIvBejKeA==",
+      "provenance": {
+        "kind": "verified",
+        "repository": "https://github.com/axios/axios",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "jasonsaayman",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "npm run test:node && npm run test:browser && npm run test:package",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky install && npm run prepare:hooks",
+        "release": "release-it",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "test:node": "npm run test:mocha",
+        "preversion": "gulp version",
+        "test:karma": "node ./bin/run-karma-tests.js",
+        "test:mocha": "node bin/ssl_hotfix.js mocha test/unit/**/*.js --timeout 30000 --exit",
+        "postpublish": "git push && git push --tags",
+        "release:dry": "release-it --dry-run --no-npm",
+        "test:eslint": "node bin/ssl_hotfix.js eslint lib/**/*.js",
+        "release:beta": "release-it --preRelease=beta",
+        "release:info": "release-it --release-version",
+        "test:browser": "npm run test:karma",
+        "test:dtslint": "dtslint --localTs node_modules/typescript/lib",
+        "test:exports": "node bin/ssl_hotfix.js mocha test/module/test.js --timeout 30000 --exit",
+        "test:package": "npm run test:eslint && npm run test:dtslint && npm run test:exports",
+        "prepare:hooks": "npx husky set .husky/commit-msg \"npx commitlint --edit $1\"",
+        "prepublishOnly": "npm run test:build:version",
+        "release:no-npm": "release-it --no-npm",
+        "test:karma:server": "node bin/ssl_hotfix.js cross-env karma start karma.conf.cjs",
+        "test:build:version": "node ./bin/check-build-version.js",
+        "test:karma:firefox": "node bin/ssl_hotfix.js cross-env LISTEN_ADDR=:: Browsers=Firefox karma start karma.conf.cjs --single-run",
+        "release:beta:no-npm": "release-it --preRelease=beta --no-npm",
+        "release:changelog:fix": "node ./bin/injectContributorsList.js && git add CHANGELOG.md"
+      },
+      "dependencies": {
+        "form-data": "^4.0.4",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.6"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.13.1",
+      "time": "2025-10-28T18:55:32.544Z",
+      "integrity": "sha512-hU4EGxxt+j7TQijx1oYdAjw4xuIp1wRQSsbMFwSthCWeBQur1eF+qJ5iQ5sN3Tw8YRzQNKb8jszgBdMDVqwJcw==",
+      "provenance": {
+        "kind": "verified",
+        "repository": "https://github.com/axios/axios",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "jasonsaayman",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "npm run test:node && npm run test:browser && npm run test:package",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky install && npm run prepare:hooks",
+        "release": "release-it",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "test:node": "npm run test:mocha",
+        "preversion": "gulp version",
+        "test:karma": "node ./bin/run-karma-tests.js",
+        "test:mocha": "node bin/ssl_hotfix.js mocha test/unit/**/*.js --timeout 30000 --exit",
+        "postpublish": "git push && git push --tags",
+        "release:dry": "release-it --dry-run --no-npm",
+        "test:eslint": "node bin/ssl_hotfix.js eslint lib/**/*.js",
+        "release:beta": "release-it --preRelease=beta",
+        "release:info": "release-it --release-version",
+        "test:browser": "npm run test:karma",
+        "test:dtslint": "dtslint --localTs node_modules/typescript/lib",
+        "test:exports": "node bin/ssl_hotfix.js mocha test/module/test.js --timeout 30000 --exit",
+        "test:package": "npm run test:eslint && npm run test:dtslint && npm run test:exports",
+        "prepare:hooks": "npx husky set .husky/commit-msg \"npx commitlint --edit $1\"",
+        "prepublishOnly": "npm run test:build:version",
+        "release:no-npm": "release-it --no-npm",
+        "test:karma:server": "node bin/ssl_hotfix.js cross-env karma start karma.conf.cjs",
+        "test:build:version": "node ./bin/check-build-version.js",
+        "test:karma:firefox": "node bin/ssl_hotfix.js cross-env LISTEN_ADDR=:: Browsers=Firefox karma start karma.conf.cjs --single-run",
+        "release:beta:no-npm": "release-it --preRelease=beta --no-npm",
+        "release:changelog:fix": "node ./bin/injectContributorsList.js && git add CHANGELOG.md"
+      },
+      "dependencies": {
+        "form-data": "^4.0.4",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.6"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.13.2",
+      "time": "2025-11-04T20:01:20.058Z",
+      "integrity": "sha512-VPk9ebNqPcy5lRGuSlKx752IlDatOjT9paPlm8A7yOuW2Fbvp4X3JznJtT4f0GzGLLiWE9W8onz51SqLYwzGaA==",
+      "provenance": {
+        "kind": "verified",
+        "repository": "https://github.com/axios/axios",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "jasonsaayman",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "npm run test:node && npm run test:browser && npm run test:package",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky install && npm run prepare:hooks",
+        "release": "release-it",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "test:node": "npm run test:mocha",
+        "preversion": "gulp version",
+        "test:karma": "node ./bin/run-karma-tests.js",
+        "test:mocha": "node bin/ssl_hotfix.js mocha test/unit/**/*.js --timeout 30000 --exit",
+        "postpublish": "git push && git push --tags",
+        "release:dry": "release-it --dry-run --no-npm",
+        "test:eslint": "node bin/ssl_hotfix.js eslint lib/**/*.js",
+        "release:beta": "release-it --preRelease=beta",
+        "release:info": "release-it --release-version",
+        "test:browser": "npm run test:karma",
+        "test:dtslint": "dtslint --localTs node_modules/typescript/lib",
+        "test:exports": "node bin/ssl_hotfix.js mocha test/module/test.js --timeout 30000 --exit",
+        "test:package": "npm run test:eslint && npm run test:dtslint && npm run test:exports",
+        "prepare:hooks": "npx husky set .husky/commit-msg \"npx commitlint --edit $1\"",
+        "prepublishOnly": "npm run test:build:version",
+        "release:no-npm": "release-it --no-npm",
+        "test:karma:server": "node bin/ssl_hotfix.js cross-env karma start karma.conf.cjs",
+        "test:build:version": "node ./bin/check-build-version.js",
+        "test:karma:firefox": "node bin/ssl_hotfix.js cross-env LISTEN_ADDR=:: Browsers=Firefox karma start karma.conf.cjs --single-run",
+        "release:beta:no-npm": "release-it --preRelease=beta --no-npm",
+        "release:changelog:fix": "node ./bin/injectContributorsList.js && git add CHANGELOG.md"
+      },
+      "dependencies": {
+        "form-data": "^4.0.4",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.6"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.13.3",
+      "time": "2026-01-25T14:21:38.842Z",
+      "integrity": "sha512-ERT8kdX7DZjtUm7IitEyV7InTHAF42iJuMArIiDIV5YtPanJkgw4hw5Dyg9fh0mihdWNn1GKaeIWErfe56UQ1g==",
+      "provenance": {
+        "kind": "absent"
+      },
+      "npmUser": "jasonsaayman",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "npm run test:node && npm run test:browser && npm run test:package",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky install && npm run prepare:hooks",
+        "release": "release-it",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "test:node": "npm run test:mocha",
+        "preversion": "gulp version",
+        "test:karma": "node ./bin/run-karma-tests.js",
+        "test:mocha": "node bin/ssl_hotfix.js mocha test/unit/**/*.js --timeout 30000 --exit",
+        "postpublish": "git push && git push --tags",
+        "release:dry": "release-it --dry-run --no-npm",
+        "test:eslint": "node bin/ssl_hotfix.js eslint lib/**/*.js",
+        "release:beta": "release-it --preRelease=beta",
+        "release:info": "release-it --release-version",
+        "test:browser": "npm run test:karma",
+        "test:dtslint": "dtslint --localTs node_modules/typescript/lib",
+        "test:exports": "node bin/ssl_hotfix.js mocha test/module/test.js --timeout 30000 --exit",
+        "test:package": "npm run test:eslint && npm run test:dtslint && npm run test:exports",
+        "prepare:hooks": "npx husky set .husky/commit-msg \"npx commitlint --edit $1\"",
+        "prepublishOnly": "npm run test:build:version",
+        "release:no-npm": "release-it --no-npm",
+        "test:karma:server": "node bin/ssl_hotfix.js cross-env karma start karma.conf.cjs",
+        "test:build:version": "node ./bin/check-build-version.js",
+        "test:karma:firefox": "node bin/ssl_hotfix.js cross-env LISTEN_ADDR=:: Browsers=Firefox karma start karma.conf.cjs --single-run",
+        "test:node:coverage": "c8 npm run test:mocha",
+        "release:beta:no-npm": "release-it --preRelease=beta --no-npm",
+        "release:changelog:fix": "node ./bin/injectContributorsList.js && git add CHANGELOG.md"
+      },
+      "dependencies": {
+        "form-data": "^4.0.4",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.6"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.13.4",
+      "time": "2026-01-27T18:18:38.613Z",
+      "integrity": "sha512-1wVkUaAO6WyaYtCkcYCOx12ZgpGf9Zif+qXa4n+oYzK558YryKqiL6UWwd5DqiH3VRW0GYhTZQ/vlgJrCoNQlg==",
+      "provenance": {
+        "kind": "verified",
+        "repository": "https://github.com/axios/axios",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "npm run test:node && npm run test:browser && npm run test:package",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky install && npm run prepare:hooks",
+        "release": "release-it",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "test:node": "npm run test:mocha",
+        "preversion": "gulp version",
+        "test:karma": "node ./bin/run-karma-tests.js",
+        "test:mocha": "node bin/ssl_hotfix.js mocha test/unit/**/*.js --timeout 30000 --exit",
+        "postpublish": "git push && git push --tags",
+        "release:dry": "release-it --dry-run --no-npm",
+        "test:eslint": "node bin/ssl_hotfix.js eslint lib/**/*.js",
+        "release:beta": "release-it --preRelease=beta",
+        "release:info": "release-it --release-version",
+        "test:browser": "npm run test:karma",
+        "test:dtslint": "dtslint --localTs node_modules/typescript/lib",
+        "test:exports": "node bin/ssl_hotfix.js mocha test/module/test.js --timeout 30000 --exit",
+        "test:package": "npm run test:eslint && npm run test:dtslint && npm run test:exports",
+        "prepare:hooks": "npx husky set .husky/commit-msg \"npx commitlint --edit $1\"",
+        "prepublishOnly": "npm run test:build:version",
+        "release:no-npm": "release-it --no-npm",
+        "test:karma:server": "node bin/ssl_hotfix.js cross-env karma start karma.conf.cjs",
+        "test:build:version": "node ./bin/check-build-version.js",
+        "test:karma:firefox": "node bin/ssl_hotfix.js cross-env LISTEN_ADDR=:: Browsers=Firefox karma start karma.conf.cjs --single-run",
+        "test:node:coverage": "c8 npm run test:mocha",
+        "release:beta:no-npm": "release-it --preRelease=beta --no-npm",
+        "release:changelog:fix": "node ./bin/injectContributorsList.js && git add CHANGELOG.md"
+      },
+      "dependencies": {
+        "form-data": "^4.0.4",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.6"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.13.5",
+      "time": "2026-02-08T11:05:13.696Z",
+      "integrity": "sha512-cz4ur7Vb0xS4/KUN0tPWe44eqxrIu31me+fbang3ijiNscE129POzipJJA6zniq2C/Z6sJCjMimjS8Lc/GAs8Q==",
+      "provenance": {
+        "kind": "verified",
+        "repository": "https://github.com/axios/axios",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "npm run test:node && npm run test:browser && npm run test:package",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky install && npm run prepare:hooks",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "test:node": "npm run test:mocha",
+        "preversion": "gulp version",
+        "test:karma": "node ./bin/run-karma-tests.js",
+        "test:mocha": "node bin/ssl_hotfix.js mocha test/unit/**/*.js --timeout 30000 --exit",
+        "test:eslint": "node bin/ssl_hotfix.js eslint lib/**/*.js",
+        "test:browser": "npm run test:karma",
+        "test:exports": "node bin/ssl_hotfix.js mocha test/module/test.js --timeout 30000 --exit",
+        "test:package": "npm run test:eslint && npm run test:exports",
+        "prepare:hooks": "npx husky set .husky/commit-msg \"npx commitlint --edit $1\"",
+        "prepublishOnly": "npm run test:build:version",
+        "test:karma:server": "node bin/ssl_hotfix.js cross-env karma start karma.conf.cjs",
+        "test:build:version": "node ./bin/check-build-version.js",
+        "test:karma:firefox": "node bin/ssl_hotfix.js cross-env LISTEN_ADDR=:: Browsers=Firefox karma start karma.conf.cjs --single-run",
+        "test:node:coverage": "c8 npm run test:mocha"
+      },
+      "dependencies": {
+        "form-data": "^4.0.5",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.11"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "0.30.3",
+      "time": "2026-02-18T17:19:20.081Z",
+      "integrity": "sha512-5/tmEb6TmE/ax3mdXBc/Mi6YdPGxQsv+0p5YlciXWt3PHIn0VamqCXhRMtScnwY3lbgSXLneOuXAKUhgmSRpwg==",
+      "provenance": {
+        "kind": "absent"
+      },
+      "npmUser": "jasonsaayman",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "node bin/ssl_hotfix.js grunt test && node bin/ssl_hotfix.js dtslint --localTs node_modules/typescript/lib",
+        "build": "cross-env NODE_ENV=production grunt build",
+        "start": "node ./sandbox/server.js",
+        "examples": "node ./examples/server.js",
+        "coveralls": "cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
+        "preversion": "grunt version && npm test"
+      },
+      "dependencies": {
+        "form-data": "^4.0.4",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.4"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.13.6",
+      "time": "2026-02-27T15:35:51.983Z",
+      "integrity": "sha512-ChTCHMouEe2kn713WHbQGcuYrr6fXTBiu460OTwWrWob16g1bXn4vtz07Ope7ewMozJAnEquLk5lWQWtBig9DQ==",
+      "provenance": {
+        "kind": "verified",
+        "repository": "https://github.com/axios/axios",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "test": "npm run test:node && npm run test:browser && npm run test:package",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky install && npm run prepare:hooks",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "test:node": "npm run test:mocha",
+        "preversion": "gulp version",
+        "test:karma": "node ./bin/run-karma-tests.js",
+        "test:mocha": "node bin/ssl_hotfix.js mocha test/unit/**/*.js --timeout 30000 --exit",
+        "test:eslint": "node bin/ssl_hotfix.js eslint lib/**/*.js",
+        "test:browser": "npm run test:karma",
+        "test:exports": "node bin/ssl_hotfix.js mocha test/module/test.js --timeout 30000 --exit",
+        "test:package": "npm run test:eslint && npm run test:exports",
+        "prepare:hooks": "npx husky set .husky/commit-msg \"npx commitlint --edit $1\"",
+        "prepublishOnly": "npm run test:build:version",
+        "test:karma:server": "node bin/ssl_hotfix.js cross-env karma start karma.conf.cjs",
+        "test:build:version": "node ./bin/check-build-version.js",
+        "test:karma:firefox": "node bin/ssl_hotfix.js cross-env LISTEN_ADDR=:: Browsers=Firefox karma start karma.conf.cjs --single-run",
+        "test:node:coverage": "c8 npm run test:mocha"
+      },
+      "dependencies": {
+        "form-data": "^4.0.5",
+        "proxy-from-env": "^1.1.0",
+        "follow-redirects": "^1.15.11"
+      },
+      "repository": "github.com/axios/axios"
+    },
+    {
+      "version": "1.14.0",
+      "time": "2026-03-27T19:01:40.915Z",
+      "integrity": "sha512-3Y8yrqLSwjuzpXuZ0oIYZ/XGgLwUIBU3uLvbcpb0pidD9ctpShJd43KSlEEkVQg6DS0G9NKyzOvBfUtDKEyHvQ==",
+      "provenance": {
+        "kind": "verified",
+        "repository": "https://github.com/axios/axios",
+        "workflow": ".github/workflows/publish.yml"
+      },
+      "npmUser": "GitHub Actions",
+      "scripts": {
+        "fix": "eslint --fix lib/**/*.js",
+        "lint": "eslint lib/**/*.js",
+        "test": "npm run test:vitest",
+        "build": "gulp clear && cross-env NODE_ENV=production rollup -c -m",
+        "start": "node ./sandbox/server.js",
+        "prepare": "husky",
+        "version": "npm run build && git add package.json",
+        "examples": "node ./examples/server.js",
+        "preversion": "gulp version",
+        "test:vitest": "vitest run",
+        "test:module:cjs": "npm --prefix tests/module/cjs run test:module:cjs",
+        "test:module:esm": "npm --prefix tests/module/esm run test:module:esm",
+        "test:vitest:unit": "vitest run --project unit",
+        "test:vitest:watch": "vitest",
+        "test:vitest:browser": "vitest run --project browser",
+        "test:smoke:cjs:vitest": "npm --prefix tests/smoke/cjs run test:smoke:cjs:mocha",
+        "test:smoke:esm:vitest": "npm --prefix tests/smoke/esm run test:smoke:esm:vitest",
+        "test:vitest:browser:headless": "vitest run --project browser-headless"
+      },
+      "dependencies": {
+        "form-data": "^4.0.5",
+        "proxy-from-env": "^2.1.0",
+        "follow-redirects": "^1.15.11"
+      },
+      "repository": "github.com/axios/axios"
+    }
+  ],
+  "firstPublished": [
+    {
+      "package": "plain-crypto-js",
+      "at": "2026-03-30T05:57:32.867Z"
+    }
+  ],
+  "feedHits": [
+    {
+      "feed": "osv",
+      "id": "MAL-2026-2307",
+      "availableAt": "2026-03-31T03:22:12Z"
+    }
+  ],
+  "takedownAt": "2026-03-31T03:15:00Z",
+  "evaluations": [
+    {
+      "at": "2026-03-31T01:38:47Z",
+      "moment": "first surviving public report",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["release_age", "trust_downgrade"]
+      },
+      "expectedUnder": {
+        "SupplyChainPolicy/v4": {
+          "outcome": "QUARANTINE",
+          "reasons": ["release_age", "trust_downgrade", "new_dependency_young"]
+        }
+      }
+    },
+    {
+      "at": "2026-03-31T03:14:00Z",
+      "moment": "one minute before npm removed the version",
+      "expected": {
+        "outcome": "QUARANTINE",
+        "reasons": ["release_age", "trust_downgrade"]
+      },
+      "expectedUnder": {
+        "SupplyChainPolicy/v4": {
+          "outcome": "QUARANTINE",
+          "reasons": ["release_age", "trust_downgrade", "new_dependency_young"]
+        }
+      }
+    }
+  ]
+}

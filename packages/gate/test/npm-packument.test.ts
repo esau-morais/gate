@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { npmPackumentFacts } from '../src/npm/packument';
+import { npmFirstPublish, npmPackumentFacts } from '../src/npm/packument';
+import { trimPackument } from '../src/npm/registry';
 import { trustMaterialFrom, type TrustRoot } from '../src/npm/provenance';
 import { loadReplayFixtures } from './replay/fixture';
 import { recordedEvidence, recordedViteAttestations } from './verify/cases';
@@ -196,6 +197,105 @@ describe('removed versions', () => {
       read.kind === 'read' &&
         [read.target, ...read.earlier].map((facts) => 'removed' in facts),
     ).toEqual([false, false]);
+  });
+});
+
+describe('dependencies', () => {
+  const trimmed = (versions: Record<string, Record<string, unknown>>) =>
+    npmPackumentFacts({
+      packument: trimPackument(packument(versions)),
+      name: 'lib',
+      version: '1.1.0',
+      attestations: new Map(),
+      trust,
+    });
+
+  test('dependencies, optional dependencies and required peers are what an install fetches', () => {
+    expect(
+      trimmed({
+        '1.1.0': {
+          dependencies: { a: '^1.0.0', shared: '^2.0.0' },
+          optionalDependencies: { b: '~1.2.0' },
+          peerDependencies: { c: '>=3', shared: '*', d: '^4' },
+          peerDependenciesMeta: { d: { optional: true } },
+          devDependencies: { e: '^5' },
+          bundleDependencies: ['f'],
+        },
+      }),
+    ).toMatchObject({
+      target: {
+        dependencies: { a: '^1.0.0', shared: '^2.0.0', b: '~1.2.0', c: '>=3' },
+      },
+    });
+  });
+
+  test('a version without dependency fields has none once gate has trimmed the packument', () => {
+    expect(trimmed({ '1.1.0': {} })).toMatchObject({
+      target: { dependencies: {} },
+    });
+  });
+
+  test('without the trim mark, a version without dependency fields is unknown, since an older trim dropped them', () => {
+    expect(lib({ '1.1.0': {} })).toMatchObject({
+      target: { dependencies: 'unknown' },
+    });
+    expect(lib({ '1.1.0': { dependencies: { a: '1' } } })).toMatchObject({
+      target: { dependencies: { a: '1' } },
+    });
+  });
+
+  test('a malformed dependency field is unknown and leaves the rest of the document readable', () => {
+    for (const dependencies of [['a'], 'a', { a: 1 }]) {
+      expect(trimmed({ '1.1.0': { dependencies } })).toMatchObject({
+        target: {
+          dependencies: 'unknown',
+          npmUser: 'maintainer',
+          provenance: { kind: 'absent' },
+        },
+      });
+    }
+  });
+
+  test('a removed or unreadable document has unknown dependencies', () => {
+    expect(trimmed({ '1.0.0': { dist: 42 }, '1.1.0': {} })).toMatchObject({
+      earlier: [{ dependencies: 'unknown' }],
+    });
+    expect(trimmed({ '1.1.0': {} })).toMatchObject({
+      earlier: [{ dependencies: 'unknown', removed: true }],
+    });
+  });
+});
+
+describe('first publish', () => {
+  const first = (time: Record<string, unknown>, name = 'lib') =>
+    npmFirstPublish({ packument: { name, time, versions: {} }, name: 'lib' });
+
+  test('is the earliest of created and every version time, whether or not the version is still listed', () => {
+    expect(
+      first({
+        created: '2018-11-29T16:56:02.864Z',
+        modified: '2022-05-02T14:26:06.405Z',
+        '0.0.1-security': '2018-11-29T16:56:02.951Z',
+        '0.1.0': '2018-09-05T08:23:42.256Z',
+        unpublished: { time: '2018-11-26T17:18:17.658Z' },
+      }),
+    ).toEqual({ kind: 'packument', at: new Date('2018-09-05T08:23:42.256Z') });
+  });
+
+  test('is unknown without a packument, for another package, or with an unreadable time', () => {
+    expect(npmFirstPublish({ packument: undefined, name: 'lib' })).toEqual({
+      kind: 'unknown',
+      reason: 'no packument recorded',
+    });
+    expect(first({ '1.0.0': '2026-01-01T00:00:00Z' }, 'other')).toMatchObject({
+      kind: 'unknown',
+    });
+    expect(
+      first({ '1.0.0': '2026-01-01T00:00:00Z', '1.1.0': 'soon' }),
+    ).toMatchObject({ kind: 'unknown' });
+    expect(first({ modified: '2026-01-01T00:00:00Z' })).toMatchObject({
+      kind: 'unknown',
+    });
   });
 });
 

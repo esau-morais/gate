@@ -9,7 +9,11 @@ import {
   verifyNodes,
   type EvidenceStore,
 } from '../src/npm/verify';
-import { loadSupplyChainPolicyV2 } from './support/policies';
+import { trimPackument } from '../src/npm/registry';
+import {
+  loadSupplyChainPolicyV2,
+  loadSupplyChainPolicyV4,
+} from './support/policies';
 import { recordedEvidence, recordedViteAttestations } from './verify/cases';
 
 const store: EvidenceStore = {
@@ -158,5 +162,97 @@ describe('gate verify', () => {
     expect(verifyExitCode(accepted)).toBe(0);
     expect(verifyExitCode(unreadable)).toBe(1);
     expect(verifyExitCode([])).toBe(0);
+  });
+});
+
+describe('new dependencies', () => {
+  const sha512 = `sha512-${'A'.repeat(86)}==`;
+  const doc = (version: string, dependencies: Record<string, string>) => ({
+    name: 'lib',
+    version,
+    dist: { integrity: sha512 },
+    _npmUser: { name: 'maintainer' },
+    dependencies,
+  });
+  const lib = trimPackument({
+    name: 'lib',
+    time: {
+      '1.0.0': '2026-08-01T00:00:00.000Z',
+      '1.1.0': '2026-09-20T00:00:00.000Z',
+    },
+    versions: {
+      '1.0.0': doc('1.0.0', { old: '^1.0.0' }),
+      '1.1.0': doc('1.1.0', { old: '^1.0.0', fresh: '^0.1.0' }),
+    },
+  });
+  const fresh = {
+    name: 'fresh',
+    time: {
+      created: '2026-09-19T00:00:00.000Z',
+      '0.1.0': '2026-09-19T00:00:00.000Z',
+    },
+  };
+  const node = {
+    kind: 'package',
+    path: 'node_modules/lib',
+    name: 'lib',
+    version: '1.1.0',
+    source: { kind: 'registry', integrity: Sha512Integrity.make(sha512) },
+    dev: false,
+    optional: false,
+    hasInstallScript: false,
+  } as const satisfies LockfileNode;
+  const run = (packuments: Record<string, unknown>) => {
+    const [record] = verifyNodes({
+      nodes: [node],
+      store: {
+        ...store,
+        packument: (name) =>
+          Object.hasOwn(packuments, name) ? packuments[name] : undefined,
+        attestations: () => new Map(),
+      },
+      at: new Date('2026-09-28T00:00:00Z'),
+      policy: loadSupplyChainPolicyV4(),
+      context: noContext,
+    });
+    if (record?.kind !== 'decision') {
+      throw new Error('expected a decision');
+    }
+
+    return record;
+  };
+
+  test("an added dependency's first publish comes from its recorded packument", () => {
+    const record = run({ lib, fresh });
+
+    expect(record.evidence.newDependencies).toEqual({
+      kind: 'added',
+      added: [
+        {
+          name: 'fresh',
+          spec: '^0.1.0',
+          firstPublish: {
+            kind: 'packument',
+            at: new Date('2026-09-19T00:00:00.000Z'),
+          },
+        },
+      ],
+    });
+    expect(record.reasons.map((reason) => reason.code)).toContain(
+      'new_dependency_young',
+    );
+  });
+
+  test("without the added dependency's packument its first publish is unknown", () => {
+    expect(run({ lib }).reasons.map((reason) => reason.code)).toContain(
+      'new_dependencies_unknown',
+    );
+  });
+
+  test('a node gate has no packument for has unknown new dependencies', () => {
+    expect(run({}).evidence.newDependencies).toEqual({
+      kind: 'unknown',
+      reason: 'no packument recorded',
+    });
   });
 });

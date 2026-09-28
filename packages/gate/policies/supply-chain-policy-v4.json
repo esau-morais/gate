@@ -1,0 +1,95 @@
+{
+  "id": "SupplyChainPolicy/v4",
+  "rules": [
+    {
+      "code": "feed_match",
+      "outcome": "REJECT",
+      "when": "evidence.feeds.kind == 'checked' && size(evidence.feeds.hits) > 0"
+    },
+    {
+      "code": "exotic_source",
+      "outcome": "REJECT",
+      "when": "evidence.source.kind != 'registry' && !context.allowedSources.exists(a, a.kind == evidence.source.kind && a.name == evidence.subject.name && a.spec == evidence.source.spec && (a.kind != 'url' || a.integrity == evidence.source.integrity))"
+    },
+    {
+      "code": "feeds_unavailable",
+      "outcome": "QUARANTINE",
+      "when": "evidence.feeds.kind != 'checked'"
+    },
+    {
+      "code": "integrity_unknown",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.source.integrity == ''"
+    },
+    {
+      "code": "publish_time_unknown",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.publishTime.kind != 'packument'"
+    },
+    {
+      "code": "release_age",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.publishTime.kind == 'packument' && now - evidence.publishTime.at < duration('72h')"
+    },
+    {
+      "code": "provenance_unavailable",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.provenance.kind == 'unavailable'"
+    },
+    {
+      "code": "trust_downgrade",
+      "outcome": "QUARANTINE",
+      "when": "evidence.provenance.kind == 'absent' && evidence.earlierProvenance == 'some' && (evidence.publishTime.kind != 'packument' || now - evidence.publishTime.at < duration('2160h'))",
+      "waivable": true
+    },
+    {
+      "code": "provenance_history_unknown",
+      "outcome": "QUARANTINE",
+      "when": "evidence.provenance.kind == 'absent' && evidence.earlierProvenanceExcludingRemoved == 'unknown'"
+    },
+    {
+      "code": "publisher_changed",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.publisherExcludingRemoved.kind == 'changed' && !(evidence.publisherExcludingRemoved.identity.kind == 'workflow' && evidence.publisherExcludingRemoved.earlier.all(e, e.kind == 'account') && evidence.publisherExcludingRemoved.repositoryCheck == 'matched') && (evidence.publishTime.kind != 'packument' || now - evidence.publishTime.at < duration('2160h'))",
+      "waivable": true
+    },
+    {
+      "code": "publisher_recent",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.publisherExcludingRemoved.kind == 'continuous' && evidence.publisherExcludingRemoved.identity.kind == 'account' && has(evidence.publisherExcludingRemoved.joinedAt) && evidence.publishTime.kind == 'packument' && evidence.publishTime.at - evidence.publisherExcludingRemoved.joinedAt < duration('720h') && now - evidence.publishTime.at < duration('2160h')",
+      "waivable": true
+    },
+    {
+      "code": "publisher_unknown",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.publisherExcludingRemoved.kind == 'unknown'"
+    },
+    {
+      "code": "new_install_script",
+      "outcome": "QUARANTINE",
+      "when": "evidence.installScripts.kind == 'new'",
+      "waivable": true
+    },
+    {
+      "code": "install_scripts_unknown",
+      "outcome": "QUARANTINE",
+      "when": "evidence.installScripts.kind == 'unknown'"
+    },
+    {
+      "code": "new_dependency_young",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && evidence.newDependencies.kind == 'added' && evidence.publishTime.kind == 'packument' && evidence.newDependencies.added.exists(d, d.firstPublish.kind == 'packument' && evidence.publishTime.at - d.firstPublish.at < duration('720h')) && now - evidence.publishTime.at < duration('2160h')",
+      "waivable": true
+    },
+    {
+      "code": "new_dependencies_unknown",
+      "outcome": "QUARANTINE",
+      "when": "evidence.source.kind == 'registry' && (evidence.newDependencies.kind == 'unknown' || (evidence.newDependencies.kind == 'added' && evidence.newDependencies.added.exists(d, d.firstPublish.kind == 'unknown')))"
+    },
+    {
+      "code": "integrity_mismatch",
+      "outcome": "REJECT",
+      "when": "evidence.integrityCheck == 'mismatched'"
+    }
+  ]
+}

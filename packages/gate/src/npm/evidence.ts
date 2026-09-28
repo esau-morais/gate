@@ -1,5 +1,6 @@
 import type {
   Claim,
+  FirstPublish,
   Identity,
   InstallScript,
   PackageVersionEvidence,
@@ -229,6 +230,136 @@ function installScriptChange(
     : { kind: 'new', added: [firstAdded, ...restAdded] };
 }
 
+const exoticSpec = /^[a-z][a-z0-9+.-]*:|[/\\]|^\.\.?$/i;
+
+type DependencyTarget =
+  | { readonly kind: 'registry'; readonly name: string }
+  | { readonly kind: 'exotic'; readonly spec: string };
+
+function dependencyTarget(name: string, spec: string): DependencyTarget {
+  if (spec.startsWith('npm:')) {
+    const aliased = spec.slice('npm:'.length);
+    const at = aliased.indexOf('@', 1);
+
+    return {
+      kind: 'registry',
+      name: at === -1 ? aliased : aliased.slice(0, at),
+    };
+  }
+
+  return exoticSpec.test(spec)
+    ? { kind: 'exotic', spec }
+    : { kind: 'registry', name };
+}
+
+function targetKey(target: DependencyTarget): string {
+  return target.kind === 'registry'
+    ? `registry:${target.name}`
+    : `exotic:${target.spec}`;
+}
+
+type AddedDependencies =
+  | { readonly kind: 'unknown'; readonly reason: string }
+  | {
+      readonly kind: 'known';
+      readonly added: readonly {
+        readonly name: string;
+        readonly spec: string;
+        readonly target: DependencyTarget;
+      }[];
+    };
+
+function addedDependencies(
+  target: NpmVersionFacts,
+  earlier: readonly NpmVersionFacts[],
+): AddedDependencies {
+  const current = target.dependencies;
+  if (current === 'unknown') {
+    return {
+      kind: 'unknown',
+      reason: 'dependencies of this version unreadable',
+    };
+  }
+
+  const kept = listedHistory(earlier);
+  if (kept === undefined) {
+    return { kind: 'unknown', reason: 'every earlier version was removed' };
+  }
+
+  const before = kept.at(-1)?.dependencies ?? {};
+  if (before === 'unknown') {
+    return {
+      kind: 'unknown',
+      reason: 'dependencies of the previous version unreadable',
+    };
+  }
+
+  const known = new Set(
+    Object.entries(before).map(([name, spec]) =>
+      targetKey(dependencyTarget(name, spec)),
+    ),
+  );
+
+  return {
+    kind: 'known',
+    added: Object.entries(current).flatMap(([name, spec]) => {
+      const resolved = dependencyTarget(name, spec);
+
+      return known.has(targetKey(resolved))
+        ? []
+        : [{ name, spec, target: resolved }];
+    }),
+  };
+}
+
+function newDependencies(
+  target: NpmVersionFacts,
+  earlier: readonly NpmVersionFacts[],
+  firstPublish: (name: string) => FirstPublish,
+): NonNullable<PackageVersionEvidence['newDependencies']> {
+  const found = addedDependencies(target, earlier);
+  if (found.kind === 'unknown') {
+    return found;
+  }
+
+  const [first, ...rest] = found.added.map(({ name, spec, target: to }) => ({
+    name,
+    spec,
+    firstPublish:
+      to.kind === 'registry'
+        ? firstPublish(to.name)
+        : { kind: 'exotic' as const },
+  }));
+
+  return first === undefined
+    ? { kind: 'none' }
+    : { kind: 'added', added: [first, ...rest] };
+}
+
+function settledHistory(
+  target: NpmVersionFacts,
+  earlier: readonly NpmVersionFacts[],
+): NpmVersionFacts[] {
+  return earlier
+    .filter(
+      (facts) => target.time.getTime() - facts.time.getTime() >= settledAfterMs,
+    )
+    .toSorted((a, b) => a.time.getTime() - b.time.getTime());
+}
+
+export function addedDependencyPackages(
+  target: NpmVersionFacts,
+  earlier: readonly NpmVersionFacts[],
+): string[] {
+  const found = addedDependencies(target, settledHistory(target, earlier));
+
+  return found.kind === 'unknown'
+    ? []
+    : found.added.flatMap(({ target: to }) =>
+        to.kind === 'registry' ? [to.name] : [],
+      );
+}
+
 function lockfileIntegrityCheck(
   published: Sha512Integrity | null,
   lockfile: { integrity: Sha512Integrity | null } | undefined,
@@ -254,6 +385,7 @@ export function npmVersionEvidence(input: {
   registry: string;
   target: NpmVersionFacts;
   earlier: readonly NpmVersionFacts[];
+  firstPublish: (name: string) => FirstPublish;
   lockfile?: { integrity: Sha512Integrity | null };
   feeds: PackageVersionEvidence['feeds'];
   claims: readonly Claim[];
@@ -266,11 +398,7 @@ export function npmVersionEvidence(input: {
     );
   }
 
-  const earlier = input.earlier
-    .filter(
-      (facts) => target.time.getTime() - facts.time.getTime() >= settledAfterMs,
-    )
-    .toSorted((a, b) => a.time.getTime() - b.time.getTime());
+  const earlier = settledHistory(target, input.earlier);
 
   const { integrity, integrityCheck } = lockfileIntegrityCheck(
     target.integrity,
@@ -288,6 +416,7 @@ export function npmVersionEvidence(input: {
     publisher: publisherContinuity(target, earlier),
     publisherExcludingRemoved: publisherExcludingRemoved(target, earlier),
     installScripts: installScriptChange(target, earlier.at(-1)),
+    newDependencies: newDependencies(target, earlier, input.firstPublish),
     integrityCheck,
     feeds: input.feeds,
     claims: input.claims,

@@ -3,6 +3,7 @@ import { Schema } from 'effect';
 import { Waiver, type DecisionContext } from '../src/context';
 import {
   Sha512Integrity,
+  type FirstPublish,
   type Identity,
   type PackageVersionEvidence,
   type RepositoryCheck,
@@ -11,10 +12,12 @@ import { decide, type Decision, type Policy } from '../src/policy';
 import {
   loadSupplyChainPolicyV2,
   loadSupplyChainPolicyV3,
+  loadSupplyChainPolicyV4,
 } from './support/policies';
 
 type Evidence = PackageVersionEvidence;
 type Publisher = NonNullable<Evidence['publisherExcludingRemoved']>;
+type NewDependencies = NonNullable<Evidence['newDependencies']>;
 
 const now = new Date('2026-06-01T00:00:00Z');
 const hoursAgo = (n: number) => new Date(now.getTime() - n * 3_600_000);
@@ -88,6 +91,20 @@ const feeds: Evidence['feeds'][] = [
   { kind: 'unavailable', reason: 'offline' },
 ];
 
+const addedWith = (firstPublish: FirstPublish): NewDependencies => ({
+  kind: 'added',
+  added: [{ name: 'dep', spec: '^1.0.0', firstPublish }],
+});
+
+const newDependencies: NewDependencies[] = [
+  { kind: 'none' },
+  addedWith({ kind: 'packument', at: hoursAgo(2200) }),
+  addedWith({ kind: 'packument', at: hoursAgo(24 * 3650) }),
+  addedWith({ kind: 'exotic' }),
+  addedWith({ kind: 'unknown', reason: 'no packument recorded' }),
+  { kind: 'unknown', reason: 'unreadable' },
+];
+
 const withoutRepositoryCheck = (publisher: Publisher): Evidence['publisher'] =>
   publisher.kind === 'changed'
     ? {
@@ -97,21 +114,54 @@ const withoutRepositoryCheck = (publisher: Publisher): Evidence['publisher'] =>
       }
     : publisher;
 
-const dimensions: readonly (readonly Partial<Evidence>[])[] = [
+const absent = {} as const;
+
+const dimensions = (
+  options: {
+    readonly withoutV3Fields?: boolean;
+    readonly newDependencies?: boolean;
+  } = {},
+): readonly (readonly Partial<Evidence>[])[] => [
   sources.map((source) => ({ source })),
-  publishTimes.flatMap((publishTime) =>
-    publishers(publishTime).map((publisher) => ({
+  publishTimes.flatMap((publishTime) => [
+    ...publishers(publishTime).map((publisher) => ({
       publishTime,
       publisher: withoutRepositoryCheck(publisher),
       publisherExcludingRemoved: publisher,
     })),
-  ),
+    ...(options.withoutV3Fields === true
+      ? [{ publishTime, publisher: { kind: 'continuous', identity: account } }]
+      : []),
+  ]),
   provenances.map((provenance) => ({ provenance })),
   histories.map((earlierProvenance) => ({ earlierProvenance })),
-  histories.map((history) => ({ earlierProvenanceExcludingRemoved: history })),
-  installScripts.map((scripts) => ({ installScripts: scripts })),
-  integrityChecks.map((integrityCheck) => ({ integrityCheck })),
-  feeds.map((feed) => ({ feeds: feed })),
+  [
+    ...histories.map((history) => ({
+      earlierProvenanceExcludingRemoved: history,
+    })),
+    ...(options.withoutV3Fields === true ? [absent] : []),
+  ],
+  ...(options.newDependencies === true
+    ? [
+        [
+          absent,
+          ...installScripts.slice(1).map((scripts) => ({
+            installScripts: scripts,
+          })),
+          ...integrityChecks.slice(0, 2).map((integrityCheck) => ({
+            integrityCheck,
+          })),
+          ...feeds.slice(1).map((feed) => ({ feeds: feed })),
+        ],
+      ]
+    : [
+        installScripts.map((scripts) => ({ installScripts: scripts })),
+        integrityChecks.map((integrityCheck) => ({ integrityCheck })),
+        feeds.map((feed) => ({ feeds: feed })),
+      ]),
+  options.newDependencies === true
+    ? [...newDependencies.map((added) => ({ newDependencies: added })), absent]
+    : [absent],
 ];
 
 const base: Evidence = {
@@ -127,8 +177,12 @@ const base: Evidence = {
   claims: [],
 };
 
-function* everyEvidence(index = 0, evidence = base): Generator<Evidence> {
-  const dimension = dimensions[index];
+function* everyEvidence(
+  dims: readonly (readonly Partial<Evidence>[])[],
+  index = 0,
+  evidence = base,
+): Generator<Evidence> {
+  const dimension = dims[index];
   if (dimension === undefined) {
     yield evidence;
 
@@ -136,18 +190,20 @@ function* everyEvidence(index = 0, evidence = base): Generator<Evidence> {
   }
 
   for (const patch of dimension) {
-    yield* everyEvidence(index + 1, { ...evidence, ...patch });
+    yield* everyEvidence(dims, index + 1, { ...evidence, ...patch });
   }
 }
 
 type History = {
   readonly publisher: (evidence: Evidence) => Publisher['kind'] | undefined;
   readonly earlierProvenance: (evidence: Evidence) => string | undefined;
+  readonly newDependenciesUnknown: (evidence: Evidence) => boolean;
 };
 
 const v2History: History = {
   publisher: (evidence) => evidence.publisher.kind,
   earlierProvenance: (evidence) => evidence.earlierProvenance,
+  newDependenciesUnknown: () => false,
 };
 
 const v3History: History = {
@@ -155,6 +211,16 @@ const v3History: History = {
     evidence.publisherExcludingRemoved?.kind ?? 'unknown',
   earlierProvenance: (evidence) =>
     evidence.earlierProvenanceExcludingRemoved ?? 'unknown',
+  newDependenciesUnknown: () => false,
+};
+
+const v4History: History = {
+  ...v3History,
+  newDependenciesUnknown: ({ newDependencies: added }) =>
+    added === undefined ||
+    added.kind === 'unknown' ||
+    (added.kind === 'added' &&
+      added.added.some(({ firstPublish }) => firstPublish.kind === 'unknown')),
 };
 
 function violations(
@@ -190,6 +256,7 @@ function violations(
     (registry &&
       (evidence.provenance.kind === 'unavailable' ||
         history.publisher(evidence) === 'unknown' ||
+        history.newDependenciesUnknown(evidence) ||
         evidence.publishTime.kind === 'unknown' ||
         evidence.source.integrity === null));
   if (unknown) {
@@ -218,7 +285,11 @@ const noContext: DecisionContext = { allowedSources: [], waivers: [] };
 const decodeWaiver = Schema.decodeUnknownSync(Waiver);
 const claims = [{ kind: 'malware', source: 'model', probability: 1 }];
 
-function checkPolicy(policy: Policy, history: History) {
+function checkPolicy(
+  policy: Policy,
+  history: History,
+  dims: readonly (readonly Partial<Evidence>[])[],
+) {
   const waiveEverything: DecisionContext = {
     allowedSources: [],
     waivers: policy.rules.map((rule) =>
@@ -243,7 +314,7 @@ function checkPolicy(policy: Policy, history: History) {
     }
   };
 
-  for (const evidence of everyEvidence()) {
+  for (const evidence of everyEvidence(dims)) {
     const at = (context: DecisionContext, withClaims = false) =>
       decide({
         evidence: withClaims ? { ...evidence, claims } : evidence,
@@ -287,14 +358,30 @@ function checkPolicy(policy: Policy, history: History) {
   return { cases, failures: Object.fromEntries(failures) };
 }
 
-for (const [policy, history] of [
-  [loadSupplyChainPolicyV2(), v2History],
-  [loadSupplyChainPolicyV3(), v3History],
+for (const [policy, history, dims, cases] of [
+  [
+    loadSupplyChainPolicyV2(),
+    v2History,
+    dimensions(),
+    3 * 5 * 11 * 3 * 3 * 3 * 3 * 3 * 3,
+  ],
+  [
+    loadSupplyChainPolicyV3(),
+    v3History,
+    dimensions({ withoutV3Fields: true }),
+    3 * 5 * 12 * 3 * 3 * 4 * 3 * 3 * 3,
+  ],
+  [
+    loadSupplyChainPolicyV4(),
+    v4History,
+    dimensions({ withoutV3Fields: true, newDependencies: true }),
+    3 * 5 * 12 * 3 * 3 * 4 * 7 * 7,
+  ],
 ] as const) {
   test(`${policy.ref.id} keeps the decision rules for every combination of evidence kinds`, () => {
-    const result = checkPolicy(policy, history);
+    const result = checkPolicy(policy, history, dims);
 
-    expect(result.cases).toBe(3 * 5 * 3 * 9 * 11 * 3 * 3 * 3);
+    expect(result.cases).toBe(cases);
     expect(result.failures).toEqual({});
-  }, 30_000);
+  }, 120_000);
 }

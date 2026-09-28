@@ -60,6 +60,19 @@ export const RepositoryCheck = Schema.Literals([
 ]);
 export type RepositoryCheck = typeof RepositoryCheck.Type;
 
+export const FirstPublish = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('packument'), at: Schema.Date }),
+  Schema.Struct({ kind: Schema.Literal('exotic') }),
+  Unknown,
+]);
+export type FirstPublish = typeof FirstPublish.Type;
+
+const AddedDependency = Schema.Struct({
+  name: Text,
+  spec: Schema.String,
+  firstPublish: FirstPublish,
+});
+
 const Continuous = Schema.Struct({
   kind: Schema.Literal('continuous'),
   identity: Identity,
@@ -124,6 +137,16 @@ export const PackageVersionEvidence = Schema.Struct({
     }),
     Unknown,
   ]),
+  newDependencies: Schema.optionalKey(
+    Schema.Union([
+      Schema.Struct({ kind: Schema.Literal('none') }),
+      Schema.Struct({
+        kind: Schema.Literal('added'),
+        added: Schema.NonEmptyArray(AddedDependency),
+      }),
+      Unknown,
+    ]),
+  ),
   integrityCheck: Schema.Literals(['matched', 'mismatched', 'unchecked']),
   feeds: Schema.Union([
     Schema.Struct({

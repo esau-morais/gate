@@ -13,6 +13,10 @@ export const NpmVersionFacts = Schema.Struct({
     Schema.Literal('unknown'),
     Schema.Record(Schema.String, Schema.String),
   ]),
+  dependencies: Schema.Union([
+    Schema.Literal('unknown'),
+    Schema.Record(Schema.String, Schema.String),
+  ]),
   repository: Schema.optionalKey(
     Schema.Union([Schema.Literal('unknown'), RepositoryName]),
   ),

@@ -5,6 +5,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,6 +30,7 @@ import {
   collectedAt,
   fakeNetwork,
   feedArchive,
+  json,
   packumentHeaders,
   recordedResponse,
   recordedRoutes,
@@ -124,6 +126,20 @@ const decodeSources = Schema.decodeUnknownSync(
         }),
       ),
       gaps: Schema.Array(Schema.String),
+    }),
+  ),
+);
+
+const decodeRecord = Schema.decodeUnknownSync(
+  Schema.Record(Schema.String, Schema.Unknown),
+);
+const decodeCacheEntry = Schema.decodeUnknownSync(
+  Schema.fromJsonString(
+    Schema.Struct({
+      url: Schema.String,
+      fetchedAt: Schema.String,
+      maxAgeSeconds: Schema.Number,
+      body: Schema.Record(Schema.String, Schema.Unknown),
     }),
   ),
 );
@@ -369,6 +385,38 @@ describe('registry cache', () => {
     expect(network.requests).toHaveLength(first);
   });
 
+  test('a packument cached before gate kept dependency fields is fetched again in full', async () => {
+    const network = fakeNetwork();
+    const dir = cacheDir();
+    await collect(network, viteNodes(), dir);
+    const path = join(dir, 'registry', 'packuments', 'vite.json');
+    const entry = decodeCacheEntry(readFileSync(path, 'utf8'));
+    const older = Object.fromEntries(
+      Object.entries(entry.body).filter(([key]) => key !== 'dependencyFields'),
+    );
+    writeFileSync(
+      path,
+      JSON.stringify({ ...entry, etag: '"v1"', body: older }),
+    );
+    const seen: (string | undefined)[] = [];
+    const recorded = recordedRoutes().get(viteUrl);
+    network.routes.set(viteUrl, (headers) => {
+      seen.push(headers['if-none-match']);
+
+      return recorded === undefined
+        ? new Response(null, { status: 500 })
+        : recorded(headers);
+    });
+    const collected = await collect(network, viteNodes(), dir);
+
+    expect(seen).toEqual([undefined]);
+    expect(
+      JSON.parse(
+        readFileSync(join(collected.dir, 'packuments', 'vite.json'), 'utf8'),
+      ),
+    ).toMatchObject({ dependencyFields: 'kept' });
+  });
+
   test('a cached packument stamped in the future is revalidated', async () => {
     const network = fakeNetwork();
     const dir = cacheDir();
@@ -540,7 +588,7 @@ test('without a trusted root, provenance reads as unavailable', async () => {
   expect(record?.kind === 'decision' && record.outcome).toBe('QUARANTINE');
 });
 
-test('trimming a packument keeps every fact the verifier reads', () => {
+test('trimming a packument keeps every fact the verifier reads, and marks that it kept the dependency fields', () => {
   const text = readFileSync(
     new URL('collect/ms.json', import.meta.url),
     'utf8',
@@ -565,12 +613,77 @@ test('trimming a packument keeps every fact the verifier reads', () => {
 
   expect(versions).toHaveLength(32);
   for (const version of versions) {
-    expect(facts(trimmed, version)).toEqual(facts(raw, version));
+    expect(facts(trimmed, version)).toEqual(
+      facts({ ...decodeRecord(raw), dependencyFields: 'kept' }, version),
+    );
   }
 
   expect(JSON.stringify(trimmed).length).toBeLessThan(
     JSON.stringify(raw).length / 2,
   );
+});
+
+test('the packument of a dependency a version adds is fetched, though the lockfile does not list it', async () => {
+  const sha512 = `sha512-${'A'.repeat(86)}==`;
+  const doc = (version: string, dependencies: Record<string, string>) => ({
+    name: 'lib',
+    version,
+    dist: { integrity: sha512 },
+    _npmUser: { name: 'maintainer' },
+    dependencies,
+  });
+  const network = fakeNetwork();
+  network.routes.set(packumentUrl('lib'), () =>
+    json(
+      {
+        name: 'lib',
+        time: {
+          '1.0.0': '2026-08-01T00:00:00.000Z',
+          '1.1.0': '2026-09-20T00:00:00.000Z',
+        },
+        versions: {
+          '1.0.0': doc('1.0.0', { kept: '^1.0.0' }),
+          '1.1.0': doc('1.1.0', {
+            kept: '^1.0.0',
+            fresh: '^0.1.0',
+            setup: 'github:acme/setup#79ac49eedf774dd4b0cfa308722bc463cfe5885c',
+          }),
+        },
+      },
+      { headers: packumentHeaders },
+    ),
+  );
+  network.routes.set(packumentUrl('fresh'), () =>
+    json(
+      { name: 'fresh', time: { '0.1.0': '2026-09-19T00:00:00.000Z' } },
+      { headers: packumentHeaders },
+    ),
+  );
+  const collected = await collect(network, [registryNode('lib', '1.1.0')]);
+
+  expect(
+    network.requests.filter((url) => url.startsWith(packumentUrl(''))),
+  ).toEqual([packumentUrl('lib'), packumentUrl('fresh')]);
+  const [record] = decide(
+    collected.dir,
+    [registryNode('lib', '1.1.0')],
+    viteAt,
+  ).records;
+  expect(
+    record?.kind === 'decision' && record.evidence.newDependencies,
+  ).toMatchObject({
+    kind: 'added',
+    added: [
+      {
+        name: 'fresh',
+        firstPublish: {
+          kind: 'packument',
+          at: new Date('2026-09-19T00:00:00.000Z'),
+        },
+      },
+      { name: 'setup', firstPublish: { kind: 'exotic' } },
+    ],
+  });
 });
 
 test('a lockfile name that is not an npm name is never fetched or written', async () => {

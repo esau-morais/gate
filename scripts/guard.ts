@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import {
-  decodeReplayFixture,
-  type ReplayFixture,
+  decodeReplayExpectations,
+  type ReplayExpectations,
 } from '../packages/gate/test/replay/fixture';
 
 export type Tree = {
@@ -19,7 +19,8 @@ const exactSpec = /^(?:\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?|workspace:\*)$/;
 const pinnedDigest =
   /PolicyDigest\.make\(\s*'(sha256:[0-9a-f]{64})'\s*,?\s*\)/g;
 
-type Outcome = ReplayFixture['evaluations'][number]['expected']['outcome'];
+type Expected = ReplayExpectations['evaluations'][number]['expected'];
+type Outcome = Expected['outcome'];
 const strictness: readonly Outcome[] = ['ACCEPT', 'QUARANTINE', 'REJECT'];
 
 type JsonObject = Record<string, unknown>;
@@ -80,16 +81,46 @@ function checkKnownFailures(base: Tree, head: Tree): string[] {
     );
 }
 
-function decodeFixture(text: string | undefined): ReplayFixture | undefined {
+function decodeFixture(
+  text: string | undefined,
+): ReplayExpectations | undefined {
   if (text === undefined) {
     return undefined;
   }
 
   try {
-    return decodeReplayFixture(text);
+    return decodeReplayExpectations(text);
   } catch {
     return undefined;
   }
+}
+
+function weakening(before: Expected, after: Expected): string | undefined {
+  const change =
+    strictness.indexOf(after.outcome) - strictness.indexOf(before.outcome);
+  if (change < 0) {
+    return `went from ${before.outcome} to ${after.outcome}`;
+  }
+
+  const dropped = before.reasons.filter(
+    (reason) => !after.reasons.includes(reason),
+  );
+
+  return change === 0 && dropped.length > 0
+    ? `dropped reasons ${dropped.join(', ')}`
+    : undefined;
+}
+
+type Evaluation = ReplayExpectations['evaluations'][number];
+
+function underPolicy(evaluation: Evaluation, policy: string): Expected {
+  const { expectedUnder } = evaluation;
+
+  return (
+    (expectedUnder !== undefined && Object.hasOwn(expectedUnder, policy)
+      ? expectedUnder[policy]
+      : undefined) ?? evaluation.expected
+  );
 }
 
 function checkFixture(path: string, base: Tree, head: Tree): string[] {
@@ -107,32 +138,38 @@ function checkFixture(path: string, base: Tree, head: Tree): string[] {
     before.miss === undefined && after.miss !== undefined
       ? [`${path}: a caught incident gained a miss`]
       : [];
-  const weakened = before.evaluations.flatMap(({ at, expected }) => {
-    const moment = at.toISOString().replace('.000Z', 'Z');
+  const weakened = before.evaluations.flatMap((evaluation) => {
+    const moment = evaluation.at.toISOString().replace('.000Z', 'Z');
     const now = after.evaluations.find(
-      (entry) => entry.at.getTime() === at.getTime(),
-    )?.expected;
+      (entry) => entry.at.getTime() === evaluation.at.getTime(),
+    );
     if (now === undefined) {
       return [`${path}: evaluation at ${moment} was removed`];
     }
 
-    const change =
-      strictness.indexOf(now.outcome) - strictness.indexOf(expected.outcome);
-    if (change < 0) {
-      return [
-        `${path}: evaluation at ${moment} went from ${expected.outcome} to ${now.outcome}`,
-      ];
-    }
+    const policies = [
+      ...new Set([
+        ...Object.keys(evaluation.expectedUnder ?? {}),
+        ...Object.keys(now.expectedUnder ?? {}),
+      ]),
+    ].toSorted();
+    const shared = weakening(evaluation.expected, now.expected);
 
-    const dropped = expected.reasons.filter(
-      (reason) => !now.reasons.includes(reason),
-    );
+    return [
+      ...(shared === undefined
+        ? []
+        : [`${path}: evaluation at ${moment} ${shared}`]),
+      ...policies.flatMap((policy) => {
+        const change = weakening(
+          underPolicy(evaluation, policy),
+          underPolicy(now, policy),
+        );
 
-    return change === 0 && dropped.length > 0
-      ? [
-          `${path}: evaluation at ${moment} dropped reasons ${dropped.join(', ')}`,
-        ]
-      : [];
+        return change === undefined
+          ? []
+          : [`${path}: evaluation at ${moment} under ${policy} ${change}`];
+      }),
+    ];
   });
 
   return [...missAdded, ...weakened];

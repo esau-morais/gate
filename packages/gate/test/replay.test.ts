@@ -5,6 +5,7 @@ import {
   loadSupplyChainPolicyV1,
   loadSupplyChainPolicyV2,
   loadSupplyChainPolicyV3,
+  loadSupplyChainPolicyV4,
 } from './support/policies';
 import { loadReplayFixtures } from './replay/fixture';
 
@@ -12,16 +13,26 @@ const policies = [
   loadSupplyChainPolicyV1(),
   loadSupplyChainPolicyV2(),
   loadSupplyChainPolicyV3(),
+  loadSupplyChainPolicyV4(),
 ];
 
 for (const { name, fixture } of loadReplayFixtures()) {
   const { target, takedownAt } = fixture;
 
   describe(name, () => {
-    for (const { at, moment, expected } of fixture.evaluations) {
+    for (const {
+      at,
+      moment,
+      expected: all,
+      expectedUnder,
+    } of fixture.evaluations) {
       test.each(policies.map((policy) => [policy.ref.id, policy] as const))(
         `${moment} (%s)`,
-        (_, policy) => {
+        (id, policy) => {
+          const expected =
+            (expectedUnder !== undefined && Object.hasOwn(expectedUnder, id)
+              ? expectedUnder[id]
+              : undefined) ?? all;
           expect(at.getTime()).toBeGreaterThanOrEqual(target.time.getTime());
           if (takedownAt !== null) {
             expect(at.getTime()).toBeLessThan(takedownAt.getTime());
@@ -35,6 +46,15 @@ for (const { name, fixture } of loadReplayFixtures()) {
             registry: 'https://registry.npmjs.org',
             target,
             earlier: fixture.earlier,
+            firstPublish: (name) => {
+              const recorded = fixture.firstPublished.find(
+                (entry) => entry.package === name,
+              );
+
+              return recorded === undefined
+                ? { kind: 'unknown', reason: 'not recorded' }
+                : { kind: 'packument', at: recorded.at };
+            },
             feeds: {
               kind: 'checked',
               hits: fixture.feedHits

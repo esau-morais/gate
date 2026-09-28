@@ -8,7 +8,7 @@
     },
     {
       "url": "http://web.archive.org/web/20181028063802id_/http://registry.npmjs.org:80/event-stream",
-      "facts": "target.integrity, npmUser, scripts, provenance (no dist.attestations)"
+      "facts": "target.integrity, npmUser, scripts, provenance (no dist.attestations); target.dependencies and earlier[*].dependencies"
     },
     {
       "url": "https://github.com/dominictarr/event-stream/issues/115",
@@ -21,12 +21,16 @@
     {
       "url": "https://api.osv.dev/v1/vulns/GHSA-mh6f-8j2x-4483",
       "facts": "feedHits"
+    },
+    {
+      "url": "https://github.com/dominictarr/event-stream/issues/116#issuecomment-441726229",
+      "facts": "firstPublished (flatmap-stream created 2018-09-05T08:23:42.124Z and 0.1.0 at 08:23:42.256Z, quoted from registry.npmjs.com/flatmap-stream before npm unpublished it)"
     }
   ],
   "gaps": [
     "target facts come from a 2018 Wayback capture of the packument; the live packument keeps only time[\"3.3.6\"]",
     "takedownAt is the unpublish of the payload dependency; the removal of event-stream@3.3.6 was only observed by 2018-11-26T20:06:13Z",
-    "the dependency added in 3.3.6 is not modeled; flatmap-stream@0.1.1 itself is unrecoverable"
+    "flatmap-stream@0.1.1 itself is unrecoverable; firstPublished comes from a registry response quoted in the issue, since npm reset the live packument's created time when it published 0.0.1-security"
   ],
   "package": "event-stream",
   "target": {
@@ -37,7 +41,17 @@
       "kind": "absent"
     },
     "npmUser": "right9ctrl",
-    "scripts": {}
+    "scripts": {},
+    "dependencies": {
+      "duplexer": "^0.1.1",
+      "flatmap-stream": "^0.1.0",
+      "from": "^0.1.7",
+      "map-stream": "0.0.7",
+      "pause-stream": "^0.0.11",
+      "split": "^1.0.1",
+      "stream-combiner": "^0.2.2",
+      "through": "^2.3.8"
+    }
   },
   "earlier": [
     {
@@ -48,7 +62,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.2",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.2.0",
@@ -58,7 +81,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.2",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.2.1",
@@ -68,7 +100,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.2",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.2.2",
@@ -78,7 +119,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.3",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.3.0",
@@ -88,7 +138,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.3",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.3.1",
@@ -98,7 +157,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.3",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.3.2",
@@ -108,7 +176,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.3",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.3.3",
@@ -118,7 +195,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.3",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.3.4",
@@ -128,7 +214,16 @@
         "kind": "absent"
       },
       "npmUser": "dominictarr",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "through": "~2.3.1",
+        "duplexer": "~0.1.1",
+        "from": "~0",
+        "map-stream": "~0.1.0",
+        "pause-stream": "0.0.11",
+        "split": "0.3",
+        "stream-combiner": "~0.0.4"
+      }
     },
     {
       "version": "3.3.5",
@@ -138,7 +233,22 @@
         "kind": "absent"
       },
       "npmUser": "right9ctrl",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "duplexer": "^0.1.1",
+        "from": "^0.1.7",
+        "map-stream": "0.0.7",
+        "pause-stream": "^0.0.11",
+        "split": "^1.0.1",
+        "stream-combiner": "^0.2.2",
+        "through": "^2.3.8"
+      }
+    }
+  ],
+  "firstPublished": [
+    {
+      "package": "flatmap-stream",
+      "at": "2018-09-05T08:23:42.124Z"
     }
   ],
   "feedHits": [
@@ -156,6 +266,12 @@
       "expected": {
         "outcome": "QUARANTINE",
         "reasons": ["release_age", "publisher_recent"]
+      },
+      "expectedUnder": {
+        "SupplyChainPolicy/v4": {
+          "outcome": "QUARANTINE",
+          "reasons": ["release_age", "publisher_recent", "new_dependency_young"]
+        }
       }
     },
     {
@@ -164,6 +280,12 @@
       "expected": {
         "outcome": "QUARANTINE",
         "reasons": ["publisher_recent"]
+      },
+      "expectedUnder": {
+        "SupplyChainPolicy/v4": {
+          "outcome": "QUARANTINE",
+          "reasons": ["publisher_recent", "new_dependency_young"]
+        }
       }
     },
     {
@@ -172,6 +294,12 @@
       "expected": {
         "outcome": "QUARANTINE",
         "reasons": ["publisher_recent"]
+      },
+      "expectedUnder": {
+        "SupplyChainPolicy/v4": {
+          "outcome": "QUARANTINE",
+          "reasons": ["publisher_recent", "new_dependency_young"]
+        }
       }
     }
   ]

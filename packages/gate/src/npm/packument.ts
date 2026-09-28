@@ -1,5 +1,9 @@
 import { Option, Result, Schema } from 'effect';
-import { Sha512Integrity, type Provenance } from '../evidence';
+import {
+  Sha512Integrity,
+  type FirstPublish,
+  type Provenance,
+} from '../evidence';
 import { UtcTimestamp } from '../time';
 import type { NpmVersionFacts } from './facts';
 import { verifyNpmProvenance, type TrustRoot } from './provenance';
@@ -16,10 +20,13 @@ export type PackumentFacts =
 const historySize = 10;
 const nonVersionTimeKeys = new Set(['created', 'modified', 'unpublished']);
 
+export const dependencyFieldsKept = 'kept';
+
 const Packument = Schema.Struct({
   name: Schema.NonEmptyString,
   time: Schema.Record(Schema.String, Schema.Unknown),
   versions: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+  dependencyFields: Schema.optionalKey(Schema.Unknown),
 });
 
 const VersionDocument = Schema.Struct({
@@ -35,6 +42,10 @@ const VersionDocument = Schema.Struct({
   scripts: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
   gypfile: Schema.optionalKey(Schema.Boolean),
   repository: Schema.optionalKey(Schema.Unknown),
+  dependencies: Schema.optionalKey(Schema.Unknown),
+  optionalDependencies: Schema.optionalKey(Schema.Unknown),
+  peerDependencies: Schema.optionalKey(Schema.Unknown),
+  peerDependenciesMeta: Schema.optionalKey(Schema.Unknown),
 });
 type VersionDocument = typeof VersionDocument.Type;
 
@@ -43,7 +54,15 @@ const RepositoryUrl = Schema.Union([
   Schema.Struct({ url: Schema.NonEmptyString }),
 ]);
 
+const DependencyMap = Schema.Record(Schema.String, Schema.String);
+const PeerMeta = Schema.Record(
+  Schema.String,
+  Schema.Struct({ optional: Schema.optionalKey(Schema.Boolean) }),
+);
+
 const decodePackument = Schema.decodeUnknownResult(Packument);
+const decodeDependencyMap = Schema.decodeUnknownOption(DependencyMap);
+const decodePeerMeta = Schema.decodeUnknownOption(PeerMeta);
 const decodeVersion = Schema.decodeUnknownOption(VersionDocument);
 const decodeTime = Schema.decodeUnknownOption(UtcTimestamp);
 const decodeSha512 = Schema.decodeUnknownOption(Sha512Integrity);
@@ -73,6 +92,48 @@ function installScripts(doc: VersionDocument): Record<string, string> {
     scripts.preinstall === undefined;
 
   return runsGyp ? { ...scripts, install: 'node-gyp rebuild' } : scripts;
+}
+
+function dependencies(
+  doc: VersionDocument,
+  fieldsKept: boolean,
+): NpmVersionFacts['dependencies'] {
+  const declared = [
+    'dependencies',
+    'optionalDependencies',
+    'peerDependencies',
+  ].some((field) => Object.hasOwn(doc, field));
+  if (!declared && !fieldsKept) {
+    return 'unknown';
+  }
+
+  const read = (field: unknown): Option.Option<Record<string, string>> =>
+    field === undefined ? Option.some({}) : decodeDependencyMap(field);
+  const direct = read(doc.dependencies);
+  const optional = read(doc.optionalDependencies);
+  const peers = read(doc.peerDependencies);
+  const meta: Option.Option<typeof PeerMeta.Type> =
+    doc.peerDependenciesMeta === undefined
+      ? Option.some({})
+      : decodePeerMeta(doc.peerDependenciesMeta);
+  if (
+    Option.isNone(direct) ||
+    Option.isNone(optional) ||
+    Option.isNone(peers) ||
+    Option.isNone(meta)
+  ) {
+    return 'unknown';
+  }
+
+  const required = Object.entries(peers.value).filter(
+    ([name]) => meta.value[name]?.optional !== true,
+  );
+
+  return {
+    ...Object.fromEntries(required),
+    ...direct.value,
+    ...optional.value,
+  };
 }
 
 type ProvenanceSources = {
@@ -127,7 +188,7 @@ function provenanceFacts(
 function versionFacts(
   published: Published,
   raw: unknown,
-  sources: ProvenanceSources,
+  sources: ProvenanceSources & { readonly dependencyFieldsKept: boolean },
 ): NpmVersionFacts {
   const doc = Option.getOrUndefined(decodeVersion(raw));
   if (
@@ -147,6 +208,7 @@ function versionFacts(
       },
       npmUser: null,
       scripts: 'unknown',
+      dependencies: 'unknown',
       ...(raw === undefined ? { removed: true } : {}),
     };
   }
@@ -159,6 +221,7 @@ function versionFacts(
     provenance: provenanceFacts(doc, integrity, sources),
     npmUser: doc._npmUser?.name ?? null,
     scripts: installScripts(doc),
+    dependencies: dependencies(doc, sources.dependencyFieldsKept),
     ...declaredRepository(doc),
   };
 }
@@ -167,6 +230,7 @@ type History =
   | {
       readonly kind: 'read';
       readonly versions: Readonly<Record<string, unknown>>;
+      readonly dependencyFieldsKept: boolean;
       readonly target: Published;
       readonly earlier: readonly Published[];
     }
@@ -218,6 +282,7 @@ function historyOf(input: {
   return {
     kind: 'read',
     versions: packument.versions ?? {},
+    dependencyFieldsKept: packument.dependencyFields === dependencyFieldsKept,
     target,
     earlier: published
       .filter(({ time }) => time < target.time)
@@ -242,11 +307,10 @@ export function npmPackumentFacts(
   }
 
   const facts = (entry: Published) =>
-    versionFacts(
-      entry,
-      versionDocument(history.versions, entry.version),
-      input,
-    );
+    versionFacts(entry, versionDocument(history.versions, entry.version), {
+      ...input,
+      dependencyFieldsKept: history.dependencyFieldsKept,
+    });
 
   return {
     kind: 'read',
@@ -274,4 +338,57 @@ export function attestedVersions(input: {
 
       return doc?.dist.attestations?.provenance !== undefined;
     });
+}
+
+const FirstPublishTimes = Schema.Struct({
+  name: Schema.NonEmptyString,
+  time: Schema.Record(Schema.String, Schema.Unknown),
+});
+const decodeFirstPublishTimes = Schema.decodeUnknownOption(FirstPublishTimes);
+const notPublishTimes = new Set(['modified', 'unpublished']);
+
+export function npmFirstPublish(input: {
+  packument: unknown;
+  name: string;
+}): FirstPublish {
+  if (input.packument === undefined) {
+    return { kind: 'unknown', reason: 'no packument recorded' };
+  }
+
+  const packument = Option.getOrUndefined(
+    decodeFirstPublishTimes(input.packument),
+  );
+  if (packument === undefined) {
+    return { kind: 'unknown', reason: 'packument is unreadable' };
+  }
+
+  if (packument.name !== input.name) {
+    return {
+      kind: 'unknown',
+      reason: `packument is for ${packument.name}, not ${input.name}`,
+    };
+  }
+
+  let earliest: Date | undefined;
+  for (const [key, value] of Object.entries(packument.time)) {
+    if (notPublishTimes.has(key)) {
+      continue;
+    }
+
+    const time = decodeTime(value);
+    if (Option.isNone(time)) {
+      return {
+        kind: 'unknown',
+        reason: `publish time of ${key} is unreadable`,
+      };
+    }
+
+    if (earliest === undefined || time.value < earliest) {
+      earliest = time.value;
+    }
+  }
+
+  return earliest === undefined
+    ? { kind: 'unknown', reason: 'packument lists no publish time' }
+    : { kind: 'packument', at: earliest };
 }

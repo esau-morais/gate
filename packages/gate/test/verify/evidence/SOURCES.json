@@ -4,12 +4,12 @@
     {
       "path": "packuments/vite.json",
       "url": "https://registry.npmjs.org/vite",
-      "sanitized": "kept name, time and versions for 8.3.0 and the 10 versions published before it; each version keeps name, version, install hooks from scripts, gypfile, _npmUser without email, and dist integrity, shasum, tarball, attestations"
+      "sanitized": "kept name, time and versions for 8.3.0 and the 10 versions published before it; each version keeps name, version, install hooks from scripts, gypfile, _npmUser without email, and dist integrity, shasum, tarball, attestations; dependencies, optionalDependencies, peerDependencies and peerDependenciesMeta added from a fetch of the same URL on 2026-09-28, whose time and dist.integrity matched every kept version, and dependencyFields: kept marks that the trim kept them"
     },
     {
       "path": "packuments/@tanstack/react-router.json",
       "url": "https://registry.npmjs.org/@tanstack%2freact-router",
-      "sanitized": "same trim as vite, around 1.169.8; npm removed the 1.169.5 and 1.169.8 version documents and kept their time entries"
+      "sanitized": "same trim as vite, around 1.169.8; npm removed the 1.169.5 and 1.169.8 version documents and kept their time entries; recorded before gate kept dependency fields, so it has no dependencyFields mark and its dependency lists read as unknown"
     },
     {
       "path": "attestations/vite@<version>.json",

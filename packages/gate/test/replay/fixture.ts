@@ -5,6 +5,28 @@ import { UtcTimestamp } from '../../src/time';
 
 const Text = Schema.NonEmptyString;
 
+const Expected = Schema.Struct({
+  outcome: Schema.Literals(['ACCEPT', 'QUARANTINE', 'REJECT']),
+  reasons: Schema.Array(Text),
+});
+
+const Evaluation = Schema.Struct({
+  at: UtcTimestamp,
+  moment: Text,
+  expected: Expected,
+  expectedUnder: Schema.optionalKey(Schema.Record(Text, Expected)),
+});
+
+export const ReplayExpectations = Schema.Struct({
+  miss: Schema.optionalKey(Text),
+  evaluations: Schema.NonEmptyArray(Evaluation),
+});
+export type ReplayExpectations = typeof ReplayExpectations.Type;
+
+export const decodeReplayExpectations = Schema.decodeUnknownSync(
+  Schema.fromJsonString(ReplayExpectations),
+);
+
 export const ReplayFixture = Schema.Struct({
   incident: Text,
   capturedAt: Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)),
@@ -13,21 +35,15 @@ export const ReplayFixture = Schema.Struct({
   package: Text,
   target: NpmVersionFacts,
   earlier: Schema.Array(NpmVersionFacts),
+  firstPublished: Schema.Array(
+    Schema.Struct({ package: Text, at: UtcTimestamp }),
+  ),
   feedHits: Schema.Array(
     Schema.Struct({ feed: Text, id: Text, availableAt: UtcTimestamp }),
   ),
   takedownAt: Schema.NullOr(UtcTimestamp),
   miss: Schema.optionalKey(Text),
-  evaluations: Schema.NonEmptyArray(
-    Schema.Struct({
-      at: UtcTimestamp,
-      moment: Text,
-      expected: Schema.Struct({
-        outcome: Schema.Literals(['ACCEPT', 'QUARANTINE', 'REJECT']),
-        reasons: Schema.Array(Text),
-      }),
-    }),
-  ),
+  evaluations: Schema.NonEmptyArray(Evaluation),
 });
 export type ReplayFixture = typeof ReplayFixture.Type;
 
