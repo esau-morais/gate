@@ -654,3 +654,46 @@ Accepted 2026-09-27. The CLI prints through `runCli` in `src/output.ts`, not `co
 - `runCli` reports defects itself, inside the stream Console, because `runMain`'s report runs outside any provided service.
 - A reader that closes early (`gate verify | head`) ends the output quietly, and the verdict keeps the exit code, as before. Any other write error, such as ENOSPC, exits 1 with a message on stderr. Before, both runtimes dropped the output and exited 0.
 - Bun's `console.error` painted stderr red on a terminal or with `FORCE_COLOR`. That's gone, so Bun's stderr matches Node's.
+
+### SupplyChainPolicy/v4
+
+Proposed 2026-09-28. v4 is v3 plus two QUARANTINE rules, pinned at `sha256:82f720883cc3c65306ef3a2cf11d1dfc6c7078fb7f1006feebdf83626837370f`. `gate verify` still evaluates v3. The replay corpus runs every incident under v1 to v4.
+
+Evidence gains `newDependencies`: the runtime dependencies a version declares that the latest settled, listed earlier version didn't. Runtime means `dependencies`, `optionalDependencies`, and `peerDependencies` not marked optional in `peerDependenciesMeta`, since npm 7 and later installs those peers. An `npm:` alias counts as the package it names. A git, URL or file spec is `exotic`, because its own lockfile node already meets `exotic_source`. Each added registry dependency carries the earliest `time` entry of its packument, `created` included. The field is `unknown` when this version's list or the baseline's is unreadable, or when every settled earlier version was removed. With no settled earlier version, every dependency counts as added.
+
+Removed versions are skipped, as v3's `ExcludingRemoved` fields do. In 9 of the 10 budget repositories, debug 4.4.3 or error-ex 1.3.4 follows a malicious release npm removed (4.4.2, 1.3.3). With the removed release as baseline they would read `unknown` and stay quarantined for good, since no waiver clears unknown evidence.
+
+```cel
+new_dependency_young (waivable): evidence.source.kind == 'registry' && evidence.newDependencies.kind == 'added' && evidence.publishTime.kind == 'packument' && evidence.newDependencies.added.exists(d, d.firstPublish.kind == 'packument' && evidence.publishTime.at - d.firstPublish.at < duration('720h')) && now - evidence.publishTime.at < duration('2160h')
+new_dependencies_unknown: evidence.source.kind == 'registry' && (evidence.newDependencies.kind == 'unknown' || (evidence.newDependencies.kind == 'added' && evidence.newDependencies.added.exists(d, d.firstPublish.kind == 'unknown')))
+```
+
+The candidates were measured on the 10 budget repositories, with PLAN's lockfiles and evaluation times and evidence fetched 2026-09-28. Each count is nodes a candidate quarantines that v3 leaves without a non-`release_age` reason:
+
+| Candidate | Nodes |
+|---|---|
+| any new runtime dependency | 790 |
+| a new dependency with an install script in any version | 28 |
+| a new dependency first published under 7, 30 or 90 days before this version | 86, 107, 118 |
+| the same, only while this version is under 90 days old | 1, 2, 3 |
+
+Almost every benign young dependency is a maintainer adding a package they had just created: ljharb's `es-*`, `side-channel-*` and `get-proto`, sindresorhus, jonschlinkert. Exempting a dependency from the same publisher would also pass a token thief, who can create a package from the stolen account. The install-script candidate misses event-stream, whose payload sat in flatmap-stream's `index.min.js`. 30 days matches `publisher_recent`, and the 90-day stop matches v3's identity rules.
+
+Under v4, 1,760 of 9,863 nodes are quarantined for something other than `release_age`, against 1,758 under v3 on the same evidence. The two are jsonc-eslint-parser 3.3.0 in lerna (verkit, 19 days old) and koffi 3.2.1 in vscode (three `@koromix` platform packages, under 2 days old). own-keys 1.0.1 also gains `new_dependencies_unknown`, but v3 already quarantines it.
+
+In the replay corpus, event-stream 3.3.6 adds flatmap-stream, created 96 hours earlier, and axios 1.14.1 adds plain-crypto-js, first published 18 hours earlier. Both gain `new_dependency_young` at every recorded moment. axios is new to the corpus. No source holds the dependency lists of nx 21.5.0 or @tanstack/react-router 1.169.5, so under v4 both gain `new_dependencies_unknown` with unchanged outcomes. Every other incident keeps its outcome and reasons. A fixture evaluation can now give `expectedUnder` a policy id. The guard reads only evaluations and `miss`, so a new fixture field no longer makes the base unreadable, and it checks each policy's expectation for weakening.
+
+v4 gives up these cases:
+
+- A new dependency on a package older than 30 days, such as a hijacked dormant package or an old name bought or reclaimed.
+- A dependency that stays unreported for 90 days after the version adding it. event-stream's last recorded moment is 78 days.
+- A payload in the version's own files or behind an existing dependency. postmark-mcp stays a miss.
+- A new git, URL or file dependency, which v4 leaves to `exotic_source` on its own node.
+
+Upstream packuments omit `dependencies` when a version has none, and gate's trim dropped the field before this change, so an old cache or evidence directory looks like "no dependencies". The trim now keeps the dependency fields and writes `"dependencyFields": "kept"`. A version document without dependency fields has none only in a packument with that mark. Otherwise its list is `unknown`. A cached packument without the mark is fetched again in full. The recorded vite packument in `test/verify/evidence` got its dependency fields from a 2026-09-28 fetch, with matching times and integrities. The @tanstack/react-router one stays unmarked.
+
+Collection also fetches the packument of each added registry dependency the lockfile doesn't list. Across the 10 repositories that was 6 more requests, all in npm/cli.
+
+Policy invariants now also run v3 and v4 on evidence missing `publisherExcludingRemoved` and `earlierProvenanceExcludingRemoved`, and v4 on evidence missing `newDependencies`. A missing field counts as unknown under the laws. For a registry node, missing `newDependencies` or `publisherExcludingRemoved` never accepts. Missing `earlierProvenanceExcludingRemoved` can accept when the version has verified provenance, which the v2 law allows. For v4 the test folds install scripts, integrity check and feeds into 7 combinations: 317,520 cases in 13 s on Bun 1.4.2. The unfolded product, 1,224,720 cases in 50 s, ran once with no violation. 18 mutants of the two rules (each threshold moved both ways, `<=`, the window or a guard dropped, `exists` as `all`, waivability swapped, a rule that never fires) each fail at least one test.
+
+Sources, read 2026-09-28: flatmap-stream's times as quoted from the registry in [event-stream#116](https://github.com/dominictarr/event-stream/issues/116#issuecomment-441726229), the axios [post-mortem](https://github.com/axios/axios/issues/10636) and [PR #10591](https://github.com/axios/axios/pull/10591), and the [packages.ecosyste.ms](https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/axios/versions/1.14.1) record of axios 1.14.1.

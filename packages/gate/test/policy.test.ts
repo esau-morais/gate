@@ -569,6 +569,19 @@ describe('SupplyChainPolicy/v4', () => {
     }
   });
 
+  test('a node from a git, URL or file source is judged by exotic_source, not by what it adds', () => {
+    for (const newDependencies of [
+      firstPublishedBefore(1),
+      { newDependencies: { kind: 'unknown', reason: 'unreadable' } } as const,
+    ]) {
+      expect(
+        codes(
+          decideV4({ ...firesEachRule['exotic_source'], ...newDependencies }),
+        ),
+      ).toEqual(['exotic_source']);
+    }
+  });
+
   test('a new git, URL or file dependency is left to exotic_source on its own lockfile node', () => {
     expect(decideV4(dependency({ kind: 'exotic' })).outcome).toBe('ACCEPT');
   });
