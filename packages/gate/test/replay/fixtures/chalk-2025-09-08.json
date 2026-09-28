@@ -4,7 +4,7 @@
   "sources": [
     {
       "url": "https://registry.npmjs.org/chalk",
-      "facts": "target.time; earlier[*]"
+      "facts": "target.time; earlier[*]; earlier[*].dependencies (read 2026-09-28)"
     },
     {
       "url": "https://github.com/amarpreetbhatia/api-generator/blob/bbeca805f379eae5296ebc8d16cd00f74c94d792/package-lock.json",
@@ -25,13 +25,18 @@
     {
       "url": "https://api.osv.dev/v1/vulns/MAL-2025-46969",
       "facts": "feedHits.availableAt (first malicious-packages-origins import_time; published 17:11:19Z is the GHSA date)"
+    },
+    {
+      "url": "https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/chalk/versions/5.6.1",
+      "facts": "target.dependencies (runtime and optional dependencies; the mirror lists none)"
     }
   ],
   "gaps": [
     "target.integrity is not held by the registry, deps.dev, OSV or advisories; it comes from public package-lock.json files",
     "target.provenance unknown: the version document is gone, and the attestations endpoint 404s for any unpublished version",
     "target.npmUser comes from the maintainer statement, not the packument",
-    "takedownAt is npm's all-clear for every affected version, an upper bound; no chalk-specific removal time was published"
+    "takedownAt is npm's all-clear for every affected version, an upper bound; no chalk-specific removal time was published",
+    "target.dependencies come from the packages.ecosyste.ms mirror, which lists runtime and optional dependencies but not peers; no earlier chalk 5 version declares a peer"
   ],
   "package": "chalk",
   "target": {
@@ -43,7 +48,8 @@
       "reason": "no source recorded it"
     },
     "npmUser": "qix",
-    "scripts": {}
+    "scripts": {},
+    "dependencies": {}
   },
   "earlier": [
     {
@@ -54,7 +60,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.1.0",
@@ -64,7 +71,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.1.1",
@@ -74,7 +82,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.1.2",
@@ -84,7 +93,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.2.0",
@@ -94,7 +104,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.3.0",
@@ -104,7 +115,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.4.0",
@@ -114,7 +126,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.4.1",
@@ -124,7 +137,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.5.0",
@@ -134,7 +148,8 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "5.6.0",
@@ -144,9 +159,11 @@
         "kind": "absent"
       },
       "npmUser": "sindresorhus",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     }
   ],
+  "firstPublished": [],
   "feedHits": [
     {
       "feed": "osv",

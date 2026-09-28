@@ -23,12 +23,14 @@ const version = (v: string, time: string) => ({
   provenance: { kind: 'absent' as const },
   npmUser: 'maintainer',
   scripts: {},
+  dependencies: {},
 });
 const evidence = npmVersionEvidence({
   name: 'lib',
   registry: 'https://registry.npmjs.org',
   target: version('1.1.0', '2026-01-02T00:00:00Z'),
   earlier: [version('1.0.0', '2025-12-01T00:00:00Z')],
+  firstPublish: () => ({ kind: 'unknown', reason: 'not needed' }),
   feeds: { kind: 'checked', hits: [] },
   claims: [],
 });

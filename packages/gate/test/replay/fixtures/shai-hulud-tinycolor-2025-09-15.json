@@ -4,7 +4,7 @@
   "sources": [
     {
       "url": "https://registry.npmjs.org/@ctrl%2ftinycolor",
-      "facts": "target.time; earlier[*]"
+      "facts": "target.time; earlier[*]; earlier[*].dependencies (read 2026-09-28)"
     },
     {
       "url": "https://github.com/scttcper/tinycolor/issues/256",
@@ -25,13 +25,18 @@
     {
       "url": "https://sigh.dev/posts/ctrl-tinycolor-post-mortem/",
       "facts": "target.npmUser (stolen token of the maintainer account)"
+    },
+    {
+      "url": "https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/@ctrl%2Ftinycolor/versions/4.1.1",
+      "facts": "target.dependencies (runtime and optional dependencies; the mirror lists none)"
     }
   ],
   "gaps": [
     "target.integrity unrecoverable: the version is gone from the packument, npmmirror and deps.dev, and no write-up publishes the tarball hash",
     "target.provenance unknown: absence is inferred from the attestation 404, not observed on the manifest",
     "takedownAt is the lower bound 22:47:32Z (a comment saying versions still needed removal); the upper bound is 2025-09-16T00:24:55Z",
-    "target.npmUser comes from Socket's archived page and the maintainer's post-mortem, not the manifest"
+    "target.npmUser comes from Socket's archived page and the maintainer's post-mortem, not the manifest",
+    "target.dependencies come from the packages.ecosyste.ms mirror, which lists runtime and optional dependencies but not peers; no earlier 4.x version declares a peer"
   ],
   "package": "@ctrl/tinycolor",
   "target": {
@@ -45,7 +50,8 @@
     "npmUser": "scttcper",
     "scripts": {
       "postinstall": "node bundle.js"
-    }
+    },
+    "dependencies": {}
   },
   "earlier": [
     {
@@ -56,7 +62,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "3.5.1",
@@ -66,7 +73,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "3.6.0",
@@ -76,7 +84,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "3.6.1",
@@ -86,7 +95,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "4.0.0",
@@ -96,7 +106,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "4.0.1",
@@ -106,7 +117,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "4.0.2",
@@ -116,7 +128,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "4.0.3",
@@ -126,7 +139,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "4.0.4",
@@ -136,7 +150,8 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     },
     {
       "version": "4.1.0",
@@ -146,9 +161,11 @@
         "kind": "absent"
       },
       "npmUser": "scttcper",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {}
     }
   ],
+  "firstPublished": [],
   "feedHits": [
     {
       "feed": "osv",

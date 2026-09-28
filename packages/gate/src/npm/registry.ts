@@ -4,6 +4,7 @@ import { Option, Schema } from 'effect';
 import { request, type HttpClient } from '../http';
 import { UtcTimestamp } from '../time';
 import { npmRegistry } from './lockfile';
+import { dependencyFieldsKept } from './packument';
 
 export type Fetched =
   | {
@@ -56,6 +57,10 @@ const trimVersion = (doc: unknown) =>
     version: keep,
     scripts: keep,
     gypfile: keep,
+    dependencies: keep,
+    optionalDependencies: keep,
+    peerDependencies: keep,
+    peerDependenciesMeta: keep,
     repository: (repository) => pick(repository, { url: keep }),
     _npmUser: (user) => pick(user, { name: keep }),
     dist: (dist) =>
@@ -68,7 +73,7 @@ const trimVersion = (doc: unknown) =>
   });
 
 export function trimPackument(packument: unknown): unknown {
-  return pick(packument, {
+  const trimmed = pick(packument, {
     name: keep,
     time: keep,
     versions: (versions) =>
@@ -81,6 +86,14 @@ export function trimPackument(packument: unknown): unknown {
           )
         : versions,
   });
+
+  return isRecord(trimmed)
+    ? { ...trimmed, dependencyFields: dependencyFieldsKept }
+    : trimmed;
+}
+
+function keptDependencyFields(body: unknown): boolean {
+  return isRecord(body) && body['dependencyFields'] === dependencyFieldsKept;
 }
 
 function escapedName(name: string): string {
@@ -142,7 +155,8 @@ export async function fetchPackument(
 ): Promise<Fetched> {
   const url = packumentUrl(name);
   const path = join(cache.dir, 'packuments', `${name}.json`);
-  const cached = readEntry(path);
+  const entry = readEntry(path);
+  const cached = keptDependencyFields(entry?.body) ? entry : undefined;
   const now = cache.http.now();
   const age =
     cached === undefined

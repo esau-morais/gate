@@ -95,6 +95,14 @@ const evidenceEnvironment = new Environment()
       workflow: 'string',
     },
   })
+  .registerType({
+    name: 'FirstPublish',
+    schema: { kind: 'string', at: 'google.protobuf.Timestamp' },
+  })
+  .registerType({
+    name: 'AddedDependency',
+    schema: { name: 'string', spec: 'string', firstPublish: 'FirstPublish' },
+  })
   .registerVariable('evidence', {
     schema: {
       subject: { ecosystem: 'string', name: 'string', version: 'string' },
@@ -116,6 +124,7 @@ const evidenceEnvironment = new Environment()
         repositoryCheck: 'string',
       },
       installScripts: { kind: 'string' },
+      newDependencies: { kind: 'string', added: 'list<AddedDependency>' },
       integrityCheck: 'string',
       feeds: { kind: 'string', hits: 'list<FeedHit>' },
     },

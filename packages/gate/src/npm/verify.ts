@@ -10,7 +10,7 @@ import {
   type Location,
 } from './lockfile';
 import { feedsFor, type OsvSnapshot } from './osv';
-import { npmPackumentFacts } from './packument';
+import { npmFirstPublish, npmPackumentFacts } from './packument';
 import type { TrustRoot } from './provenance';
 
 export type EvidenceStore = {
@@ -49,6 +49,7 @@ function unknownEvidence(
     publisher: { kind: 'unknown', reason },
     publisherExcludingRemoved: { kind: 'unknown', reason },
     installScripts: { kind: 'unknown', reason },
+    newDependencies: { kind: 'unknown', reason },
     integrityCheck: 'unchecked',
     feeds,
     claims: [],
@@ -93,6 +94,8 @@ function registryEvidence(
     registry: npmRegistry,
     target: facts.target,
     earlier: facts.earlier,
+    firstPublish: (name) =>
+      npmFirstPublish({ packument: store.packument(name), name }),
     lockfile: { integrity },
     feeds,
     claims: [],

@@ -8,7 +8,7 @@
     },
     {
       "url": "https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/postmark-mcp/versions/1.0.16",
-      "facts": "target.integrity, npmUser, scripts, provenance (mirrored dist has no attestations); same endpoint per earlier version"
+      "facts": "target.integrity, npmUser, scripts, provenance (mirrored dist has no attestations); same endpoint per earlier version; target.dependencies, and earlier[*].dependencies from the same endpoint per version"
     },
     {
       "url": "https://www.koi.security/blog/postmark-mcp-npm-malicious-backdoor-email-theft",
@@ -17,11 +17,16 @@
     {
       "url": "https://api.osv.dev/v1/vulns/MAL-2025-47604",
       "facts": "feedHits"
+    },
+    {
+      "url": "https://registry.npmjs.org/zod",
+      "facts": "firstPublished for zod; likewise https://registry.npmjs.org/dotenv, /postmark, /node-fetch and /@modelcontextprotocol%2fsdk, each the earliest time entry"
     }
   ],
   "gaps": [
     "version documents are gone from the registry; the facts come from the packages.ecosyste.ms mirror",
-    "the first public report came after the takedown, so no evaluation uses it"
+    "the first public report came after the takedown, so no evaluation uses it",
+    "target and earlier dependencies list runtime and optional dependencies from the packages.ecosyste.ms mirror; peers are not shown there"
   ],
   "package": "postmark-mcp",
   "target": {
@@ -32,7 +37,14 @@
       "kind": "absent"
     },
     "npmUser": "phanpak",
-    "scripts": {}
+    "scripts": {},
+    "dependencies": {
+      "zod": "^3.23.8",
+      "dotenv": "^16.4.5",
+      "postmark": "^4.0.5",
+      "node-fetch": "^3.3.2",
+      "@modelcontextprotocol/sdk": "^1.12.1"
+    }
   },
   "earlier": [
     {
@@ -43,7 +55,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.7",
@@ -53,7 +72,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.8",
@@ -63,7 +89,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.9",
@@ -73,7 +106,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.10",
@@ -83,7 +123,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.11",
@@ -93,7 +140,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.12",
@@ -103,7 +157,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.13",
@@ -113,7 +174,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.12.1",
+        "dotenv": "^16.4.5",
+        "node-fetch": "^3.3.2",
+        "postmark": "^4.0.5",
+        "zod": "^3.23.8"
+      }
     },
     {
       "version": "1.0.14",
@@ -123,7 +191,14 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
     },
     {
       "version": "1.0.15",
@@ -133,7 +208,36 @@
         "kind": "absent"
       },
       "npmUser": "phanpak",
-      "scripts": {}
+      "scripts": {},
+      "dependencies": {
+        "zod": "^3.23.8",
+        "dotenv": "^16.4.5",
+        "postmark": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "@modelcontextprotocol/sdk": "^1.12.1"
+      }
+    }
+  ],
+  "firstPublished": [
+    {
+      "package": "@modelcontextprotocol/sdk",
+      "at": "2024-11-11T15:53:15.703Z"
+    },
+    {
+      "package": "dotenv",
+      "at": "2013-07-05T18:29:15.210Z"
+    },
+    {
+      "package": "node-fetch",
+      "at": "2015-01-27T13:17:06.232Z"
+    },
+    {
+      "package": "postmark",
+      "at": "2011-03-25T11:43:00.043Z"
+    },
+    {
+      "package": "zod",
+      "at": "2020-03-07T21:19:15.387Z"
     }
   ],
   "feedHits": [

@@ -3,6 +3,7 @@ import {
   supplyChainPolicyV1Digest,
   supplyChainPolicyV2Digest,
   supplyChainPolicyV3Digest,
+  supplyChainPolicyV4Digest,
 } from '../../src/policies';
 import { loadPolicy } from '../../src/policy';
 
@@ -40,4 +41,16 @@ export const supplyChainPolicyV3 = {
 
 export function loadSupplyChainPolicyV3() {
   return loadPolicy(supplyChainPolicyV3.bytes(), supplyChainPolicyV3Digest);
+}
+
+export const supplyChainPolicyV4 = {
+  bytes: (): Uint8Array =>
+    readFileSync(
+      new URL('../../policies/supply-chain-policy-v4.json', import.meta.url),
+    ),
+  digest: supplyChainPolicyV4Digest,
+};
+
+export function loadSupplyChainPolicyV4() {
+  return loadPolicy(supplyChainPolicyV4.bytes(), supplyChainPolicyV4Digest);
 }

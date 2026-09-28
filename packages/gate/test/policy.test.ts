@@ -3,6 +3,7 @@ import { Schema } from 'effect';
 import { AllowedSource, Waiver } from '../src/context';
 import {
   Sha512Integrity,
+  type FirstPublish,
   type Identity,
   type PackageVersionEvidence,
   type RepositoryCheck,
@@ -12,12 +13,16 @@ import {
   loadSupplyChainPolicyV1,
   loadSupplyChainPolicyV2,
   loadSupplyChainPolicyV3,
+  loadSupplyChainPolicyV4,
   supplyChainPolicyV1,
+  supplyChainPolicyV3,
+  supplyChainPolicyV4,
 } from './support/policies';
 
 const policy = loadSupplyChainPolicyV1();
 const policyV2 = loadSupplyChainPolicyV2();
 const policyV3 = loadSupplyChainPolicyV3();
+const policyV4 = loadSupplyChainPolicyV4();
 const now = new Date('2026-06-01T00:00:00Z');
 const hours = (n: number) => new Date(now.getTime() - n * 3_600_000);
 const identity = {
@@ -414,6 +419,188 @@ describe('SupplyChainPolicy/v3', () => {
     expect(decision.reasons.every((reason) => reason.kind === 'failed')).toBe(
       true,
     );
+  });
+});
+
+describe('SupplyChainPolicy/v4', () => {
+  const decodeRules = Schema.decodeUnknownSync(
+    Schema.fromJsonString(
+      Schema.Struct({
+        rules: Schema.Array(
+          Schema.Struct({ code: Schema.String, when: Schema.String }),
+        ),
+      }),
+    ),
+  );
+  const v3Fields = {
+    earlierProvenanceExcludingRemoved: clean.earlierProvenance,
+    publisherExcludingRemoved: { kind: 'continuous', identity },
+  } as const;
+  const decideV4 = (evidence: Partial<PackageVersionEvidence>) =>
+    run(
+      { ...v3Fields, newDependencies: { kind: 'none' }, ...evidence },
+      { canonical: policyV4 },
+    );
+  const publishedAt = hours(24 * 30);
+  const dependency = (
+    firstPublish: FirstPublish,
+  ): Partial<PackageVersionEvidence> => ({
+    newDependencies: {
+      kind: 'added',
+      added: [{ name: 'dep', spec: '^1.0.0', firstPublish }],
+    },
+  });
+  const firstPublishedBefore = (hoursBefore: number) =>
+    dependency({
+      kind: 'packument',
+      at: new Date(publishedAt.getTime() - hoursBefore * 3_600_000),
+    });
+
+  test('is v3 plus a waivable young-dependency rule and an unknown-dependencies rule', () => {
+    const shape = (rules: typeof policyV4.rules) =>
+      rules.map(({ code, outcome, waivable }) => [code, outcome, waivable]);
+
+    expect(shape(policyV4.rules)).toEqual([
+      ...shape(policyV3.rules).filter(
+        ([code]) => code !== 'integrity_mismatch',
+      ),
+      ['new_dependency_young', 'QUARANTINE', true],
+      ['new_dependencies_unknown', 'QUARANTINE', false],
+      ['integrity_mismatch', 'REJECT', false],
+    ]);
+    const rulesOf = (bytes: Uint8Array) =>
+      decodeRules(new TextDecoder().decode(bytes)).rules;
+
+    expect(
+      rulesOf(supplyChainPolicyV4.bytes()).filter(
+        (rule) => !rule.code.startsWith('new_dependenc'),
+      ),
+    ).toEqual([...rulesOf(supplyChainPolicyV3.bytes())]);
+  });
+
+  test('decides like v3 when a version adds no dependency', () => {
+    for (const evidence of [{}, ...Object.values(firesEachRule)]) {
+      const v3 = run({ ...v3Fields, ...evidence }, { canonical: policyV3 });
+
+      expect([decideV4(evidence).outcome, codes(decideV4(evidence))]).toEqual([
+        v3.outcome,
+        codes(v3),
+      ]);
+    }
+  });
+
+  test('a dependency whose package was first published less than 30 days before this version quarantines', () => {
+    expect(codes(decideV4(firstPublishedBefore(719.99)))).toEqual([
+      'new_dependency_young',
+    ]);
+    expect(codes(decideV4(firstPublishedBefore(720)))).toEqual([]);
+    expect(codes(decideV4(firstPublishedBefore(-1)))).toEqual([
+      'new_dependency_young',
+    ]);
+  });
+
+  test('one young dependency among older ones is enough', () => {
+    expect(
+      codes(
+        decideV4({
+          newDependencies: {
+            kind: 'added',
+            added: [
+              {
+                name: 'old',
+                spec: '^1',
+                firstPublish: { kind: 'packument', at: hours(24 * 3650) },
+              },
+              {
+                name: 'young',
+                spec: '^1',
+                firstPublish: { kind: 'packument', at: hours(24 * 31) },
+              },
+            ],
+          },
+        }),
+      ),
+    ).toEqual(['new_dependency_young']);
+  });
+
+  test('the young-dependency rule stops firing 90 days after publish', () => {
+    const at = (days: number) =>
+      codes(
+        decideV4({
+          publishTime: { kind: 'packument', at: hours(24 * days) },
+          ...dependency({ kind: 'packument', at: hours(24 * days + 1) }),
+        }),
+      );
+
+    expect({ before: at(89.999), after: at(90) }).toEqual({
+      before: ['new_dependency_young'],
+      after: [],
+    });
+  });
+
+  test('an unknown dependency list or first publish quarantines, past 90 days too, and no waiver clears it', () => {
+    const old = {
+      publishTime: { kind: 'packument', at: hours(24 * 365) },
+    } as const;
+    const waiver = {
+      policy: 'SupplyChainPolicy/v4',
+      package: 'lib',
+      version: '1.2.0',
+      integrity,
+      rule: 'new_dependencies_unknown',
+      reason: 'try',
+      author: 'probe@example.com',
+      expiresAt: '2027-01-01T00:00:00Z',
+    };
+
+    for (const evidence of [
+      { newDependencies: { kind: 'unknown', reason: 'unreadable' } } as const,
+      dependency({ kind: 'unknown', reason: 'no packument recorded' }),
+    ]) {
+      const decision = run(
+        { ...v3Fields, ...old, ...evidence },
+        { canonical: policyV4, waivers: [waiver] },
+      );
+
+      expect([decision.outcome, codes(decision)]).toEqual([
+        'QUARANTINE',
+        ['new_dependencies_unknown'],
+      ]);
+    }
+  });
+
+  test('a node from a git, URL or file source is judged by exotic_source, not by what it adds', () => {
+    for (const newDependencies of [
+      firstPublishedBefore(1),
+      { newDependencies: { kind: 'unknown', reason: 'unreadable' } } as const,
+    ]) {
+      expect(
+        codes(
+          decideV4({ ...firesEachRule['exotic_source'], ...newDependencies }),
+        ),
+      ).toEqual(['exotic_source']);
+    }
+  });
+
+  test('a new git, URL or file dependency is left to exotic_source on its own lockfile node', () => {
+    expect(decideV4(dependency({ kind: 'exotic' })).outcome).toBe('ACCEPT');
+  });
+
+  test('evidence recorded before newDependencies existed never accepts, even long after publish', () => {
+    for (const age of [24 * 30, 24 * 365]) {
+      const decision = run(
+        { ...v3Fields, publishTime: { kind: 'packument', at: hours(age) } },
+        { canonical: policyV4 },
+      );
+
+      expect(decision.outcome).toBe('QUARANTINE');
+      expect(decision.reasons.every((reason) => reason.kind === 'failed')).toBe(
+        true,
+      );
+      expect(decision.reasons.map((reason) => reason.code)).toContain(
+        'new_dependencies_unknown',
+      );
+    }
   });
 });
 

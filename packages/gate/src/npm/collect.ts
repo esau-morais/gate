@@ -5,7 +5,8 @@ import { mapConcurrent, type HttpClient } from '../http';
 import { formatGap, isEvidenceName } from './evidence-directory';
 import type { LockfileNode } from './lockfile';
 import { fetchMalwareFeed, type FeedSnapshot } from './malware-feed';
-import { attestedVersions } from './packument';
+import { addedDependencyPackages } from './evidence';
+import { attestedVersions, npmPackumentFacts } from './packument';
 import {
   fetchAttestations,
   fetchPackument,
@@ -149,6 +150,44 @@ export async function collectEvidence(input: {
       fetched: await fetchPackument(registry, name),
     }),
   );
+  const dependencyNames = new Set<string>();
+  for (const { name, fetched } of packuments) {
+    if (fetched.kind === 'failed') {
+      continue;
+    }
+
+    for (const version of targets.get(name) ?? []) {
+      const facts = npmPackumentFacts({
+        packument: fetched.body,
+        name,
+        version,
+        attestations: new Map(),
+        trust: {
+          kind: 'unavailable',
+          reason: 'not needed to list dependencies',
+        },
+      });
+      if (facts.kind === 'read') {
+        for (const added of addedDependencyPackages(
+          facts.target,
+          facts.earlier,
+        )) {
+          if (!targets.has(added) && isEvidenceName(added)) {
+            dependencyNames.add(added);
+          }
+        }
+      }
+    }
+  }
+
+  const dependencyPackuments = await mapConcurrent(
+    [...dependencyNames].toSorted(),
+    concurrency,
+    async (name) => ({
+      name,
+      fetched: await fetchPackument(registry, name),
+    }),
+  );
   const wanted = new Map<string, { name: string; version: string }>();
   const skipped: string[] = [];
   for (const { name, fetched } of packuments) {
@@ -207,7 +246,7 @@ export async function collectEvidence(input: {
     });
   };
 
-  for (const { name, fetched } of packuments) {
+  for (const { name, fetched } of [...packuments, ...dependencyPackuments]) {
     record(`packuments/${name}.json`, fetched);
   }
 

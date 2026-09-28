@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Schema } from 'effect';
-import { Sha512Integrity } from '../src/evidence';
+import { Sha512Integrity, type FirstPublish } from '../src/evidence';
 import { NpmVersionFacts } from '../src/npm/facts';
 import { npmVersionEvidence } from '../src/npm/evidence';
 
@@ -18,6 +18,7 @@ function facts(
     provenance: { kind: 'absent' },
     npmUser: 'maintainer',
     scripts: {},
+    dependencies: {},
     ...overrides,
   });
 }
@@ -35,6 +36,21 @@ const canary = {
   workflow: '.github/workflows/canary.yml',
 };
 
+const firstPublishes: Readonly<Record<string, string>> = {
+  'left-pad': '2014-03-22T00:00:00Z',
+  'fresh-dep': '2026-01-20T00:00:00Z',
+};
+
+function firstPublishOf(name: string): FirstPublish {
+  const at = Object.hasOwn(firstPublishes, name)
+    ? firstPublishes[name]
+    : undefined;
+
+  return at === undefined
+    ? { kind: 'unknown', reason: 'no packument recorded' }
+    : { kind: 'packument', at: new Date(at) };
+}
+
 function evidenceFor(
   target: NpmVersionFacts,
   earlier: readonly NpmVersionFacts[],
@@ -45,6 +61,7 @@ function evidenceFor(
     registry: 'https://registry.npmjs.org',
     target,
     earlier,
+    firstPublish: firstPublishOf,
     feeds: { kind: 'checked', hits: [] },
     claims: [],
     ...(lockfile === undefined ? {} : { lockfile }),
@@ -351,6 +368,185 @@ describe('removed versions', () => {
       evidence.earlierProvenanceExcludingRemoved,
       evidence.publisherExcludingRemoved?.kind,
     ]).toEqual(['none', 'first']);
+  });
+});
+
+describe('new dependencies', () => {
+  const on = (
+    version: string,
+    time: string,
+    dependencies: NpmVersionFacts['dependencies'],
+  ) => facts(version, time, { dependencies });
+  const added = (name: string, spec: string, firstPublish: FirstPublish) => ({
+    name,
+    spec,
+    firstPublish,
+  });
+
+  test('a dependency the previous settled version lacked is added, with when its package was first published', () => {
+    const evidence = evidenceFor(
+      on('1.2.0', '2026-01-22T00:00:00Z', {
+        'left-pad': '^1.0.0',
+        'fresh-dep': '^0.1.0',
+      }),
+      [on('1.1.0', '2026-01-15T00:00:00Z', { 'left-pad': '^1.0.0' })],
+    );
+
+    expect(evidence.newDependencies).toEqual({
+      kind: 'added',
+      added: [added('fresh-dep', '^0.1.0', firstPublishOf('fresh-dep'))],
+    });
+  });
+
+  test('a changed range of the same package adds nothing', () => {
+    const evidence = evidenceFor(
+      on('1.2.0', '2026-01-22T00:00:00Z', { 'left-pad': '^2.0.0' }),
+      [on('1.1.0', '2026-01-15T00:00:00Z', { 'left-pad': '^1.0.0' })],
+    );
+
+    expect(evidence.newDependencies).toEqual({ kind: 'none' });
+  });
+
+  test('an npm: alias is judged by the package it names, not its key', () => {
+    const evidence = evidenceFor(
+      on('1.2.0', '2026-01-22T00:00:00Z', {
+        pad: 'npm:left-pad@^1.0.0',
+        'left-pad': 'npm:fresh-dep@0.1.0',
+      }),
+      [on('1.1.0', '2026-01-15T00:00:00Z', { 'left-pad': '^1.0.0' })],
+    );
+
+    expect(evidence.newDependencies).toEqual({
+      kind: 'added',
+      added: [
+        added('left-pad', 'npm:fresh-dep@0.1.0', firstPublishOf('fresh-dep')),
+      ],
+    });
+  });
+
+  test('a git, URL or file dependency is added as exotic without a registry lookup', () => {
+    const git = 'github:acme/setup#79ac49eedf774dd4b0cfa308722bc463cfe5885c';
+    const evidence = evidenceFor(
+      on('1.2.0', '2026-01-22T00:00:00Z', {
+        setup: git,
+        tarball: 'https://acme.dev/tarball.tgz',
+        local: 'file:../local',
+        shorthand: 'acme/shorthand',
+        home: '~/lib',
+        windows: 'C:\\lib',
+      }),
+      [on('1.1.0', '2026-01-15T00:00:00Z', {})],
+    );
+
+    expect(evidence.newDependencies).toEqual({
+      kind: 'added',
+      added: [
+        added('setup', git, { kind: 'exotic' }),
+        added('tarball', 'https://acme.dev/tarball.tgz', { kind: 'exotic' }),
+        added('local', 'file:../local', { kind: 'exotic' }),
+        added('shorthand', 'acme/shorthand', { kind: 'exotic' }),
+        added('home', '~/lib', { kind: 'exotic' }),
+        added('windows', 'C:\\lib', { kind: 'exotic' }),
+      ],
+    });
+  });
+
+  test('tilde, x and tag ranges name registry packages', () => {
+    const evidence = evidenceFor(
+      on('1.2.0', '2026-01-22T00:00:00Z', {
+        'left-pad': '~1.3.0',
+        'fresh-dep': 'latest',
+      }),
+      [on('1.1.0', '2026-01-15T00:00:00Z', { 'left-pad': '1.x' })],
+    );
+
+    expect(evidence.newDependencies).toEqual({
+      kind: 'added',
+      added: [added('fresh-dep', 'latest', firstPublishOf('fresh-dep'))],
+    });
+  });
+
+  test('a dependency whose package gate has no packument for is added with an unknown first publish', () => {
+    const evidence = evidenceFor(
+      on('1.2.0', '2026-01-22T00:00:00Z', { unheard: '1.0.0' }),
+      [on('1.1.0', '2026-01-15T00:00:00Z', {})],
+    );
+
+    expect(evidence.newDependencies).toEqual({
+      kind: 'added',
+      added: [
+        added('unheard', '1.0.0', {
+          kind: 'unknown',
+          reason: 'no packument recorded',
+        }),
+      ],
+    });
+  });
+
+  test('the baseline is the latest settled version, so an unsettled release cannot vouch for a dependency', () => {
+    const evidence = evidenceFor(
+      on('1.2.1', '2026-01-22T01:00:00Z', { 'fresh-dep': '^0.1.0' }),
+      [
+        on('1.1.0', '2026-01-15T00:00:00Z', {}),
+        on('1.2.0', '2026-01-22T00:00:00Z', { 'fresh-dep': '^0.1.0' }),
+      ],
+    );
+
+    expect(evidence.newDependencies?.kind).toBe('added');
+  });
+
+  test('a removed version is skipped, and the baseline is the latest listed settled version', () => {
+    const removed = facts('1.1.1', '2026-01-10T00:00:00Z', {
+      provenance: { kind: 'unavailable', reason: 'version document missing' },
+      npmUser: null,
+      scripts: 'unknown',
+      dependencies: 'unknown',
+      removed: true,
+    });
+
+    expect(
+      evidenceFor(on('1.1.2', '2026-01-22T00:00:00Z', { 'left-pad': '^1' }), [
+        on('1.1.0', '2026-01-01T00:00:00Z', { 'left-pad': '^1' }),
+        removed,
+      ]).newDependencies,
+    ).toEqual({ kind: 'none' });
+    expect(
+      evidenceFor(on('1.1.2', '2026-01-22T00:00:00Z', { 'left-pad': '^1' }), [
+        removed,
+      ]).newDependencies,
+    ).toEqual({
+      kind: 'unknown',
+      reason: 'every earlier version was removed',
+    });
+  });
+
+  test('unreadable dependencies of this or the previous version are unknown, never none added', () => {
+    expect(
+      evidenceFor(on('1.2.0', '2026-01-22T00:00:00Z', 'unknown'), [
+        on('1.1.0', '2026-01-15T00:00:00Z', {}),
+      ]).newDependencies,
+    ).toEqual({
+      kind: 'unknown',
+      reason: 'dependencies of this version unreadable',
+    });
+    expect(
+      evidenceFor(on('1.2.0', '2026-01-22T00:00:00Z', {}), [
+        on('1.1.0', '2026-01-15T00:00:00Z', 'unknown'),
+      ]).newDependencies,
+    ).toEqual({
+      kind: 'unknown',
+      reason: 'dependencies of the previous version unreadable',
+    });
+  });
+
+  test('every dependency of a first publish is added', () => {
+    expect(
+      evidenceFor(on('1.0.0', '2026-01-22T00:00:00Z', { 'left-pad': '^1' }), [])
+        .newDependencies,
+    ).toEqual({
+      kind: 'added',
+      added: [added('left-pad', '^1', firstPublishOf('left-pad'))],
+    });
   });
 });
 

@@ -26,6 +26,9 @@ function tree(files: Record<string, string | undefined>): Tree {
 
 const json = (value: unknown) => JSON.stringify(value);
 
+const omit = (value: object, key: string) =>
+  Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
+
 function expectViolation(violations: string[], text: string) {
   expect(violations).toHaveLength(1);
   expect(violations[0]).toContain(text);
@@ -219,6 +222,59 @@ describe('replay fixtures', () => {
 
   test('flags an unreadable fixture instead of skipping it', () => {
     expect(check({ [fixturePath]: '{' })).toHaveLength(1);
+  });
+
+  test('reads a base fixture written before the fixture format gained a field', () => {
+    const older = omit(recordedFixture, 'firstPublished');
+
+    expect(
+      guardViolations({
+        base: tree({
+          ...base,
+          [fixturePath]: json({
+            ...older,
+            target: omit(recordedFixture.target, 'dependencies'),
+            earlier: recordedFixture.earlier.map((facts) =>
+              omit(facts, 'dependencies'),
+            ),
+          }),
+        }),
+        head: tree(base),
+      }),
+    ).toEqual([]);
+  });
+
+  test('flags a reason dropped from the expectation under one policy', () => {
+    expectViolation(
+      check({
+        [fixturePath]: editFirstReport((evaluation) => ({
+          ...evaluation,
+          expectedUnder: {
+            'SupplyChainPolicy/v4': {
+              outcome: 'QUARANTINE',
+              reasons: ['release_age', 'integrity_unknown'],
+            },
+          },
+        })),
+      }),
+      'SupplyChainPolicy/v4',
+    );
+  });
+
+  test('flags an expectation under one policy removed in favor of a weaker shared one', () => {
+    expectViolation(
+      check({
+        [fixturePath]: json({
+          ...recordedFixture,
+          evaluations: recordedFixture.evaluations.map((evaluation) =>
+            evaluation.at.getTime() === Date.parse(firstReport)
+              ? omit(evaluation, 'expectedUnder')
+              : evaluation,
+          ),
+        }),
+      }),
+      'new_dependencies_unknown',
+    );
   });
 
   test('flags an unreadable base fixture instead of skipping it', () => {

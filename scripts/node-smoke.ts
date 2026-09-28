@@ -47,6 +47,10 @@ try {
     import.meta.dir,
     '../packages/gate/policies/supply-chain-policy-v1.json',
   );
+  const policyV4 = join(
+    import.meta.dir,
+    '../packages/gate/policies/supply-chain-policy-v4.json',
+  );
   const script = `
     import { readFileSync } from 'node:fs';
     import { evaluate } from ${JSON.stringify(cel)};
@@ -62,15 +66,22 @@ try {
       if (evaluate(expr, context) !== true) throw new Error('failed on Node: ' + expr);
     }
     const canonical = gate.loadPolicy(readFileSync(${JSON.stringify(policy)}), gate.supplyChainPolicyV1Digest);
-    const version = (v, time) => ({ version: v, time: new Date(time), integrity: 'sha512-' + 'A'.repeat(86) + '==', provenance: { kind: 'absent' }, npmUser: 'm', scripts: {} });
+    const version = (v, time, dependencies) => ({ version: v, time: new Date(time), integrity: 'sha512-' + 'A'.repeat(86) + '==', provenance: { kind: 'absent' }, npmUser: 'm', scripts: {}, dependencies });
     const evidence = gate.npmVersionEvidence({
       name: 'lib', registry: 'https://registry.npmjs.org',
-      target: version('1.1.0', '2026-01-02T00:00:00Z'), earlier: [version('1.0.0', '2025-12-01T00:00:00Z')],
+      target: version('1.1.0', '2026-01-02T00:00:00Z', { fresh: '^1.0.0' }), earlier: [version('1.0.0', '2025-12-01T00:00:00Z', {})],
+      firstPublish: () => ({ kind: 'packument', at: new Date('2026-01-01T00:00:00Z') }),
       feeds: { kind: 'checked', hits: [] }, claims: [],
     });
-    const decision = gate.decide({ evidence, now: new Date('2026-01-02T01:00:00Z'), context: { allowedSources: [], waivers: [] }, canonical });
-    if (decision.outcome !== 'QUARANTINE' || decision.reasons.map((r) => r.code).join() !== 'release_age') {
-      throw new Error('policy decision differs on Node: ' + JSON.stringify(decision));
+    const decisions = [
+      [canonical, 'release_age'],
+      [gate.loadPolicy(readFileSync(${JSON.stringify(policyV4)}), gate.supplyChainPolicyV4Digest), 'release_age,new_dependency_young'],
+    ];
+    for (const [policy, reasons] of decisions) {
+      const decision = gate.decide({ evidence, now: new Date('2026-01-02T01:00:00Z'), context: { allowedSources: [], waivers: [] }, canonical: policy });
+      if (decision.outcome !== 'QUARANTINE' || decision.reasons.map((r) => r.code).join() !== reasons) {
+        throw new Error('policy decision differs on Node: ' + JSON.stringify(decision));
+      }
     }
     console.log('@gate/cel and @gate/gate bundles ok on Node ' + process.version);
   `;
